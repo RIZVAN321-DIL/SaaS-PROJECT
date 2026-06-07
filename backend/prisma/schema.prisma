@@ -1,1 +1,88 @@
-// TODO
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  users     User[]
+  clients   Client[]
+  cases     Case[]
+
+  @@map("organizations")
+}
+
+model User {
+  id             String       @id @default(uuid())
+  organizationId String
+
+  name           String
+  email          String       @unique
+  passwordHash   String
+  role           UserRole     @default(LAWYER)
+
+  createdAt      DateTime     @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("users")
+}
+
+model Client {
+  id             String       @id @default(uuid())
+  organizationId String
+
+  fullName       String
+  phone          String?
+  email          String?
+  notes          String?
+
+  createdAt      DateTime     @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  cases          Case[]
+
+  @@index([organizationId])
+  @@map("clients")
+}
+
+model Case {
+  id             String       @id @default(uuid())
+  organizationId String
+  clientId       String
+
+  title          String
+  status         CaseStatus   @default(ACTIVE)
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  client         Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([clientId])
+  @@map("cases")
+}
+
+enum UserRole {
+  ADMIN
+  LAWYER
+  ASSISTANT
+}
+
+enum CaseStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
