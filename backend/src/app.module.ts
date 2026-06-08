@@ -3,38 +3,42 @@ import { ConfigModule } from '@nestjs/config';
 
 import { PrismaModule } from './database/prisma.module';
 
-// Core SaaS modules
+// Auth & Core
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 
-// Business modules
+// CRM Core
 import { ClientsModule } from './modules/clients/clients.module';
 import { CasesModule } from './modules/cases/cases.module';
 import { CaseTypesModule } from './modules/case-types/case-types.module';
+
+// Operations
 import { TasksModule } from './modules/tasks/tasks.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
 
 @Module({
   imports: [
-    // 🔧 Config (env, settings)
+    // ENV config (global)
     ConfigModule.forRoot({
       isGlobal: true,
     }),
 
-    // 🗄 Database layer
+    // DB layer
     PrismaModule,
 
-    // 🔐 Core SaaS
+    // Core SaaS
     AuthModule,
     UsersModule,
     OrganizationsModule,
 
-    // 📦 Business logic
+    // CRM domain
     ClientsModule,
     CasesModule,
     CaseTypesModule,
+
+    // Operations layer
     TasksModule,
     DocumentsModule,
     CalendarModule,
