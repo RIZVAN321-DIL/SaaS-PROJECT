@@ -1,1 +1,46 @@
-// TODO
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16
+
+    container_name: crm-postgres
+
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: crm_saas
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+
+    container_name: crm-backend
+
+    restart: unless-stopped
+
+    depends_on:
+      - postgres
+
+    ports:
+      - "3000:3000"
+
+    environment:
+      PORT: 3000
+
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/crm_saas?schema=public
+
+      JWT_SECRET: change_this_to_a_long_random_secret
+
+      JWT_EXPIRES_IN: 7d
+
+volumes:
+  postgres_data:
