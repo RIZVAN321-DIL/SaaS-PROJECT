@@ -1,0 +1,25 @@
+# Node modules
+node_modules/
+
+# TypeScript output
+dist/
+
+# Env files
+.env
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Prisma
+/prisma/migrations/
+prisma/generated/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
