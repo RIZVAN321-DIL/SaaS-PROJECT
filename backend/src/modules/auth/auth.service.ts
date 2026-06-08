@@ -1,34 +1,49 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../database/prisma.service';
 import * as bcrypt from 'bcrypt';
-import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private prisma: PrismaService,
-    private jwtService: JwtService,
+    private readonly prisma: PrismaService,
+    private readonly jwtService: JwtService,
   ) {}
 
-  async register(email: string, password: string) {
-    const hashed = await bcrypt.hash(password, 10);
+  // Регистрация пользователя
+  async register(data: { email: string; password: string; organizationId: string }) {
+    const hashedPassword = await bcrypt.hash(data.password, 10);
     const user = await this.prisma.user.create({
-      data: { email, password: hashed },
+      data: {
+        email: data.email,
+        password: hashedPassword,
+        organizationId: data.organizationId,
+      },
     });
-    return user;
+
+    return this.getJwtToken(user.id, user.email, user.organizationId);
   }
 
+  // Логин пользователя
   async login(email: string, password: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user) throw new UnauthorizedException('Invalid credentials');
-    const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) throw new UnauthorizedException('Invalid credentials');
 
+    const passwordValid = await bcrypt.compare(password, user.password);
+    if (!passwordValid) throw new UnauthorizedException('Invalid credentials');
+
+    return this.getJwtToken(user.id, user.email, user.organizationId);
+  }
+
+  // Генерация JWT токена
+  private getJwtToken(userId: string, email: string, organizationId: string) {
     const payload = {
-  sub: user.id,
-  email: user.email,
-  organizationId: user.organizationId,
-};
-    return { access_token: this.jwtService.sign(payload) };
+      sub: userId,
+      email,
+      organizationId,
+    };
+    return {
+      access_token: this.jwtService.sign(payload),
+    };
   }
 }
