@@ -6,23 +6,35 @@ export class CaseTypesService {
   constructor(private prisma: PrismaService) {}
 
   // =========================
-  // CRUD: CREATE CASE TYPE
+  // CREATE CASE TYPE (WITH TEMPLATES)
   // =========================
   async create(data: {
     organizationId: string;
     name: string;
     description?: string;
+
+    // 🧠 NEW: JSON templates
+    tasksTemplate?: string[]; // ["task 1", "task 2"]
+    documentsTemplate?: string[]; // ["doc 1", "doc 2"]
   }) {
     return this.prisma.caseType.create({
-      data,
+      data: {
+        organizationId: data.organizationId,
+        name: data.name,
+        description: data.description,
+
+        // store as JSON string (safe for Prisma without schema change)
+        tasksTemplate: JSON.stringify(data.tasksTemplate || []),
+        documentsTemplate: JSON.stringify(data.documentsTemplate || []),
+      },
     });
   }
 
   // =========================
-  // CRUD: GET ALL
+  // GET ALL
   // =========================
   async findAll(organizationId: string) {
-    return this.prisma.caseType.findMany({
+    const types = await this.prisma.caseType.findMany({
       where: { organizationId },
       include: {
         _count: {
@@ -30,10 +42,17 @@ export class CaseTypesService {
         },
       },
     });
+
+    // parse templates back to JSON
+    return types.map((t) => ({
+      ...t,
+      tasksTemplate: JSON.parse((t as any).tasksTemplate || '[]'),
+      documentsTemplate: JSON.parse((t as any).documentsTemplate || '[]'),
+    }));
   }
 
   // =========================
-  // CRUD: GET ONE
+  // GET ONE
   // =========================
   async findById(id: string) {
     const caseType = await this.prisma.caseType.findUnique({
@@ -47,27 +66,42 @@ export class CaseTypesService {
       throw new NotFoundException('CaseType not found');
     }
 
-    return caseType;
+    return {
+      ...caseType,
+      tasksTemplate: JSON.parse((caseType as any).tasksTemplate || '[]'),
+      documentsTemplate: JSON.parse((caseType as any).documentsTemplate || '[]'),
+    };
   }
 
   // =========================
-  // CRUD: UPDATE
+  // UPDATE
   // =========================
   async update(
     id: string,
     data: {
       name?: string;
       description?: string;
+      tasksTemplate?: string[];
+      documentsTemplate?: string[];
     },
   ) {
     return this.prisma.caseType.update({
       where: { id },
-      data,
+      data: {
+        name: data.name,
+        description: data.description,
+        tasksTemplate: data.tasksTemplate
+          ? JSON.stringify(data.tasksTemplate)
+          : undefined,
+        documentsTemplate: data.documentsTemplate
+          ? JSON.stringify(data.documentsTemplate)
+          : undefined,
+      },
     });
   }
 
   // =========================
-  // CRUD: DELETE
+  // DELETE
   // =========================
   async remove(id: string) {
     return this.prisma.caseType.delete({
@@ -76,7 +110,7 @@ export class CaseTypesService {
   }
 
   // ======================================================
-  // 🧠 CASE TYPE ENGINE: CREATE CASE FROM TEMPLATE
+  // 🧠 ENGINE: CREATE CASE FROM TEMPLATE
   // ======================================================
   async createCaseFromType(data: {
     caseTypeId: string;
@@ -85,7 +119,7 @@ export class CaseTypesService {
     title: string;
     description?: string;
   }) {
-    // 1. Получаем шаблон CaseType
+    // 1. Get CaseType
     const caseType = await this.prisma.caseType.findUnique({
       where: { id: data.caseTypeId },
     });
@@ -94,7 +128,15 @@ export class CaseTypesService {
       throw new NotFoundException('CaseType not found');
     }
 
-    // 2. Создаём Case
+    const tasksTemplate: string[] = JSON.parse(
+      (caseType as any).tasksTemplate || '[]',
+    );
+
+    const documentsTemplate: string[] = JSON.parse(
+      (caseType as any).documentsTemplate || '[]',
+    );
+
+    // 2. Create Case
     const newCase = await this.prisma.case.create({
       data: {
         organizationId: data.organizationId,
@@ -105,44 +147,28 @@ export class CaseTypesService {
       },
     });
 
-    // 3. Автоматическое создание задач
-    await this.prisma.task.createMany({
-      data: [
-        {
+    // 3. Generate Tasks from template
+    if (tasksTemplate.length > 0) {
+      await this.prisma.task.createMany({
+        data: tasksTemplate.map((task) => ({
           organizationId: data.organizationId,
           caseId: newCase.id,
-          title: `Подготовить документы для ${caseType.name}`,
-        },
-        {
-          organizationId: data.organizationId,
-          caseId: newCase.id,
-          title: `Проверить данные клиента`,
-        },
-        {
-          organizationId: data.organizationId,
-          caseId: newCase.id,
-          title: `Назначить ответственного юриста`,
-        },
-      ],
-    });
+          title: task,
+        })),
+      });
+    }
 
-    // 4. Автоматическое создание документов
-    await this.prisma.document.createMany({
-      data: [
-        {
+    // 4. Generate Documents from template
+    if (documentsTemplate.length > 0) {
+      await this.prisma.document.createMany({
+        data: documentsTemplate.map((doc) => ({
           organizationId: data.organizationId,
           caseId: newCase.id,
-          name: `Заявление - ${caseType.name}`,
+          name: doc,
           type: 'template',
-        },
-        {
-          organizationId: data.organizationId,
-          caseId: newCase.id,
-          name: `Сопроводительные документы`,
-          type: 'template',
-        },
-      ],
-    });
+        })),
+      });
+    }
 
     return newCase;
   }
