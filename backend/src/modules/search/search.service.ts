@@ -6,10 +6,10 @@ export class SearchService {
   constructor(private readonly prisma: PrismaService) {}
 
   // =========================
-  // GLOBAL SEARCH (CRM CORE)
+  // GLOBAL SEARCH (JWT TENANT SAFE)
   // =========================
   async search(organizationId: string, query: string) {
-    const normalizedQuery = query.trim();
+    const normalizedQuery = query?.trim();
 
     if (!normalizedQuery) {
       return {
