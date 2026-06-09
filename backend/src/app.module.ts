@@ -13,6 +13,9 @@ import { ClientsModule } from './modules/clients/clients.module';
 import { CasesModule } from './modules/cases/cases.module';
 import { CaseTypesModule } from './modules/case-types/case-types.module';
 
+// 🆕 Case Pipeline
+import { CaseStageModule } from './modules/case-stage/case-stage.module';
+
 // Operations
 import { TasksModule } from './modules/tasks/tasks.module';
 import { DocumentsModule } from './modules/documents/documents.module';
@@ -37,6 +40,9 @@ import { CalendarModule } from './modules/calendar/calendar.module';
     ClientsModule,
     CasesModule,
     CaseTypesModule,
+
+    // 🆕 Pipeline layer
+    CaseStageModule,
 
     // Operations layer
     TasksModule,
