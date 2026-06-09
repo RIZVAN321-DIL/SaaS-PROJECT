@@ -1,75 +1,43 @@
-import { Controller, Get, Post, Body, Param, Put, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common';
 import { CaseTypesService } from './case-types.service';
 
 @Controller('case-types')
 export class CaseTypesController {
-  constructor(private caseTypesService: CaseTypesService) {}
+  constructor(private readonly caseTypesService: CaseTypesService) {}
 
   // =========================
-  // CREATE CASE TYPE
-  // =========================
-  @Post()
-  create(
-    @Body() body: {
-      organizationId: string;
-      name: string;
-      description?: string;
-    },
-  ) {
-    return this.caseTypesService.create(body);
-  }
-
-  // =========================
-  // GET ALL CASE TYPES
+  // CRUD
   // =========================
   @Get(':organizationId')
   findAll(@Param('organizationId') organizationId: string) {
     return this.caseTypesService.findAll(organizationId);
   }
 
-  // =========================
-  // GET ONE CASE TYPE
-  // =========================
-  @Get('one/:id')
+  @Get('single/:id')
   findOne(@Param('id') id: string) {
-    return this.caseTypesService.findById(id);
+    return this.caseTypesService.findOne(id);
   }
 
-  // =========================
-  // UPDATE CASE TYPE
-  // =========================
+  @Post()
+  create(@Body() body: any) {
+    return this.caseTypesService.create(body);
+  }
+
   @Put(':id')
-  update(
-    @Param('id') id: string,
-    @Body() body: {
-      name?: string;
-      description?: string;
-    },
-  ) {
+  update(@Param('id') id: string, @Body() body: any) {
     return this.caseTypesService.update(id, body);
   }
 
-  // =========================
-  // DELETE CASE TYPE
-  // =========================
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.caseTypesService.remove(id);
   }
 
-  // ======================================================
-  // 🧠 CASE TYPE ENGINE: CREATE CASE FROM TEMPLATE
-  // ======================================================
-  @Post('create-from-template')
-  createFromTemplate(
-    @Body() body: {
-      caseTypeId: string;
-      organizationId: string;
-      clientId: string;
-      title: string;
-      description?: string;
-    },
-  ) {
+  // =========================
+  // CREATE CASE FROM TYPE
+  // =========================
+  @Post('create-case')
+  createCaseFromType(@Body() body: any) {
     return this.caseTypesService.createCaseFromType(body);
   }
 }
