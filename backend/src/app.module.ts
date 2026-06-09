@@ -45,6 +45,11 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 
 // =========================
+// SEARCH (HARDENING LAYER)
+// =========================
+import { SearchModule } from './modules/search/search.module';
+
+// =========================
 // OPERATIONS
 // =========================
 import { TasksModule } from './modules/tasks/tasks.module';
@@ -78,6 +83,9 @@ import { CalendarModule } from './modules/calendar/calendar.module';
     // Notifications
     NotificationsModule,
 
+    // Search
+    SearchModule,
+
     // Operations
     TasksModule,
     DocumentsModule,
@@ -90,11 +98,11 @@ import { CalendarModule } from './modules/calendar/calendar.module';
   providers: [
     {
       provide: APP_GUARD,
-      useClass: JwtAuthGuard, // 🔐 authentication layer
+      useClass: JwtAuthGuard,
     },
     {
       provide: APP_GUARD,
-      useClass: RolesGuard, // 🧠 authorization layer (RBAC)
+      useClass: RolesGuard,
     },
   ],
 })
