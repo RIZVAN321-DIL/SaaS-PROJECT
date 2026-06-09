@@ -75,7 +75,7 @@ model CaseType {
 
   tasksTemplate     Json?
   documentsTemplate Json?
-  rules            Json?
+  rules             Json?
 
   createdAt       DateTime @default(now())
 }
@@ -105,7 +105,7 @@ model Case {
 
   createdAt       DateTime @default(now())
 
-  updatedAt       DateTime @updatedAt   // 🔥 полезно для Kanban сортировки
+  updatedAt       DateTime @updatedAt
 }
 
 # =========================
@@ -113,9 +113,14 @@ model Case {
 # =========================
 model Task {
   id              String   @id @default(uuid())
+
   title           String
   description     String?
+
   status          String   @default("pending")
+
+  dueDate         DateTime?
+  completedAt     DateTime?
 
   organizationId  String
   organization    Organization @relation(fields: [organizationId], references: [id])
@@ -124,6 +129,7 @@ model Task {
   case            Case @relation(fields: [caseId], references: [id])
 
   createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 # =========================
@@ -180,7 +186,7 @@ model CaseStage {
 
   createdAt       DateTime @default(now())
 
-  updatedAt       DateTime @updatedAt   // 🔥 полезно для админки стадий
+  updatedAt       DateTime @updatedAt
 }
 
 # =========================
