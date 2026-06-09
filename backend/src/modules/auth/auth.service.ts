@@ -1,7 +1,15 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
+
 import { JwtService } from '@nestjs/jwt';
+
 import { PrismaService } from '../../database/prisma.service';
+
 import * as bcrypt from 'bcrypt';
+
+import { Role } from '../../common/enums/role.enum';
 
 @Injectable()
 export class AuthService {
@@ -10,40 +18,81 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  // Регистрация пользователя
-  async register(data: { email: string; password: string; organizationId: string }) {
-    const hashedPassword = await bcrypt.hash(data.password, 10);
-    const user = await this.prisma.user.create({
-      data: {
-        email: data.email,
-        password: hashedPassword,
-        organizationId: data.organizationId,
-      },
-    });
+  async register(data: {
+    email: string;
+    password: string;
+    organizationId: string;
+    role?: Role;
+  }) {
+    const hashedPassword =
+      await bcrypt.hash(
+        data.password,
+        10,
+      );
 
-    return this.getJwtToken(user.id, user.email, user.organizationId);
+    const user =
+      await this.prisma.user.create({
+        data: {
+          email: data.email,
+          password: hashedPassword,
+          organizationId:
+            data.organizationId,
+          role:
+            data.role ??
+            Role.LAWYER,
+        },
+      });
+
+    return this.getJwtToken(user);
   }
 
-  // Логин пользователя
-  async login(email: string, password: string) {
-    const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user) throw new UnauthorizedException('Invalid credentials');
+  async login(
+    email: string,
+    password: string,
+  ) {
+    const user =
+      await this.prisma.user.findUnique({
+        where: { email },
+      });
 
-    const passwordValid = await bcrypt.compare(password, user.password);
-    if (!passwordValid) throw new UnauthorizedException('Invalid credentials');
+    if (!user) {
+      throw new UnauthorizedException(
+        'Invalid credentials',
+      );
+    }
 
-    return this.getJwtToken(user.id, user.email, user.organizationId);
+    const validPassword =
+      await bcrypt.compare(
+        password,
+        user.password,
+      );
+
+    if (!validPassword) {
+      throw new UnauthorizedException(
+        'Invalid credentials',
+      );
+    }
+
+    return this.getJwtToken(user);
   }
 
-  // Генерация JWT токена
-  private getJwtToken(userId: string, email: string, organizationId: string) {
+  private getJwtToken(user: {
+    id: string;
+    email: string;
+    organizationId: string;
+    role: Role;
+  }) {
     const payload = {
-      sub: userId,
-      email,
-      organizationId,
+      sub: user.id,
+      email: user.email,
+      organizationId:
+        user.organizationId,
+      role: user.role,
     };
+
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token:
+        this.jwtService.sign(payload),
     };
   }
 }
