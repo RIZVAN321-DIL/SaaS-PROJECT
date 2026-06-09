@@ -22,8 +22,9 @@ model Organization {
   tasks       Task[]
   documents   Document[]
   calendar    CalendarEvent[]
-
   stages      CaseStage[]
+
+  auditLogs   AuditLog[]
 }
 
 # =========================
@@ -39,7 +40,9 @@ model User {
 
   role            Role     @default(LAWYER)
 
-  tasks           Task[]   // 🔥 Task System v2: assigned tasks
+  tasks           Task[]
+
+  auditLogs       AuditLog[]
 
   createdAt       DateTime @default(now())
 }
@@ -105,8 +108,9 @@ model Case {
   tasks           Task[]
   documents       Document[]
 
-  createdAt       DateTime @default(now())
+  auditLogs       AuditLog[]
 
+  createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
 
@@ -135,6 +139,8 @@ model Task {
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  auditLogs       AuditLog[]
 }
 
 # =========================
@@ -190,8 +196,34 @@ model CaseStage {
   cases           Case[]
 
   createdAt       DateTime @default(now())
-
   updatedAt       DateTime @updatedAt
+}
+
+# =========================
+# AUDIT LOG (HARDENING LAYER)
+# =========================
+model AuditLog {
+  id              String   @id @default(uuid())
+
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+
+  userId          String
+  user            User @relation(fields: [userId], references: [id])
+
+  action          String
+  entity          String
+  entityId        String
+
+  meta            Json?
+
+  createdAt       DateTime @default(now())
+
+  caseId          String?
+  case            Case? @relation(fields: [caseId], references: [id])
+
+  taskId          String?
+  task            Task? @relation(fields: [taskId], references: [id])
 }
 
 # =========================
