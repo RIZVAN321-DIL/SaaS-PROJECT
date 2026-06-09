@@ -1,67 +1,101 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 
+// =========================
+// DATABASE
+// =========================
 import { PrismaModule } from './database/prisma.module';
 
-// Auth & Core
+// =========================
+// AUTH & RBAC CORE
+// =========================
 import { AuthModule } from './modules/auth/auth.module';
+
+// 🔥 RBAC GUARDS
+import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
+import { RolesGuard } from './common/guards/roles.guard';
+
+// =========================
+// CORE MODULES
+// =========================
 import { UsersModule } from './modules/users/users.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 
-// CRM Core
+// =========================
+// CRM CORE
+// =========================
 import { ClientsModule } from './modules/clients/clients.module';
 import { CasesModule } from './modules/cases/cases.module';
 import { CaseTypesModule } from './modules/case-types/case-types.module';
 
-// 🆕 Case Pipeline
+// =========================
+// PIPELINE
+// =========================
 import { CaseStageModule } from './modules/case-stage/case-stage.module';
 
-// 🆕 Dashboard / Analytics
+// =========================
+// DASHBOARD
+// =========================
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 
-// 🆕 Notifications / Alerts
+// =========================
+// NOTIFICATIONS
+// =========================
 import { NotificationsModule } from './modules/notifications/notifications.module';
 
-// Operations
+// =========================
+// OPERATIONS
+// =========================
 import { TasksModule } from './modules/tasks/tasks.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
 
 @Module({
   imports: [
-    // ENV config (global)
     ConfigModule.forRoot({
       isGlobal: true,
     }),
 
-    // DB layer
     PrismaModule,
 
-    // Core SaaS
+    // Core
     AuthModule,
     UsersModule,
     OrganizationsModule,
 
-    // CRM domain
+    // CRM
     ClientsModule,
     CasesModule,
     CaseTypesModule,
 
-    // 🆕 Pipeline layer
+    // Pipeline
     CaseStageModule,
 
-    // 🆕 Dashboard layer
+    // Dashboard
     DashboardModule,
 
-    // 🆕 Notifications layer
+    // Notifications
     NotificationsModule,
 
-    // Operations layer
+    // Operations
     TasksModule,
     DocumentsModule,
     CalendarModule,
   ],
-  controllers: [],
-  providers: [],
+
+  // =========================
+  // GLOBAL RBAC LAYER
+  // =========================
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard, // 🔐 authentication layer
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard, // 🧠 authorization layer (RBAC)
+    },
+  ],
 })
 export class AppModule {}
