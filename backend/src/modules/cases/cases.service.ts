@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class CasesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   // =========================
   // CREATE CASE
@@ -14,19 +18,37 @@ export class CasesService {
     title: string;
     description?: string;
     caseTypeId?: string;
+    userId: string;
   }) {
-    // 🔥 получить первую стадию (order ASC)
     const firstStage = await this.prisma.caseStage.findFirst({
       where: { organizationId: data.organizationId },
       orderBy: { order: 'asc' },
     });
 
-    return this.prisma.case.create({
+    const newCase = await this.prisma.case.create({
       data: {
-        ...data,
-        stageId: firstStage?.id ?? null, // авто-назначение стадии
+        clientId: data.clientId,
+        organizationId: data.organizationId,
+        title: data.title,
+        description: data.description,
+        caseTypeId: data.caseTypeId,
+        stageId: firstStage?.id ?? null,
       },
     });
+
+    await this.audit.log({
+      organizationId: data.organizationId,
+      userId: data.userId,
+      action: 'CASE_CREATED',
+      entity: 'Case',
+      entityId: newCase.id,
+      meta: {
+        title: data.title,
+        clientId: data.clientId,
+      },
+    });
+
+    return newCase;
   }
 
   // =========================
@@ -38,7 +60,7 @@ export class CasesService {
       include: {
         client: true,
         caseType: true,
-        stage: true, // 🔥 добавили stage
+        stage: true,
       },
     });
   }
@@ -52,7 +74,7 @@ export class CasesService {
       include: {
         client: true,
         caseType: true,
-        stage: true, // 🔥 добавили stage
+        stage: true,
       },
     });
 
@@ -72,29 +94,57 @@ export class CasesService {
       title?: string;
       description?: string;
       caseTypeId?: string;
-      stageId?: string; // 🔥 можно менять стадию через update
+      stageId?: string;
+      organizationId: string;
+      userId: string;
     },
   ) {
-    return this.prisma.case.update({
+    const updated = await this.prisma.case.update({
       where: { id },
-      data,
+      data: {
+        title: data.title,
+        description: data.description,
+        caseTypeId: data.caseTypeId,
+        stageId: data.stageId,
+      },
     });
+
+    await this.audit.log({
+      organizationId: data.organizationId,
+      userId: data.userId,
+      action: 'CASE_UPDATED',
+      entity: 'Case',
+      entityId: id,
+      meta: data,
+    });
+
+    return updated;
   }
 
   // =========================
   // DELETE CASE
   // =========================
-  async remove(id: string) {
-    return this.prisma.case.delete({
+  async remove(id: string, organizationId: string, userId: string) {
+    const deleted = await this.prisma.case.delete({
       where: { id },
     });
+
+    await this.audit.log({
+      organizationId,
+      userId,
+      action: 'CASE_DELETED',
+      entity: 'Case',
+      entityId: id,
+    });
+
+    return deleted;
   }
 
   // =========================
   // KANBAN BOARD
   // =========================
   async getBoard(organizationId: string) {
-    const stages = await this.prisma.caseStage.findMany({
+    return this.prisma.caseStage.findMany({
       where: { organizationId },
       orderBy: { order: 'asc' },
       include: {
@@ -107,14 +157,12 @@ export class CasesService {
         },
       },
     });
-
-    return stages;
   }
 
   // =========================
-  // MOVE CASE (DRAG & DROP)
+  // MOVE CASE
   // =========================
-  async moveCase(caseId: string, stageId: string) {
+  async moveCase(caseId: string, stageId: string, organizationId: string, userId: string) {
     const stage = await this.prisma.caseStage.findUnique({
       where: { id: stageId },
     });
@@ -123,11 +171,20 @@ export class CasesService {
       throw new NotFoundException('Stage not found');
     }
 
-    return this.prisma.case.update({
+    const updated = await this.prisma.case.update({
       where: { id: caseId },
-      data: {
-        stageId,
-      },
+      data: { stageId },
     });
+
+    await this.audit.log({
+      organizationId,
+      userId,
+      action: 'CASE_MOVED_STAGE',
+      entity: 'Case',
+      entityId: caseId,
+      meta: { stageId },
+    });
+
+    return updated;
   }
 }
