@@ -7,82 +7,148 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+# =========================
+# ORGANIZATION (multi-tenant core)
+# =========================
 model Organization {
-  id        String   @id @default(uuid())
-  name      String
-  createdAt DateTime @default(now())
+  id          String   @id @default(uuid())
+  name        String
+  createdAt   DateTime @default(now())
 
-  users     User[]
-  clients   Client[]
-  cases     Case[]
-
-  @@map("organizations")
+  users       User[]
+  clients     Client[]
+  cases       Case[]
+  caseTypes   CaseType[]
+  tasks       Task[]
+  documents   Document[]
+  calendar    CalendarEvent[]
 }
 
+# =========================
+# USER
+# =========================
 model User {
-  id             String       @id @default(uuid())
-  organizationId String
+  id              String   @id @default(uuid())
+  email           String   @unique
+  password        String
 
-  name           String
-  email          String       @unique
-  passwordHash   String
-  role           UserRole     @default(LAWYER)
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
 
-  createdAt      DateTime     @default(now())
-
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  @@index([organizationId])
-  @@map("users")
+  createdAt       DateTime @default(now())
 }
 
+# =========================
+# CLIENT
+# =========================
 model Client {
-  id             String       @id @default(uuid())
-  organizationId String
+  id              String   @id @default(uuid())
+  fullName        String
+  phone           String?
+  email           String?
+  notes           String?
 
-  fullName       String
-  phone          String?
-  email          String?
-  notes          String?
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
 
-  createdAt      DateTime     @default(now())
+  cases           Case[]
 
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  cases          Case[]
-
-  @@index([organizationId])
-  @@map("clients")
+  createdAt       DateTime @default(now())
 }
 
+# =========================
+# CASE TYPE (TEMPLATE ENGINE CORE)
+# =========================
+model CaseType {
+  id              String   @id @default(uuid())
+  name            String
+  description     String?
+
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+
+  cases           Case[]
+
+  // 🧠 TEMPLATE ENGINE (JSON)
+  tasksTemplate     Json?
+  documentsTemplate Json?
+
+  createdAt       DateTime @default(now())
+}
+
+# =========================
+# CASE
+# =========================
 model Case {
-  id             String       @id @default(uuid())
-  organizationId String
-  clientId       String
+  id              String   @id @default(uuid())
+  title           String
+  description     String?
 
-  title          String
-  status         CaseStatus   @default(ACTIVE)
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
 
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  clientId        String
+  client          Client @relation(fields: [clientId], references: [id])
 
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  caseTypeId      String?
+  caseType        CaseType? @relation(fields: [caseTypeId], references: [id])
 
-  client         Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  tasks           Task[]
+  documents       Document[]
 
-  @@index([organizationId])
-  @@index([clientId])
-  @@map("cases")
+  createdAt       DateTime @default(now())
 }
 
-enum UserRole {
-  ADMIN
-  LAWYER
-  ASSISTANT
+# =========================
+# TASK
+# =========================
+model Task {
+  id              String   @id @default(uuid())
+  title           String
+  description     String?
+  status          String @default("pending")
+
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+
+  caseId          String
+  case            Case @relation(fields: [caseId], references: [id])
+
+  createdAt       DateTime @default(now())
 }
 
-enum CaseStatus {
-  ACTIVE
-  COMPLETED
-  ARCHIVED
+# =========================
+# DOCUMENT
+# =========================
+model Document {
+  id              String   @id @default(uuid())
+  name            String
+  type            String?
+  fileUrl         String?
+
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+
+  caseId          String
+  case            Case @relation(fields: [caseId], references: [id])
+
+  createdAt       DateTime @default(now())
+}
+
+# =========================
+# CALENDAR EVENT
+# =========================
+model CalendarEvent {
+  id              String   @id @default(uuid())
+  title           String
+  description     String?
+  date            DateTime
+
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+
+  caseId          String?
+  case            Case? @relation(fields: [caseId], references: [id])
+
+  createdAt       DateTime @default(now())
 }
