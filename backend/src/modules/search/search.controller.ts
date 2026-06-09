@@ -1,4 +1,5 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, Req } from '@nestjs/common';
+import { Request } from 'express';
 import { SearchService } from './search.service';
 
 @Controller('search')
@@ -6,13 +7,18 @@ export class SearchController {
   constructor(private readonly searchService: SearchService) {}
 
   // =========================
-  // GLOBAL SEARCH ENDPOINT
+  // GLOBAL SEARCH (JWT CONTEXT)
   // =========================
   @Get()
   search(
-    @Query('organizationId') organizationId: string,
+    @Req() req: Request,
     @Query('query') query: string,
   ) {
-    return this.searchService.search(organizationId, query);
+    const user = req.user as any;
+
+    return this.searchService.search(
+      user.organizationId,
+      query,
+    );
   }
 }
