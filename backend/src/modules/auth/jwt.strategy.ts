@@ -9,31 +9,33 @@ import {
 
 import { ConfigService } from '@nestjs/config';
 
+import { Role } from '../../common/enums/role.enum';
+
 @Injectable()
-export class JwtStrategy
-  extends PassportStrategy(Strategy)
-{
-  constructor(
-    config: ConfigService,
-  ) {
+export class JwtStrategy extends PassportStrategy(Strategy) {
+  constructor(config: ConfigService) {
     super({
       jwtFromRequest:
         ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey:
-        config.get<string>(
-          'JWT_SECRET',
-        ),
+      secretOrKey: config.get<string>('JWT_SECRET'),
     });
   }
 
-  async validate(payload: any) {
+  // =========================
+  // RBAC USER CONTEXT
+  // =========================
+  async validate(payload: {
+    sub: string;
+    email: string;
+    organizationId: string;
+    role: Role;
+  }) {
     return {
       userId: payload.sub,
       email: payload.email,
-      organizationId:
-        payload.organizationId,
-      role: payload.role,
+      organizationId: payload.organizationId,
+      role: payload.role, // 🔥 RBAC CORE
     };
   }
 }
