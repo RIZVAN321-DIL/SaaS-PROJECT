@@ -1,9 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { TaskStatus } from './dto/task-status.enum';
 
 @Injectable()
 export class TasksService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   // =========================
   // CREATE TASK
@@ -17,7 +18,10 @@ export class TasksService {
     assignedToId?: string;
   }) {
     return this.prisma.task.create({
-      data,
+      data: {
+        ...data,
+        status: TaskStatus.PENDING,
+      },
     });
   }
 
@@ -29,7 +33,7 @@ export class TasksService {
       where: { organizationId },
       include: {
         case: true,
-        assignedTo: true, // 🔥 Task System v2
+        assignedTo: true,
       },
     });
   }
@@ -42,7 +46,7 @@ export class TasksService {
       where: { id },
       include: {
         case: true,
-        assignedTo: true, // 🔥 Task System v2
+        assignedTo: true,
       },
     });
 
@@ -60,17 +64,21 @@ export class TasksService {
       description?: string;
       dueDate?: Date;
       assignedToId?: string;
-      status?: string;
+      status?: TaskStatus;
     },
   ) {
-    // 🔥 auto-set completedAt
-    if (data.status === 'completed') {
-      (data as any).completedAt = new Date();
+    const updateData: any = { ...data };
+
+    // =========================
+    // AUTO COMPLETION LOGIC
+    // =========================
+    if (data.status === TaskStatus.COMPLETED) {
+      updateData.completedAt = new Date();
     }
 
     return this.prisma.task.update({
       where: { id },
-      data,
+      data: updateData,
     });
   }
 
@@ -84,7 +92,7 @@ export class TasksService {
   }
 
   // =========================
-  // 🔥 ASSIGN TASK (v2)
+  // ASSIGN TASK
   // =========================
   async assignTask(taskId: string, userId: string) {
     return this.prisma.task.update({
@@ -96,13 +104,13 @@ export class TasksService {
   }
 
   // =========================
-  // 🔥 COMPLETE TASK (v2)
+  // COMPLETE TASK
   // =========================
   async completeTask(taskId: string) {
     return this.prisma.task.update({
       where: { id: taskId },
       data: {
-        status: 'completed',
+        status: TaskStatus.COMPLETED,
         completedAt: new Date(),
       },
     });
