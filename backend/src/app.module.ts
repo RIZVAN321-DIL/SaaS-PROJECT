@@ -19,6 +19,9 @@ import { CaseStageModule } from './modules/case-stage/case-stage.module';
 // 🆕 Dashboard / Analytics
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 
+// 🆕 Notifications / Alerts
+import { NotificationsModule } from './modules/notifications/notifications.module';
+
 // Operations
 import { TasksModule } from './modules/tasks/tasks.module';
 import { DocumentsModule } from './modules/documents/documents.module';
@@ -49,6 +52,9 @@ import { CalendarModule } from './modules/calendar/calendar.module';
 
     // 🆕 Dashboard layer
     DashboardModule,
+
+    // 🆕 Notifications layer
+    NotificationsModule,
 
     // Operations layer
     TasksModule,
