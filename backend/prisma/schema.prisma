@@ -22,6 +22,8 @@ model Organization {
   tasks       Task[]
   documents   Document[]
   calendar    CalendarEvent[]
+
+  stages      CaseStage[]   // ✅ NEW: pipeline stages
 }
 
 # =========================
@@ -35,7 +37,7 @@ model User {
   organizationId  String
   organization    Organization @relation(fields: [organizationId], references: [id])
 
-  role            Role     @default(LAWYER)  // Добавлено поле роли пользователя
+  role            Role     @default(LAWYER)
 
   createdAt       DateTime @default(now())
 }
@@ -96,6 +98,9 @@ model Case {
   caseTypeId      String?
   caseType        CaseType? @relation(fields: [caseTypeId], references: [id])
 
+  stageId         String?                      // ✅ NEW: текущая стадия
+  stage           CaseStage? @relation(fields: [stageId], references: [id])
+
   tasks           Task[]
   documents       Document[]
 
@@ -152,6 +157,25 @@ model CalendarEvent {
 
   caseId          String?
   case            Case? @relation(fields: [caseId], references: [id])
+
+  createdAt       DateTime @default(now())
+}
+
+# =========================
+# CASE PIPELINE STAGE
+# =========================
+model CaseStage {
+  id              String   @id @default(uuid())
+
+  name            String
+  order           Int
+
+  color           String?  @default("#3B82F6")
+
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+
+  cases           Case[]
 
   createdAt       DateTime @default(now())
 }
