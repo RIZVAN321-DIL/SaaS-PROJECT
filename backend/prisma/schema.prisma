@@ -23,7 +23,7 @@ model Organization {
   documents   Document[]
   calendar    CalendarEvent[]
 
-  stages      CaseStage[]   // ✅ NEW: pipeline stages
+  stages      CaseStage[]
 }
 
 # =========================
@@ -75,7 +75,6 @@ model CaseType {
 
   tasksTemplate     Json?
   documentsTemplate Json?
-
   rules            Json?
 
   createdAt       DateTime @default(now())
@@ -98,13 +97,15 @@ model Case {
   caseTypeId      String?
   caseType        CaseType? @relation(fields: [caseTypeId], references: [id])
 
-  stageId         String?                      // ✅ NEW: текущая стадия
+  stageId         String?
   stage           CaseStage? @relation(fields: [stageId], references: [id])
 
   tasks           Task[]
   documents       Document[]
 
   createdAt       DateTime @default(now())
+
+  updatedAt       DateTime @updatedAt   // 🔥 полезно для Kanban сортировки
 }
 
 # =========================
@@ -114,7 +115,7 @@ model Task {
   id              String   @id @default(uuid())
   title           String
   description     String?
-  status          String @default("pending")
+  status          String   @default("pending")
 
   organizationId  String
   organization    Organization @relation(fields: [organizationId], references: [id])
@@ -178,6 +179,8 @@ model CaseStage {
   cases           Case[]
 
   createdAt       DateTime @default(now())
+
+  updatedAt       DateTime @updatedAt   // 🔥 полезно для админки стадий
 }
 
 # =========================
