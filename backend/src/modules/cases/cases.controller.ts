@@ -6,34 +6,44 @@ import {
   Param,
   Put,
   Delete,
+  Req,
 } from '@nestjs/common';
 
+import { Request } from 'express';
 import { CasesService } from './cases.service';
 
 @Controller('cases')
 export class CasesController {
-  constructor(private casesService: CasesService) {}
+  constructor(private readonly casesService: CasesService) {}
 
   // =========================
   // CREATE CASE
   // =========================
   @Post()
-  create(@Body() body: any) {
-    return this.casesService.create(body);
+  create(@Body() body: any, @Req() req: Request) {
+    const user = req.user as any;
+
+    return this.casesService.create({
+      ...body,
+      userId: user.userId,
+      organizationId: user.organizationId,
+    });
   }
 
   // =========================
   // GET ALL CASES
   // =========================
-  @Get(':organizationId')
-  findAll(@Param('organizationId') organizationId: string) {
-    return this.casesService.findAll(organizationId);
+  @Get()
+  findAll(@Req() req: Request) {
+    const user = req.user as any;
+
+    return this.casesService.findAll(user.organizationId);
   }
 
   // =========================
   // GET ONE CASE
   // =========================
-  @Get('one/:id')
+  @Get(':id')
   findOne(@Param('id') id: string) {
     return this.casesService.findById(id);
   }
@@ -42,34 +52,56 @@ export class CasesController {
   // UPDATE CASE
   // =========================
   @Put(':id')
-  update(@Param('id') id: string, @Body() body: any) {
-    return this.casesService.update(id, body);
+  update(@Param('id') id: string, @Body() body: any, @Req() req: Request) {
+    const user = req.user as any;
+
+    return this.casesService.update(id, {
+      ...body,
+      organizationId: user.organizationId,
+      userId: user.userId,
+    });
   }
 
   // =========================
   // DELETE CASE
   // =========================
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.casesService.remove(id);
+  remove(@Param('id') id: string, @Req() req: Request) {
+    const user = req.user as any;
+
+    return this.casesService.remove(
+      id,
+      user.organizationId,
+      user.userId,
+    );
   }
 
   // =========================
-  // 🧠 KANBAN BOARD
+  // KANBAN BOARD
   // =========================
-  @Get('board/:organizationId')
-  getBoard(@Param('organizationId') organizationId: string) {
-    return this.casesService.getBoard(organizationId);
+  @Get('board')
+  getBoard(@Req() req: Request) {
+    const user = req.user as any;
+
+    return this.casesService.getBoard(user.organizationId);
   }
 
   // =========================
-  // 🔄 MOVE CASE (DRAG & DROP)
+  // MOVE CASE
   // =========================
   @Put('move/:caseId/:stageId')
   moveCase(
     @Param('caseId') caseId: string,
     @Param('stageId') stageId: string,
+    @Req() req: Request,
   ) {
-    return this.casesService.moveCase(caseId, stageId);
+    const user = req.user as any;
+
+    return this.casesService.moveCase(
+      caseId,
+      stageId,
+      user.organizationId,
+      user.userId,
+    );
   }
-}
+                }
