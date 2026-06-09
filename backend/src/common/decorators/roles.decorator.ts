@@ -7,7 +7,7 @@ import { Role } from '../enums/role.enum';
 export const ROLES_KEY = 'roles';
 
 // =========================
-// ROLES DECORATOR (RBAC CORE)
+// ROLES DECORATOR (HARDENED)
 // =========================
 export const Roles = (...roles: Role[]) =>
   SetMetadata(ROLES_KEY, roles);
