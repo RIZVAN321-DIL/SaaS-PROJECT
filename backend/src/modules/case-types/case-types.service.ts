@@ -6,120 +6,77 @@ export class CaseTypesService {
   constructor(private prisma: PrismaService) {}
 
   // =========================
-  // CREATE CASE TYPE (WITH TEMPLATES)
-  // =========================
-  async create(data: {
-    organizationId: string;
-    name: string;
-    description?: string;
-
-    // 🧠 NEW: JSON templates
-    tasksTemplate?: string[]; // ["task 1", "task 2"]
-    documentsTemplate?: string[]; // ["doc 1", "doc 2"]
-  }) {
-    return this.prisma.caseType.create({
-      data: {
-        organizationId: data.organizationId,
-        name: data.name,
-        description: data.description,
-
-        // store as JSON string (safe for Prisma without schema change)
-        tasksTemplate: JSON.stringify(data.tasksTemplate || []),
-        documentsTemplate: JSON.stringify(data.documentsTemplate || []),
-      },
-    });
-  }
-
-  // =========================
-  // GET ALL
+  // CRUD METHODS
   // =========================
   async findAll(organizationId: string) {
-    const types = await this.prisma.caseType.findMany({
-      where: { organizationId },
-      include: {
-        _count: {
-          select: { cases: true },
-        },
-      },
-    });
+    return this.prisma.caseType.findMany({ where: { organizationId } });
+  }
 
-    // parse templates back to JSON
-    return types.map((t) => ({
-      ...t,
-      tasksTemplate: JSON.parse((t as any).tasksTemplate || '[]'),
-      documentsTemplate: JSON.parse((t as any).documentsTemplate || '[]'),
-    }));
+  async findOne(id: string) {
+    const caseType = await this.prisma.caseType.findUnique({ where: { id } });
+    if (!caseType) throw new NotFoundException('CaseType not found');
+    return caseType;
+  }
+
+  async create(data: {
+    name: string;
+    description?: string;
+    organizationId: string;
+    tasksTemplate?: any[];
+    documentsTemplate?: any[];
+    rules?: any[];
+  }) {
+    return this.prisma.caseType.create({ data });
+  }
+
+  async update(id: string, data: any) {
+    return this.prisma.caseType.update({ where: { id }, data });
+  }
+
+  async remove(id: string) {
+    return this.prisma.caseType.delete({ where: { id } });
   }
 
   // =========================
-  // GET ONE
+  // RULES ENGINE
   // =========================
-  async findById(id: string) {
-    const caseType = await this.prisma.caseType.findUnique({
-      where: { id },
-      include: {
-        cases: true,
-      },
-    });
+  private applyRules(rules: any[], context: any): string[] {
+    const tasks: string[] = [];
 
-    if (!caseType) {
-      throw new NotFoundException('CaseType not found');
+    if (!rules || rules.length === 0) return tasks;
+
+    for (const rule of rules) {
+      const condition = rule.if;
+      const thenBlock = rule.then;
+
+      let match = true;
+
+      // SIMPLE CONDITIONS
+      if (condition.field && condition.equals) {
+        if (context[condition.field] !== condition.equals) {
+          match = false;
+        }
+      }
+
+      if (match && thenBlock?.addTasks) {
+        tasks.push(...thenBlock.addTasks);
+      }
     }
 
-    return {
-      ...caseType,
-      tasksTemplate: JSON.parse((caseType as any).tasksTemplate || '[]'),
-      documentsTemplate: JSON.parse((caseType as any).documentsTemplate || '[]'),
-    };
+    return tasks;
   }
 
   // =========================
-  // UPDATE
+  // CREATE CASE FROM CASE TYPE
   // =========================
-  async update(
-    id: string,
-    data: {
-      name?: string;
-      description?: string;
-      tasksTemplate?: string[];
-      documentsTemplate?: string[];
-    },
-  ) {
-    return this.prisma.caseType.update({
-      where: { id },
-      data: {
-        name: data.name,
-        description: data.description,
-        tasksTemplate: data.tasksTemplate
-          ? JSON.stringify(data.tasksTemplate)
-          : undefined,
-        documentsTemplate: data.documentsTemplate
-          ? JSON.stringify(data.documentsTemplate)
-          : undefined,
-      },
-    });
-  }
-
-  // =========================
-  // DELETE
-  // =========================
-  async remove(id: string) {
-    return this.prisma.caseType.delete({
-      where: { id },
-    });
-  }
-
-  // ======================================================
-  // 🧠 ENGINE: CREATE CASE FROM TEMPLATE
-  // ======================================================
   async createCaseFromType(data: {
     caseTypeId: string;
     organizationId: string;
     clientId: string;
     title: string;
     description?: string;
+    priority?: string;
   }) {
-    // 1. Get CaseType
     const caseType = await this.prisma.caseType.findUnique({
       where: { id: data.caseTypeId },
     });
@@ -128,15 +85,14 @@ export class CaseTypesService {
       throw new NotFoundException('CaseType not found');
     }
 
-    const tasksTemplate: string[] = JSON.parse(
-      (caseType as any).tasksTemplate || '[]',
-    );
+    const tasksTemplate: string[] = caseType.tasksTemplate as any || [];
+    const documentsTemplate: string[] = caseType.documentsTemplate as any || [];
+    const rules: any[] = caseType.rules as any || [];
 
-    const documentsTemplate: string[] = JSON.parse(
-      (caseType as any).documentsTemplate || '[]',
-    );
+    // 🧠 APPLY RULES ENGINE
+    const ruleTasks = this.applyRules(rules, data);
+    const allTasks = [...tasksTemplate, ...ruleTasks];
 
-    // 2. Create Case
     const newCase = await this.prisma.case.create({
       data: {
         organizationId: data.organizationId,
@@ -147,10 +103,10 @@ export class CaseTypesService {
       },
     });
 
-    // 3. Generate Tasks from template
-    if (tasksTemplate.length > 0) {
+    // TASKS
+    if (allTasks.length > 0) {
       await this.prisma.task.createMany({
-        data: tasksTemplate.map((task) => ({
+        data: allTasks.map((task) => ({
           organizationId: data.organizationId,
           caseId: newCase.id,
           title: task,
@@ -158,7 +114,7 @@ export class CaseTypesService {
       });
     }
 
-    // 4. Generate Documents from template
+    // DOCUMENTS
     if (documentsTemplate.length > 0) {
       await this.prisma.document.createMany({
         data: documentsTemplate.map((doc) => ({
