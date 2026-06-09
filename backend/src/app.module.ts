@@ -3,6 +3,11 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 
 // =========================
+// RATE LIMITING (HARDENING LAYER)
+// =========================
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+
+// =========================
 // DATABASE
 // =========================
 import { PrismaModule } from './database/prisma.module';
@@ -45,7 +50,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 
 // =========================
-// SEARCH (HARDENING LAYER)
+// SEARCH
 // =========================
 import { SearchModule } from './modules/search/search.module';
 
@@ -62,40 +67,47 @@ import { CalendarModule } from './modules/calendar/calendar.module';
       isGlobal: true,
     }),
 
+    // =========================
+    // RATE LIMIT CONFIG
+    // =========================
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60,
+        limit: 10,
+      },
+    ]),
+
     PrismaModule,
 
-    // Core
     AuthModule,
     UsersModule,
     OrganizationsModule,
 
-    // CRM
     ClientsModule,
     CasesModule,
     CaseTypesModule,
 
-    // Pipeline
     CaseStageModule,
 
-    // Dashboard
     DashboardModule,
 
-    // Notifications
     NotificationsModule,
 
-    // Search
     SearchModule,
 
-    // Operations
     TasksModule,
     DocumentsModule,
     CalendarModule,
   ],
 
-  // =========================
-  // GLOBAL RBAC LAYER
-  // =========================
   providers: [
+    // =========================
+    // GLOBAL GUARDS PIPELINE
+    // =========================
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
