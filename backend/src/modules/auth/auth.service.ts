@@ -4,11 +4,8 @@ import {
 } from '@nestjs/common';
 
 import { JwtService } from '@nestjs/jwt';
-
 import { PrismaService } from '../../database/prisma.service';
-
 import * as bcrypt from 'bcrypt';
-
 import { Role } from '../../common/enums/role.enum';
 
 @Injectable()
@@ -27,21 +24,18 @@ export class AuthService {
     organizationId: string;
     role?: Role;
   }) {
-    const hashedPassword = await bcrypt.hash(
-      data.password,
-      10,
-    );
+    const hashedPassword = await bcrypt.hash(data.password, 10);
 
     const user = await this.prisma.user.create({
       data: {
         email: data.email,
         password: hashedPassword,
         organizationId: data.organizationId,
-        role: data.role ?? Role.LAWYER, // 🔥 default RBAC role
+        role: data.role ?? Role.LAWYER,
       },
     });
 
-    return this.getJwtToken(user);
+    return this.generateTokens(user);
   }
 
   // =========================
@@ -56,22 +50,19 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const validPassword = await bcrypt.compare(
-      password,
-      user.password,
-    );
+    const valid = await bcrypt.compare(password, user.password);
 
-    if (!validPassword) {
+    if (!valid) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return this.getJwtToken(user);
+    return this.generateTokens(user);
   }
 
   // =========================
-  // JWT GENERATION (RBAC CORE)
+  // GENERATE TOKENS (ACCESS + REFRESH)
   // =========================
-  private getJwtToken(user: {
+  private async generateTokens(user: {
     id: string;
     email: string;
     organizationId: string;
@@ -81,11 +72,66 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       organizationId: user.organizationId,
-      role: user.role, // 🔥 RBAC CORE
+      role: user.role,
     };
 
+    const accessToken = this.jwtService.sign(payload, {
+      expiresIn: '15m',
+    });
+
+    const refreshToken = this.jwtService.sign(payload, {
+      expiresIn: '7d',
+    });
+
+    // 🔥 store hashed refresh token
+    const hashedRefresh = await bcrypt.hash(refreshToken, 10);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        refreshToken: hashedRefresh,
+      },
+    });
+
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: accessToken,
+      refresh_token: refreshToken,
     };
+  }
+
+  // =========================
+  // REFRESH
+  // =========================
+  async refresh(userId: string, refreshToken: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || !user.refreshToken) {
+      throw new UnauthorizedException('Access denied');
+    }
+
+    const valid = await bcrypt.compare(
+      refreshToken,
+      user.refreshToken,
+    );
+
+    if (!valid) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    return this.generateTokens(user);
+  }
+
+  // =========================
+  // LOGOUT
+  // =========================
+  async logout(userId: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        refreshToken: null,
+      },
+    });
   }
 }
