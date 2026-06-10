@@ -34,6 +34,7 @@ model User {
   id              String   @id @default(uuid())
   email           String   @unique
   password        String
+  refreshToken    String?
 
   organizationId  String
   organization    Organization @relation(fields: [organizationId], references: [id])
@@ -41,7 +42,6 @@ model User {
   role            Role     @default(LAWYER)
 
   tasks           Task[]
-
   auditLogs       AuditLog[]
 
   createdAt       DateTime @default(now())
@@ -107,7 +107,6 @@ model Case {
 
   tasks           Task[]
   documents       Document[]
-
   auditLogs       AuditLog[]
 
   createdAt       DateTime @default(now())
@@ -180,7 +179,7 @@ model CalendarEvent {
 }
 
 # =========================
-# CASE PIPELINE STAGE
+# CASE STAGE
 # =========================
 model CaseStage {
   id              String   @id @default(uuid())
@@ -200,7 +199,7 @@ model CaseStage {
 }
 
 # =========================
-# AUDIT LOG (HARDENING LAYER)
+# AUDIT LOG
 # =========================
 model AuditLog {
   id              String   @id @default(uuid())
@@ -217,13 +216,13 @@ model AuditLog {
 
   meta            Json?
 
-  createdAt       DateTime @default(now())
-
   caseId          String?
   case            Case? @relation(fields: [caseId], references: [id])
 
   taskId          String?
   task            Task? @relation(fields: [taskId], references: [id])
+
+  createdAt       DateTime @default(now())
 }
 
 # =========================
