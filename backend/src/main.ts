@@ -6,15 +6,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // =========================
-  // SECURITY: CORS (BASIC PRODUCTION SETUP)
-  // =========================
-  app.enableCors({
-    origin: true,
-    credentials: true,
-  });
-
-  // =========================
-  // GLOBAL VALIDATION PIPE (CRITICAL HARDENING LAYER STEP)
+  // GLOBAL VALIDATION LAYER
   // =========================
   app.useGlobalPipes(
     new ValidationPipe({
@@ -24,10 +16,7 @@ async function bootstrap() {
     }),
   );
 
-  // =========================
-  // START SERVER
-  // =========================
-  await app.listen(process.env.PORT || 3000);
+  await app.listen(process.env.PORT ?? 3000);
 }
 
 bootstrap();
