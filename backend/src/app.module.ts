@@ -3,7 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 
 // =========================
-// RATE LIMITING (HARDENING LAYER)
+// RATE LIMITING
 // =========================
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 
@@ -17,7 +17,7 @@ import { PrismaModule } from './database/prisma.module';
 // =========================
 import { AuthModule } from './modules/auth/auth.module';
 
-// 🔥 RBAC GUARDS
+// 🔥 GUARDS
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -55,6 +55,11 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { SearchModule } from './modules/search/search.module';
 
 // =========================
+// AUDIT (HARDENING LAYER)
+// =========================
+import { AuditModule } from './modules/audit/audit.module';
+
+// =========================
 // OPERATIONS
 // =========================
 import { TasksModule } from './modules/tasks/tasks.module';
@@ -68,7 +73,7 @@ import { CalendarModule } from './modules/calendar/calendar.module';
     }),
 
     // =========================
-    // RATE LIMIT CONFIG
+    // RATE LIMITING
     // =========================
     ThrottlerModule.forRoot([
       {
@@ -79,31 +84,38 @@ import { CalendarModule } from './modules/calendar/calendar.module';
 
     PrismaModule,
 
+    // CORE
     AuthModule,
     UsersModule,
     OrganizationsModule,
 
+    // CRM
     ClientsModule,
     CasesModule,
     CaseTypesModule,
 
+    // PIPELINE
     CaseStageModule,
 
+    // DASHBOARD
     DashboardModule,
 
+    // NOTIFICATIONS
     NotificationsModule,
 
+    // SEARCH
     SearchModule,
 
+    // AUDIT
+    AuditModule,
+
+    // OPERATIONS
     TasksModule,
     DocumentsModule,
     CalendarModule,
   ],
 
   providers: [
-    // =========================
-    // GLOBAL GUARDS PIPELINE
-    // =========================
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
