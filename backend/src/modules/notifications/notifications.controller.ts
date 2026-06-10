@@ -1,44 +1,50 @@
-import {
-  Controller,
-  Get,
-  Param,
-} from '@nestjs/common';
-
+import { Controller, Get, Req, Query } from '@nestjs/common';
+import { Request } from 'express';
 import { NotificationsService } from './notifications.service';
 
 @Controller('notifications')
 export class NotificationsController {
-  constructor(
-    private readonly notificationsService: NotificationsService,
-  ) {}
+  constructor(private readonly notificationsService: NotificationsService) {}
 
-  @Get(':organizationId')
+  // =========================
+  // GET NOTIFICATIONS
+  // =========================
+  @Get()
   getNotifications(
-    @Param('organizationId')
-    organizationId: string,
+    @Req() req: Request,
+    @Query('userId') userId?: string,
   ) {
+    const user = req.user as any;
+
     return this.notificationsService.getNotifications(
-      organizationId,
+      user.organizationId,
+      userId,
     );
   }
 
-  @Get('overdue/:organizationId')
-  getOverdue(
-    @Param('organizationId')
-    organizationId: string,
-  ) {
+  // =========================
+  // OVERDUE ONLY
+  // =========================
+  @Get('overdue')
+  getOverdue(@Req() req: Request, @Query('userId') userId?: string) {
+    const user = req.user as any;
+
     return this.notificationsService.getOverdueTasks(
-      organizationId,
+      user.organizationId,
+      userId,
     );
   }
 
-  @Get('upcoming/:organizationId')
-  getUpcoming(
-    @Param('organizationId')
-    organizationId: string,
-  ) {
+  // =========================
+  // UPCOMING ONLY
+  // =========================
+  @Get('upcoming')
+  getUpcoming(@Req() req: Request, @Query('userId') userId?: string) {
+    const user = req.user as any;
+
     return this.notificationsService.getUpcomingTasks(
-      organizationId,
+      user.organizationId,
+      userId,
     );
   }
 }
