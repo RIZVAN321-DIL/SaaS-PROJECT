@@ -8,41 +8,48 @@ import {
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { Role } from '../enums/role.enum';
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) {}
+  constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
+    // =========================
+    // PUBLIC ROUTE CHECK
+    // =========================
+    const isPublic = this.reflector.getAllAndOverride<boolean>(
+      IS_PUBLIC_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+
+    if (isPublic) {
+      return true;
+    }
+
+    // =========================
+    // ROLES CHECK
+    // =========================
     const requiredRoles = this.reflector.getAllAndOverride<Role[]>(
       ROLES_KEY,
       [context.getHandler(), context.getClass()],
     );
 
-    // =========================
-    // No RBAC restriction
-    // =========================
-    if (!requiredRoles || requiredRoles.length === 0) {
+    if (!requiredRoles) {
       return true;
     }
 
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    // =========================
-    // Safety checks
-    // =========================
     if (!user) {
       throw new ForbiddenException('User not authenticated');
     }
 
     if (!user.role) {
-      throw new ForbiddenException('Role not found in token');
+      throw new ForbiddenException('Role not found');
     }
 
-    // =========================
-    // RBAC CHECK
-    // =========================
     const hasRole = requiredRoles.includes(user.role);
 
     if (!hasRole) {
