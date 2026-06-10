@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 
 // =========================
@@ -55,7 +55,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { SearchModule } from './modules/search/search.module';
 
 // =========================
-// AUDIT (HARDENING LAYER)
+// AUDIT
 // =========================
 import { AuditModule } from './modules/audit/audit.module';
 
@@ -68,62 +68,100 @@ import { CalendarModule } from './modules/calendar/calendar.module';
 
 @Module({
   imports: [
+    // =========================
+    // CONFIG
+    // =========================
     ConfigModule.forRoot({
       isGlobal: true,
+      cache: true,
+      expandVariables: true,
     }),
 
     // =========================
     // RATE LIMITING
     // =========================
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60,
-        limit: 10,
-      },
-    ]),
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => [
+        {
+          ttl: config.get<number>('THROTTLE_TTL', 60),
+          limit: config.get<number>('THROTTLE_LIMIT', 100),
+        },
+      ],
+    }),
 
+    // =========================
+    // DATABASE
+    // =========================
     PrismaModule,
 
+    // =========================
     // CORE
+    // =========================
     AuthModule,
     UsersModule,
     OrganizationsModule,
 
+    // =========================
     // CRM
+    // =========================
     ClientsModule,
     CasesModule,
     CaseTypesModule,
 
+    // =========================
     // PIPELINE
+    // =========================
     CaseStageModule,
 
+    // =========================
     // DASHBOARD
+    // =========================
     DashboardModule,
 
+    // =========================
     // NOTIFICATIONS
+    // =========================
     NotificationsModule,
 
+    // =========================
     // SEARCH
+    // =========================
     SearchModule,
 
+    // =========================
     // AUDIT
+    // =========================
     AuditModule,
 
+    // =========================
     // OPERATIONS
+    // =========================
     TasksModule,
     DocumentsModule,
     CalendarModule,
   ],
 
   providers: [
+    // =========================
+    // RATE LIMIT
+    // =========================
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
+
+    // =========================
+    // AUTH
+    // =========================
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
+
+    // =========================
+    // RBAC
+    // =========================
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
