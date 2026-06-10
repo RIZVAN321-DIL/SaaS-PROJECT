@@ -1,17 +1,68 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
+
 import { PrismaClient } from '@prisma/client';
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
+  private readonly logger =
+    new Logger(PrismaService.name);
 
-  // подключение к БД при старте приложения
-  async onModuleInit() {
-    await this.$connect();
-    console.log('🗄 Prisma connected to database');
+  constructor() {
+    super({
+      log: [
+        {
+          emit: 'stdout',
+          level: 'warn',
+        },
+        {
+          emit: 'stdout',
+          level: 'error',
+        },
+      ],
+    });
   }
 
-  // корректное закрытие соединения
+  // =========================
+  // CONNECT
+  // =========================
+  async onModuleInit() {
+    await this.$connect();
+
+    this.logger.log(
+      'Prisma connected to database',
+    );
+  }
+
+  // =========================
+  // DISCONNECT
+  // =========================
   async onModuleDestroy() {
     await this.$disconnect();
+
+    this.logger.log(
+      'Prisma disconnected',
+    );
+  }
+
+  // =========================
+  // APP SHUTDOWN SUPPORT
+  // =========================
+  async enableShutdownHooks(app: {
+    close(): Promise<void>;
+  }) {
+    process.on(
+      'beforeExit',
+      async () => {
+        await app.close();
+      },
+    );
   }
 }
