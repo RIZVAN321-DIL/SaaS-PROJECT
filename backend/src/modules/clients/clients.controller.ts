@@ -1,30 +1,63 @@
-import { Controller, Get, Post, Body, Param, Delete, Put } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Req,
+} from '@nestjs/common';
+
+import { Request } from 'express';
 import { ClientsService } from './clients.service';
 
 @Controller('clients')
 export class ClientsController {
-  constructor(private clientsService: ClientsService) {}
+  constructor(private readonly clientsService: ClientsService) {}
 
+  // =========================
+  // CREATE CLIENT
+  // =========================
   @Post()
-  create(@Body() body: any) {
-    return this.clientsService.create(body);
+  create(@Body() body: any, @Req() req: Request) {
+    const user = req.user as any;
+
+    return this.clientsService.create({
+      ...body,
+      organizationId: user.organizationId,
+    });
   }
 
-  @Get(':organizationId')
-  findAll(@Param('organizationId') organizationId: string) {
-    return this.clientsService.findAll(organizationId);
+  // =========================
+  // GET ALL CLIENTS
+  // =========================
+  @Get()
+  findAll(@Req() req: Request) {
+    const user = req.user as any;
+
+    return this.clientsService.findAll(user.organizationId);
   }
 
-  @Get('one/:id')
+  // =========================
+  // GET ONE CLIENT
+  // =========================
+  @Get(':id')
   findOne(@Param('id') id: string) {
     return this.clientsService.findById(id);
   }
 
+  // =========================
+  // UPDATE CLIENT
+  // =========================
   @Put(':id')
   update(@Param('id') id: string, @Body() body: any) {
     return this.clientsService.update(id, body);
   }
 
+  // =========================
+  // DELETE CLIENT
+  // =========================
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.clientsService.remove(id);
