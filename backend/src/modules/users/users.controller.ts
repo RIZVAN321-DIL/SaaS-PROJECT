@@ -1,22 +1,66 @@
-import { Controller, Get, Param, Post, Body } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Post,
+  Body,
+  Req,
+} from '@nestjs/common';
+
+import { Request } from 'express';
+
 import { UsersService } from './users.service';
+
+import { Roles } from '../../common/decorators/roles.decorator';
+import { Role } from '../../common/enums/role.enum';
 
 @Controller('users')
 export class UsersController {
-  constructor(private usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+  ) {}
 
   @Get()
-  async getAll() {
-    return this.usersService.findAll();
+  async getAll(
+    @Req() req: Request,
+  ) {
+    const user = req.user as any;
+
+    return this.usersService.findAll(
+      user.organizationId,
+    );
   }
 
   @Get(':id')
-  async getById(@Param('id') id: string) {
-    return this.usersService.findById(Number(id));
+  async getById(
+    @Param('id') id: string,
+    @Req() req: Request,
+  ) {
+    const user = req.user as any;
+
+    return this.usersService.findById(
+      id,
+      user.organizationId,
+    );
   }
 
+  @Roles(
+    Role.OWNER,
+    Role.ADMIN,
+  )
   @Post()
-  async create(@Body() body: { email: string; password: string }) {
-    return this.usersService.create(body.email, body.password);
+  async create(
+    @Body() body: any,
+    @Req() req: Request,
+  ) {
+    const user = req.user as any;
+
+    return this.usersService.create({
+      email: body.email,
+      password: body.password,
+      role: body.role,
+      organizationId:
+        user.organizationId,
+    });
   }
 }
