@@ -1,10 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+
 import { PrismaService } from '../../database/prisma.service';
 import { TaskStatus } from './dto/task-status.enum';
 
 @Injectable()
 export class TasksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+  ) {}
 
   // =========================
   // CREATE TASK
@@ -17,6 +23,38 @@ export class TasksService {
     dueDate?: Date;
     assignedToId?: string;
   }) {
+    const caseItem =
+      await this.prisma.case.findFirst({
+        where: {
+          id: data.caseId,
+          organizationId:
+            data.organizationId,
+        },
+      });
+
+    if (!caseItem) {
+      throw new NotFoundException(
+        'Case not found',
+      );
+    }
+
+    if (data.assignedToId) {
+      const user =
+        await this.prisma.user.findFirst({
+          where: {
+            id: data.assignedToId,
+            organizationId:
+              data.organizationId,
+          },
+        });
+
+      if (!user) {
+        throw new NotFoundException(
+          'Assigned user not found',
+        );
+      }
+    }
+
     return this.prisma.task.create({
       data: {
         ...data,
@@ -28,29 +66,49 @@ export class TasksService {
   // =========================
   // GET ALL TASKS
   // =========================
-  async findAll(organizationId: string) {
+  async findAll(
+    organizationId: string,
+  ) {
     return this.prisma.task.findMany({
-      where: { organizationId },
+      where: {
+        organizationId,
+      },
       include: {
         case: true,
         assignedTo: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
       },
     });
   }
 
   // =========================
   // GET ONE TASK
+  // TENANT SAFE
   // =========================
-  async findById(id: string) {
-    const task = await this.prisma.task.findUnique({
-      where: { id },
-      include: {
-        case: true,
-        assignedTo: true,
-      },
-    });
+  async findById(
+    id: string,
+    organizationId: string,
+  ) {
+    const task =
+      await this.prisma.task.findFirst({
+        where: {
+          id,
+          organizationId,
+        },
+        include: {
+          case: true,
+          assignedTo: true,
+        },
+      });
 
-    if (!task) throw new NotFoundException('Task not found');
+    if (!task) {
+      throw new NotFoundException(
+        'Task not found',
+      );
+    }
+
     return task;
   }
 
@@ -59,6 +117,7 @@ export class TasksService {
   // =========================
   async update(
     id: string,
+    organizationId: string,
     data: {
       title?: string;
       description?: string;
@@ -67,17 +126,46 @@ export class TasksService {
       status?: TaskStatus;
     },
   ) {
-    const updateData: any = { ...data };
+    await this.findById(
+      id,
+      organizationId,
+    );
+
+    if (data.assignedToId) {
+      const user =
+        await this.prisma.user.findFirst({
+          where: {
+            id: data.assignedToId,
+            organizationId,
+          },
+        });
+
+      if (!user) {
+        throw new NotFoundException(
+          'Assigned user not found',
+        );
+      }
+    }
+
+    const updateData: any = {
+      ...data,
+    };
 
     // =========================
     // AUTO COMPLETION LOGIC
     // =========================
-    if (data.status === TaskStatus.COMPLETED) {
-      updateData.completedAt = new Date();
+    if (
+      data.status ===
+      TaskStatus.COMPLETED
+    ) {
+      updateData.completedAt =
+        new Date();
     }
 
     return this.prisma.task.update({
-      where: { id },
+      where: {
+        id,
+      },
       data: updateData,
     });
   }
@@ -85,18 +173,53 @@ export class TasksService {
   // =========================
   // DELETE TASK
   // =========================
-  async remove(id: string) {
+  async remove(
+    id: string,
+    organizationId: string,
+  ) {
+    await this.findById(
+      id,
+      organizationId,
+    );
+
     return this.prisma.task.delete({
-      where: { id },
+      where: {
+        id,
+      },
     });
   }
 
   // =========================
   // ASSIGN TASK
   // =========================
-  async assignTask(taskId: string, userId: string) {
+  async assignTask(
+    taskId: string,
+    userId: string,
+    organizationId: string,
+  ) {
+    await this.findById(
+      taskId,
+      organizationId,
+    );
+
+    const user =
+      await this.prisma.user.findFirst({
+        where: {
+          id: userId,
+          organizationId,
+        },
+      });
+
+    if (!user) {
+      throw new NotFoundException(
+        'User not found',
+      );
+    }
+
     return this.prisma.task.update({
-      where: { id: taskId },
+      where: {
+        id: taskId,
+      },
       data: {
         assignedToId: userId,
       },
@@ -106,12 +229,24 @@ export class TasksService {
   // =========================
   // COMPLETE TASK
   // =========================
-  async completeTask(taskId: string) {
+  async completeTask(
+    taskId: string,
+    organizationId: string,
+  ) {
+    await this.findById(
+      taskId,
+      organizationId,
+    );
+
     return this.prisma.task.update({
-      where: { id: taskId },
+      where: {
+        id: taskId,
+      },
       data: {
-        status: TaskStatus.COMPLETED,
-        completedAt: new Date(),
+        status:
+          TaskStatus.COMPLETED,
+        completedAt:
+          new Date(),
       },
     });
   }
