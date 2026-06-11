@@ -1,9 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+
 import { PrismaService } from '../../database/prisma.service';
 
 @Injectable()
 export class ClientsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+  ) {}
 
   // =========================
   // CREATE CLIENT
@@ -21,30 +27,47 @@ export class ClientsService {
   }
 
   // =========================
-  // GET ALL CLIENTS (TENANT SAFE)
+  // GET ALL CLIENTS
   // =========================
-  async findAll(organizationId: string) {
+  async findAll(
+    organizationId: string,
+  ) {
     return this.prisma.client.findMany({
-      where: { organizationId },
+      where: {
+        organizationId,
+      },
       include: {
         cases: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
       },
     });
   }
 
   // =========================
   // GET ONE CLIENT
+  // TENANT SAFE
   // =========================
-  async findById(id: string) {
-    const client = await this.prisma.client.findUnique({
-      where: { id },
-      include: {
-        cases: true,
-      },
-    });
+  async findById(
+    id: string,
+    organizationId: string,
+  ) {
+    const client =
+      await this.prisma.client.findFirst({
+        where: {
+          id,
+          organizationId,
+        },
+        include: {
+          cases: true,
+        },
+      });
 
     if (!client) {
-      throw new NotFoundException('Client not found');
+      throw new NotFoundException(
+        'Client not found',
+      );
     }
 
     return client;
@@ -52,9 +75,11 @@ export class ClientsService {
 
   // =========================
   // UPDATE CLIENT
+  // TENANT SAFE
   // =========================
   async update(
     id: string,
+    organizationId: string,
     data: {
       fullName?: string;
       phone?: string;
@@ -62,18 +87,36 @@ export class ClientsService {
       notes?: string;
     },
   ) {
+    await this.findById(
+      id,
+      organizationId,
+    );
+
     return this.prisma.client.update({
-      where: { id },
+      where: {
+        id,
+      },
       data,
     });
   }
 
   // =========================
   // DELETE CLIENT
+  // TENANT SAFE
   // =========================
-  async remove(id: string) {
+  async remove(
+    id: string,
+    organizationId: string,
+  ) {
+    await this.findById(
+      id,
+      organizationId,
+    );
+
     return this.prisma.client.delete({
-      where: { id },
+      where: {
+        id,
+      },
     });
   }
 }
