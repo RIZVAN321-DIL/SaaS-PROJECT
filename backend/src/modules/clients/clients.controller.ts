@@ -10,22 +10,37 @@ import {
 } from '@nestjs/common';
 
 import { Request } from 'express';
+
 import { ClientsService } from './clients.service';
+
+interface AuthenticatedUser {
+  userId: string;
+  email: string;
+  organizationId: string;
+  role: string;
+}
 
 @Controller('clients')
 export class ClientsController {
-  constructor(private readonly clientsService: ClientsService) {}
+  constructor(
+    private readonly clientsService: ClientsService,
+  ) {}
 
   // =========================
   // CREATE CLIENT
   // =========================
   @Post()
-  create(@Body() body: any, @Req() req: Request) {
-    const user = req.user as any;
+  create(
+    @Body() body: any,
+    @Req() req: Request,
+  ) {
+    const user =
+      req.user as AuthenticatedUser;
 
     return this.clientsService.create({
       ...body,
-      organizationId: user.organizationId,
+      organizationId:
+        user.organizationId,
     });
   }
 
@@ -33,33 +48,70 @@ export class ClientsController {
   // GET ALL CLIENTS
   // =========================
   @Get()
-  findAll(@Req() req: Request) {
-    const user = req.user as any;
+  findAll(
+    @Req() req: Request,
+  ) {
+    const user =
+      req.user as AuthenticatedUser;
 
-    return this.clientsService.findAll(user.organizationId);
+    return this.clientsService.findAll(
+      user.organizationId,
+    );
   }
 
   // =========================
   // GET ONE CLIENT
+  // TENANT SAFE
   // =========================
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.clientsService.findById(id);
+  findOne(
+    @Param('id') id: string,
+    @Req() req: Request,
+  ) {
+    const user =
+      req.user as AuthenticatedUser;
+
+    return this.clientsService.findById(
+      id,
+      user.organizationId,
+    );
   }
 
   // =========================
   // UPDATE CLIENT
+  // TENANT SAFE
   // =========================
   @Put(':id')
-  update(@Param('id') id: string, @Body() body: any) {
-    return this.clientsService.update(id, body);
+  update(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Req() req: Request,
+  ) {
+    const user =
+      req.user as AuthenticatedUser;
+
+    return this.clientsService.update(
+      id,
+      user.organizationId,
+      body,
+    );
   }
 
   // =========================
   // DELETE CLIENT
+  // TENANT SAFE
   // =========================
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.clientsService.remove(id);
+  remove(
+    @Param('id') id: string,
+    @Req() req: Request,
+  ) {
+    const user =
+      req.user as AuthenticatedUser;
+
+    return this.clientsService.remove(
+      id,
+      user.organizationId,
+    );
   }
 }
