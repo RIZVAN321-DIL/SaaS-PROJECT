@@ -3,7 +3,9 @@ import { PrismaService } from '../../database/prisma.service';
 
 @Injectable()
 export class NotificationsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+  ) {}
 
   // =========================
   // OVERDUE TASKS
@@ -23,19 +25,37 @@ export class NotificationsService {
         },
         ...(userId
           ? {
-              assignedToId: userId, // 🔥 Task System v2 filter
+              assignedToId: userId,
             }
           : {}),
       },
+
       include: {
-        case: true,
-        assignedTo: true, // 🔥 Task System v2
+        case: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+
+        assignedTo: {
+          select: {
+            id: true,
+            email: true,
+          },
+        },
       },
+
+      orderBy: {
+        dueDate: 'asc',
+      },
+
+      take: 50,
     });
   }
 
   // =========================
-  // UPCOMING TASKS (next 24h)
+  // UPCOMING TASKS (NEXT 24H)
   // =========================
   async getUpcomingTasks(
     organizationId: string,
@@ -44,28 +64,51 @@ export class NotificationsService {
     const now = new Date();
 
     const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setDate(
+      tomorrow.getDate() + 1,
+    );
 
     return this.prisma.task.findMany({
       where: {
         organizationId,
+
         status: {
           not: 'completed',
         },
+
         dueDate: {
           gte: now,
           lte: tomorrow,
         },
+
         ...(userId
           ? {
-              assignedToId: userId, // 🔥 Task System v2 filter
+              assignedToId: userId,
             }
           : {}),
       },
+
       include: {
-        case: true,
-        assignedTo: true, // 🔥 Task System v2
+        case: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+
+        assignedTo: {
+          select: {
+            id: true,
+            email: true,
+          },
+        },
       },
+
+      orderBy: {
+        dueDate: 'asc',
+      },
+
+      take: 50,
     });
   }
 
@@ -76,19 +119,23 @@ export class NotificationsService {
     organizationId: string,
     userId?: string,
   ) {
-    const overdue = await this.getOverdueTasks(
-      organizationId,
-      userId,
-    );
+    const [overdue, upcoming] =
+      await Promise.all([
+        this.getOverdueTasks(
+          organizationId,
+          userId,
+        ),
 
-    const upcoming = await this.getUpcomingTasks(
-      organizationId,
-      userId,
-    );
+        this.getUpcomingTasks(
+          organizationId,
+          userId,
+        ),
+      ]);
 
     return {
       overdueCount: overdue.length,
       upcomingCount: upcoming.length,
+
       overdue,
       upcoming,
     };
