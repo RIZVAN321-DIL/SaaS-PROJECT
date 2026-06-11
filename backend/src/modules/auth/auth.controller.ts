@@ -4,14 +4,25 @@ import {
   Body,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
+
+import { Request } from 'express';
 
 import { AuthService } from './auth.service';
 
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 import { Public } from '../../common/decorators/public.decorator';
+
+interface JwtUser {
+  userId: string;
+  email: string;
+  organizationId: string;
+  role: string;
+}
 
 @Controller('auth')
 export class AuthController {
@@ -44,5 +55,41 @@ export class AuthController {
       body.email,
       body.password,
     );
+  }
+
+  // =========================
+  // REFRESH TOKEN
+  // =========================
+  @Public()
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  async refresh(
+    @Body() body: RefreshTokenDto,
+  ) {
+    return this.authService.refresh(
+      body.userId,
+      body.refreshToken,
+    );
+  }
+
+  // =========================
+  // LOGOUT
+  // =========================
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  async logout(
+    @Req() req: Request,
+  ) {
+    const user =
+      req.user as JwtUser;
+
+    await this.authService.logout(
+      user.userId,
+    );
+
+    return {
+      success: true,
+      message: 'Logged out successfully',
+    };
   }
 }
