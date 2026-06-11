@@ -12,21 +12,35 @@ import {
 import { Request } from 'express';
 import { CasesService } from './cases.service';
 
+interface AuthenticatedUser {
+  userId: string;
+  email: string;
+  organizationId: string;
+  role: string;
+}
+
 @Controller('cases')
 export class CasesController {
-  constructor(private readonly casesService: CasesService) {}
+  constructor(
+    private readonly casesService: CasesService,
+  ) {}
 
   // =========================
   // CREATE CASE
   // =========================
   @Post()
-  create(@Body() body: any, @Req() req: Request) {
-    const user = req.user as any;
+  create(
+    @Body() body: any,
+    @Req() req: Request,
+  ) {
+    const user =
+      req.user as AuthenticatedUser;
 
     return this.casesService.create({
       ...body,
       userId: user.userId,
-      organizationId: user.organizationId,
+      organizationId:
+        user.organizationId,
     });
   }
 
@@ -34,40 +48,86 @@ export class CasesController {
   // GET ALL CASES
   // =========================
   @Get()
-  findAll(@Req() req: Request) {
-    const user = req.user as any;
+  findAll(
+    @Req() req: Request,
+  ) {
+    const user =
+      req.user as AuthenticatedUser;
 
-    return this.casesService.findAll(user.organizationId);
+    return this.casesService.findAll(
+      user.organizationId,
+    );
+  }
+
+  // =========================
+  // KANBAN BOARD
+  // IMPORTANT:
+  // MUST BE ABOVE :id ROUTE
+  // =========================
+  @Get('board')
+  getBoard(
+    @Req() req: Request,
+  ) {
+    const user =
+      req.user as AuthenticatedUser;
+
+    return this.casesService.getBoard(
+      user.organizationId,
+    );
   }
 
   // =========================
   // GET ONE CASE
+  // TENANT SAFE
   // =========================
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.casesService.findById(id);
+  findOne(
+    @Param('id') id: string,
+    @Req() req: Request,
+  ) {
+    const user =
+      req.user as AuthenticatedUser;
+
+    return this.casesService.findById(
+      id,
+      user.organizationId,
+    );
   }
 
   // =========================
   // UPDATE CASE
   // =========================
   @Put(':id')
-  update(@Param('id') id: string, @Body() body: any, @Req() req: Request) {
-    const user = req.user as any;
+  update(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Req() req: Request,
+  ) {
+    const user =
+      req.user as AuthenticatedUser;
 
-    return this.casesService.update(id, {
-      ...body,
-      organizationId: user.organizationId,
-      userId: user.userId,
-    });
+    return this.casesService.update(
+      id,
+      {
+        ...body,
+        organizationId:
+          user.organizationId,
+        userId:
+          user.userId,
+      },
+    );
   }
 
   // =========================
   // DELETE CASE
   // =========================
   @Delete(':id')
-  remove(@Param('id') id: string, @Req() req: Request) {
-    const user = req.user as any;
+  remove(
+    @Param('id') id: string,
+    @Req() req: Request,
+  ) {
+    const user =
+      req.user as AuthenticatedUser;
 
     return this.casesService.remove(
       id,
@@ -77,25 +137,21 @@ export class CasesController {
   }
 
   // =========================
-  // KANBAN BOARD
-  // =========================
-  @Get('board')
-  getBoard(@Req() req: Request) {
-    const user = req.user as any;
-
-    return this.casesService.getBoard(user.organizationId);
-  }
-
-  // =========================
   // MOVE CASE
   // =========================
   @Put('move/:caseId/:stageId')
   moveCase(
-    @Param('caseId') caseId: string,
-    @Param('stageId') stageId: string,
-    @Req() req: Request,
+    @Param('caseId')
+    caseId: string,
+
+    @Param('stageId')
+    stageId: string,
+
+    @Req()
+    req: Request,
   ) {
-    const user = req.user as any;
+    const user =
+      req.user as AuthenticatedUser;
 
     return this.casesService.moveCase(
       caseId,
@@ -104,4 +160,4 @@ export class CasesController {
       user.userId,
     );
   }
-                }
+}
