@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  NotFoundException,
 } from '@nestjs/common';
 
 import { JwtService } from '@nestjs/jwt';
@@ -25,13 +26,26 @@ export class AuthService {
     email: string;
     password: string;
     organizationId: string;
-    role?: Role;
   }) {
     const email = data.email.trim().toLowerCase();
 
-    const existingUser =
-      await this.prisma.user.findUnique({
+    const organization =
+      await this.prisma.organization.findUnique({
         where: {
+          id: data.organizationId,
+        },
+      });
+
+    if (!organization) {
+      throw new NotFoundException(
+        'Organization not found',
+      );
+    }
+
+    const existingUser =
+      await this.prisma.user.findFirst({
+        where: {
+          organizationId: data.organizationId,
           email,
         },
       });
@@ -50,13 +64,7 @@ export class AuthService {
         email,
         password: hashedPassword,
         organizationId: data.organizationId,
-
-        // SECURITY:
-        // do not allow OWNER escalation
-        role:
-          data.role === Role.OWNER
-            ? Role.LAWYER
-            : data.role ?? Role.LAWYER,
+        role: Role.LAWYER,
       },
     });
 
@@ -74,7 +82,7 @@ export class AuthService {
       email.trim().toLowerCase();
 
     const user =
-      await this.prisma.user.findUnique({
+      await this.prisma.user.findFirst({
         where: {
           email: normalizedEmail,
         },
