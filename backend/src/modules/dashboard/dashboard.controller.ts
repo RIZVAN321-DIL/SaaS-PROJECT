@@ -1,39 +1,72 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Req,
+} from '@nestjs/common';
+
+import { Request } from 'express';
+
 import { DashboardService } from './dashboard.service';
 
 @Controller('dashboard')
 export class DashboardController {
-  constructor(private dashboardService: DashboardService) {}
+  constructor(
+    private readonly dashboardService: DashboardService,
+  ) {}
 
   // =========================
   // FULL DASHBOARD
   // =========================
-  @Get(':organizationId')
-  getDashboard(@Param('organizationId') organizationId: string) {
-    return this.dashboardService.getDashboard(organizationId);
+  @Get()
+  getDashboard(
+    @Req() req: Request,
+  ) {
+    const user = req.user as any;
+
+    return this.dashboardService.getDashboard(
+      user.organizationId,
+    );
   }
 
   // =========================
   // CASE STATS ONLY
   // =========================
-  @Get('cases/:organizationId')
-  getCases(@Param('organizationId') organizationId: string) {
-    return this.dashboardService.getCasesStats(organizationId);
+  @Get('cases')
+  getCases(
+    @Req() req: Request,
+  ) {
+    const user = req.user as any;
+
+    return this.dashboardService.getCasesStats(
+      user.organizationId,
+    );
   }
 
   // =========================
   // CLIENT STATS ONLY
   // =========================
-  @Get('clients/:organizationId')
-  getClients(@Param('organizationId') organizationId: string) {
-    return this.dashboardService.getClientsStats(organizationId);
+  @Get('clients')
+  getClients(
+    @Req() req: Request,
+  ) {
+    const user = req.user as any;
+
+    return this.dashboardService.getClientsStats(
+      user.organizationId,
+    );
   }
 
   // =========================
   // TASK STATS ONLY
   // =========================
-  @Get('tasks/:organizationId')
-  getTasks(@Param('organizationId') organizationId: string) {
-    return this.dashboardService.getTasksStats(organizationId);
+  @Get('tasks')
+  getTasks(
+    @Req() req: Request,
+  ) {
+    const user = req.user as any;
+
+    return this.dashboardService.getTasksStats(
+      user.organizationId,
+    );
   }
 }
