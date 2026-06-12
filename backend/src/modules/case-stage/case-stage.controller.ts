@@ -6,7 +6,10 @@ import {
   Delete,
   Param,
   Body,
+  Req,
 } from '@nestjs/common';
+
+import { Request } from 'express';
 
 import { CaseStageService } from './case-stage.service';
 
@@ -16,60 +19,95 @@ export class CaseStageController {
     private readonly caseStageService: CaseStageService,
   ) {}
 
-  @Get(':organizationId')
+  @Get()
   findAll(
-    @Param('organizationId')
-    organizationId: string,
+    @Req() req: Request,
   ) {
+    const user = req.user as any;
+
     return this.caseStageService.findAll(
-      organizationId,
+      user.organizationId,
     );
   }
 
   @Get('single/:id')
-  findOne(@Param('id') id: string) {
-    return this.caseStageService.findOne(id);
+  findOne(
+    @Param('id') id: string,
+    @Req() req: Request,
+  ) {
+    const user = req.user as any;
+
+    return this.caseStageService.findOne(
+      id,
+      user.organizationId,
+    );
   }
 
   @Post()
-  create(@Body() body: any) {
-    return this.caseStageService.create(body);
+  create(
+    @Body() body: any,
+    @Req() req: Request,
+  ) {
+    const user = req.user as any;
+
+    return this.caseStageService.create({
+      ...body,
+      organizationId:
+        user.organizationId,
+    });
   }
 
   @Put(':id')
   update(
     @Param('id') id: string,
     @Body() body: any,
+    @Req() req: Request,
   ) {
+    const user = req.user as any;
+
     return this.caseStageService.update(
       id,
+      user.organizationId,
       body,
     );
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.caseStageService.remove(id);
+  remove(
+    @Param('id') id: string,
+    @Req() req: Request,
+  ) {
+    const user = req.user as any;
+
+    return this.caseStageService.remove(
+      id,
+      user.organizationId,
+    );
   }
 
   @Put('move-case/:caseId/:stageId')
   moveCase(
     @Param('caseId') caseId: string,
     @Param('stageId') stageId: string,
+    @Req() req: Request,
   ) {
+    const user = req.user as any;
+
     return this.caseStageService.moveCase(
       caseId,
       stageId,
+      user.organizationId,
     );
   }
 
-  @Get('board/:organizationId')
+  @Get('board')
   getBoard(
-    @Param('organizationId')
-    organizationId: string,
+    @Req() req: Request,
   ) {
+    const user = req.user as any;
+
     return this.caseStageService.getBoard(
-      organizationId,
+      user.organizationId,
     );
   }
 }
