@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
+
 import { PrismaService } from '../../database/prisma.service';
 
 import { CreateCaseTypeDto } from './dto/create-case-type.dto';
@@ -17,31 +22,68 @@ type Rule = {
 
 @Injectable()
 export class CaseTypesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+  ) {}
 
   // =========================
   // CRUD METHODS
   // =========================
 
-  async findAll(organizationId: string) {
+  async findAll(
+    organizationId: string,
+  ) {
     return this.prisma.caseType.findMany({
-      where: { organizationId },
+      where: {
+        organizationId,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
   }
 
-  async findOne(id: string) {
-    const caseType = await this.prisma.caseType.findUnique({
-      where: { id },
-    });
+  async findOne(
+    id: string,
+    organizationId: string,
+  ) {
+    const caseType =
+      await this.prisma.caseType.findFirst({
+        where: {
+          id,
+          organizationId,
+        },
+      });
 
     if (!caseType) {
-      throw new NotFoundException('CaseType not found');
+      throw new NotFoundException(
+        'CaseType not found',
+      );
     }
 
     return caseType;
   }
 
-  async create(data: CreateCaseTypeDto) {
+  async create(
+    data: CreateCaseTypeDto & {
+      organizationId: string;
+    },
+  ) {
+    const existing =
+      await this.prisma.caseType.findFirst({
+        where: {
+          organizationId:
+            data.organizationId,
+          name: data.name,
+        },
+      });
+
+    if (existing) {
+      throw new ConflictException(
+        'CaseType already exists',
+      );
+    }
+
     return this.prisma.caseType.create({
       data,
     });
@@ -49,17 +91,89 @@ export class CaseTypesService {
 
   async update(
     id: string,
+    organizationId: string,
     data: UpdateCaseTypeDto,
   ) {
+    const caseType =
+      await this.prisma.caseType.findFirst({
+        where: {
+          id,
+          organizationId,
+        },
+      });
+
+    if (!caseType) {
+      throw new NotFoundException(
+        'CaseType not found',
+      );
+    }
+
+    if (
+      data.name &&
+      data.name !== caseType.name
+    ) {
+      const duplicate =
+        await this.prisma.caseType.findFirst({
+          where: {
+            organizationId,
+            name: data.name,
+            NOT: {
+              id,
+            },
+          },
+        });
+
+      if (duplicate) {
+        throw new ConflictException(
+          'CaseType already exists',
+        );
+      }
+    }
+
     return this.prisma.caseType.update({
-      where: { id },
+      where: {
+        id,
+      },
       data,
     });
   }
 
-  async remove(id: string) {
+  async remove(
+    id: string,
+    organizationId: string,
+  ) {
+    const caseType =
+      await this.prisma.caseType.findFirst({
+        where: {
+          id,
+          organizationId,
+        },
+      });
+
+    if (!caseType) {
+      throw new NotFoundException(
+        'CaseType not found',
+      );
+    }
+
+    const linkedCases =
+      await this.prisma.case.count({
+        where: {
+          caseTypeId: id,
+          organizationId,
+        },
+      });
+
+    if (linkedCases > 0) {
+      throw new ConflictException(
+        'CaseType is used by cases',
+      );
+    }
+
     return this.prisma.caseType.delete({
-      where: { id },
+      where: {
+        id,
+      },
     });
   }
 
@@ -73,7 +187,7 @@ export class CaseTypesService {
   ): string[] {
     const tasks: string[] = [];
 
-    if (!rules || rules.length === 0) {
+    if (!rules?.length) {
       return tasks;
     }
 
@@ -86,20 +200,27 @@ export class CaseTypesService {
       ) {
         const fieldValue =
           context[
-            rule.if.field as keyof CreateCaseFromTypeDto
+            rule.if
+              .field as keyof CreateCaseFromTypeDto
           ];
 
-        if (fieldValue !== rule.if.equals) {
+        if (
+          String(fieldValue) !==
+          rule.if.equals
+        ) {
           match = false;
         }
       }
 
       if (
         match &&
-        rule.then?.addTasks &&
-        Array.isArray(rule.then.addTasks)
+        Array.isArray(
+          rule.then?.addTasks,
+        )
       ) {
-        tasks.push(...rule.then.addTasks);
+        tasks.push(
+          ...rule.then.addTasks,
+        );
       }
     }
 
@@ -107,16 +228,20 @@ export class CaseTypesService {
   }
 
   // =========================
-  // CREATE CASE FROM CASE TYPE
+  // CREATE CASE FROM TYPE
   // =========================
 
   async createCaseFromType(
-    data: CreateCaseFromTypeDto,
+    data: CreateCaseFromTypeDto & {
+      organizationId: string;
+    },
   ) {
     const caseType =
-      await this.prisma.caseType.findUnique({
+      await this.prisma.caseType.findFirst({
         where: {
           id: data.caseTypeId,
+          organizationId:
+            data.organizationId,
         },
       });
 
@@ -126,17 +251,57 @@ export class CaseTypesService {
       );
     }
 
+    const client =
+      await this.prisma.client.findFirst({
+        where: {
+          id: data.clientId,
+          organizationId:
+            data.organizationId,
+        },
+      });
+
+    if (!client) {
+      throw new NotFoundException(
+        'Client not found',
+      );
+    }
+
+    const firstStage =
+      await this.prisma.caseStage.findFirst({
+        where: {
+          organizationId:
+            data.organizationId,
+        },
+        orderBy: {
+          order: 'asc',
+        },
+      });
+
     const tasksTemplate =
-      (caseType.tasksTemplate as string[]) || [];
+      Array.isArray(
+        caseType.tasksTemplate,
+      )
+        ? (caseType.tasksTemplate as string[])
+        : [];
 
     const documentsTemplate =
-      (caseType.documentsTemplate as string[]) || [];
+      Array.isArray(
+        caseType.documentsTemplate,
+      )
+        ? (caseType.documentsTemplate as string[])
+        : [];
 
-    const rules =
-      (caseType.rules as Rule[]) || [];
+    const rules = Array.isArray(
+      caseType.rules,
+    )
+      ? (caseType.rules as Rule[])
+      : [];
 
     const ruleTasks =
-      this.applyRules(rules, data);
+      this.applyRules(
+        rules,
+        data,
+      );
 
     const allTasks = [
       ...tasksTemplate,
@@ -149,16 +314,15 @@ export class CaseTypesService {
           organizationId:
             data.organizationId,
           clientId: data.clientId,
-          caseTypeId: data.caseTypeId,
+          caseTypeId:
+            data.caseTypeId,
           title: data.title,
           description:
             data.description,
+          stageId:
+            firstStage?.id ?? null,
         },
       });
-
-    // =========================
-    // TASKS
-    // =========================
 
     if (allTasks.length > 0) {
       await this.prisma.task.createMany({
@@ -172,10 +336,6 @@ export class CaseTypesService {
         ),
       });
     }
-
-    // =========================
-    // DOCUMENTS
-    // =========================
 
     if (
       documentsTemplate.length > 0
@@ -193,6 +353,17 @@ export class CaseTypesService {
       });
     }
 
-    return newCase;
+    return this.prisma.case.findUnique({
+      where: {
+        id: newCase.id,
+      },
+      include: {
+        client: true,
+        caseType: true,
+        stage: true,
+        tasks: true,
+        documents: true,
+      },
+    });
   }
-          }
+        }
