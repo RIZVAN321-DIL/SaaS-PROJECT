@@ -55,14 +55,11 @@ export class PrismaService
   // =========================
   // APP SHUTDOWN SUPPORT
   // =========================
-  async enableShutdownHooks(app: {
+  enableShutdownHooks(app: {
     close(): Promise<void>;
   }) {
-    process.on(
-      'beforeExit',
-      async () => {
-        await app.close();
-      },
-    );
+    this.$on('beforeExit', async () => {
+      await app.close();
+    });
   }
 }
