@@ -1,36 +1,157 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
+
 import { PrismaService } from '../../database/prisma.service';
 
 @Injectable()
 export class OrganizationsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+  ) {}
 
   async createOrganization(name: string) {
+    const existing =
+      await this.prisma.organization.findFirst({
+        where: {
+          name,
+        },
+      });
+
+    if (existing) {
+      throw new ConflictException(
+        'Organization already exists',
+      );
+    }
+
     return this.prisma.organization.create({
-      data: { name },
+      data: {
+        name,
+      },
     });
   }
 
-  async addUserToOrganization(userId: number, organizationId: number) {
-    const org = await this.prisma.organization.findUnique({ where: { id: organizationId } });
-    if (!org) throw new NotFoundException('Organization not found');
+  async addUserToOrganization(
+    userId: string,
+    organizationId: string,
+  ) {
+    const organization =
+      await this.prisma.organization.findUnique({
+        where: {
+          id: organizationId,
+        },
+      });
 
-    const user = await this.prisma.user.update({
-      where: { id: userId },
-      data: { organizationId },
+    if (!organization) {
+      throw new NotFoundException(
+        'Organization not found',
+      );
+    }
+
+    const user =
+      await this.prisma.user.findUnique({
+        where: {
+          id: userId,
+        },
+      });
+
+    if (!user) {
+      throw new NotFoundException(
+        'User not found',
+      );
+    }
+
+    return this.prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        organizationId,
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        organizationId: true,
+        createdAt: true,
+      },
     });
-
-    return user;
   }
 
-  async getUsersInOrganization(organizationId: number) {
-    const users = await this.prisma.user.findMany({
-      where: { organizationId },
+  async getUsersInOrganization(
+    organizationId: string,
+  ) {
+    const organization =
+      await this.prisma.organization.findUnique({
+        where: {
+          id: organizationId,
+        },
+      });
+
+    if (!organization) {
+      throw new NotFoundException(
+        'Organization not found',
+      );
+    }
+
+    return this.prisma.user.findMany({
+      where: {
+        organizationId,
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        organizationId: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
-    return users;
+  }
+
+  async getOrganizationById(
+    organizationId: string,
+  ) {
+    const organization =
+      await this.prisma.organization.findUnique({
+        where: {
+          id: organizationId,
+        },
+        include: {
+          _count: {
+            select: {
+              users: true,
+              clients: true,
+              cases: true,
+              tasks: true,
+            },
+          },
+        },
+      });
+
+    if (!organization) {
+      throw new NotFoundException(
+        'Organization not found',
+      );
+    }
+
+    return organization;
   }
 
   async getAllOrganizations() {
-    return this.prisma.organization.findMany();
+    return this.prisma.organization.findMany({
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
   }
 }
