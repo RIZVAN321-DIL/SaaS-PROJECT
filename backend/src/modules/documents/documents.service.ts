@@ -28,6 +28,9 @@ export class DocumentsService {
           organizationId:
             data.organizationId,
         },
+        select: {
+          id: true,
+        },
       });
 
     if (!caseItem) {
@@ -37,7 +40,14 @@ export class DocumentsService {
     }
 
     return this.prisma.document.create({
-      data,
+      data: {
+        organizationId:
+          data.organizationId,
+        caseId: data.caseId,
+        name: data.name,
+        fileUrl: data.fileUrl,
+        type: data.type,
+      },
     });
   }
 
@@ -52,7 +62,16 @@ export class DocumentsService {
         organizationId,
       },
       include: {
-        case: true,
+        case: {
+          select: {
+            id: true,
+            title: true,
+            clientId: true,
+            stageId: true,
+            caseTypeId: true,
+            createdAt: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -75,7 +94,16 @@ export class DocumentsService {
           organizationId,
         },
         include: {
-          case: true,
+          case: {
+            select: {
+              id: true,
+              title: true,
+              clientId: true,
+              stageId: true,
+              caseTypeId: true,
+              createdAt: true,
+            },
+          },
         },
       });
 
