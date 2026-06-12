@@ -16,13 +16,7 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 import { Public } from '../../common/decorators/public.decorator';
-
-interface JwtUser {
-  userId: string;
-  email: string;
-  organizationId: string;
-  role: string;
-}
+import { JwtUser } from './jwt.strategy';
 
 @Controller('auth')
 export class AuthController {
@@ -89,7 +83,6 @@ export class AuthController {
 
     return {
       success: true,
-      message: 'Logged out successfully',
     };
   }
 }
