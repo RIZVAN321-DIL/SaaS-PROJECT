@@ -22,7 +22,16 @@ export class ClientsService {
     notes?: string;
   }) {
     return this.prisma.client.create({
-      data,
+      data: {
+        organizationId:
+          data.organizationId,
+        fullName: data.fullName.trim(),
+        phone: data.phone?.trim(),
+        email: data.email
+          ?.trim()
+          .toLowerCase(),
+        notes: data.notes,
+      },
     });
   }
 
@@ -37,7 +46,14 @@ export class ClientsService {
         organizationId,
       },
       include: {
-        cases: true,
+        cases: {
+          select: {
+            id: true,
+            title: true,
+            stageId: true,
+            createdAt: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -60,7 +76,17 @@ export class ClientsService {
           organizationId,
         },
         include: {
-          cases: true,
+          cases: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              stageId: true,
+              caseTypeId: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
         },
       });
 
@@ -96,7 +122,29 @@ export class ClientsService {
       where: {
         id,
       },
-      data,
+      data: {
+        ...(data.fullName !== undefined && {
+          fullName:
+            data.fullName.trim(),
+        }),
+
+        ...(data.phone !== undefined && {
+          phone:
+            data.phone?.trim() ||
+            null,
+        }),
+
+        ...(data.email !== undefined && {
+          email:
+            data.email
+              ?.trim()
+              .toLowerCase() || null,
+        }),
+
+        ...(data.notes !== undefined && {
+          notes: data.notes,
+        }),
+      },
     });
   }
 
