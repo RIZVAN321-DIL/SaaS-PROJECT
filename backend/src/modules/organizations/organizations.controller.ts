@@ -1,30 +1,101 @@
-import { Controller, Post, Body, Param, Get } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Param,
+  Get,
+  Req,
+} from '@nestjs/common';
+
+import { Request } from 'express';
+
 import { OrganizationsService } from './organizations.service';
+
+import { Roles } from '../../common/decorators/roles.decorator';
+import { Role } from '../../common/enums/role.enum';
 
 @Controller('organizations')
 export class OrganizationsController {
-  constructor(private orgService: OrganizationsService) {}
+  constructor(
+    private readonly orgService: OrganizationsService,
+  ) {}
 
+  @Roles(Role.OWNER)
   @Post()
-  async create(@Body() body: { name: string }) {
-    return this.orgService.createOrganization(body.name);
+  async create(
+    @Body() body: { name: string },
+  ) {
+    return this.orgService.createOrganization(
+      body.name,
+    );
   }
 
+  @Roles(Role.OWNER, Role.ADMIN)
   @Post(':id/add-user')
   async addUser(
     @Param('id') organizationId: string,
-    @Body() body: { userId: number },
+    @Body() body: { userId: string },
+    @Req() req: Request,
   ) {
-    return this.orgService.addUserToOrganization(body.userId, Number(organizationId));
+    const user = req.user as any;
+
+    if (user.organizationId !== organizationId) {
+      throw new Error(
+        'Access denied to another organization',
+      );
+    }
+
+    return this.orgService.addUserToOrganization(
+      body.userId,
+      organizationId,
+    );
   }
 
+  @Roles(
+    Role.OWNER,
+    Role.ADMIN,
+    Role.LAWYER,
+    Role.ASSISTANT,
+  )
   @Get(':id/users')
-  async getUsers(@Param('id') organizationId: string) {
-    return this.orgService.getUsersInOrganization(Number(organizationId));
+  async getUsers(
+    @Param('id') organizationId: string,
+    @Req() req: Request,
+  ) {
+    const user = req.user as any;
+
+    if (user.organizationId !== organizationId) {
+      throw new Error(
+        'Access denied to another organization',
+      );
+    }
+
+    return this.orgService.getUsersInOrganization(
+      organizationId,
+    );
   }
 
+  @Roles(Role.OWNER)
   @Get()
   async getAll() {
     return this.orgService.getAllOrganizations();
+  }
+
+  @Get(':id')
+  async getOrganization(
+    @Param('id') organizationId: string,
+    @Req() req: Request,
+  ) {
+    const user = req.user as any;
+
+    if (user.organizationId !== organizationId) {
+      throw new Error(
+        'Access denied to another organization',
+      );
+    }
+
+    return this.orgService.getOrganizationById(
+      organizationId,
+    );
   }
 }
