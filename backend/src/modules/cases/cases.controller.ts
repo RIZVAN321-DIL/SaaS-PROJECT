@@ -10,13 +10,16 @@ import {
 } from '@nestjs/common';
 
 import { Request } from 'express';
+
 import { CasesService } from './cases.service';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { Role } from '../../common/enums/role.enum';
 
 interface AuthenticatedUser {
   userId: string;
   email: string;
   organizationId: string;
-  role: string;
+  role: Role;
 }
 
 @Controller('cases')
@@ -77,6 +80,33 @@ export class CasesController {
   }
 
   // =========================
+  // MOVE CASE
+  // IMPORTANT:
+  // MUST BE ABOVE :id ROUTE
+  // =========================
+  @Put('move/:caseId/:stageId')
+  moveCase(
+    @Param('caseId')
+    caseId: string,
+
+    @Param('stageId')
+    stageId: string,
+
+    @Req()
+    req: Request,
+  ) {
+    const user =
+      req.user as AuthenticatedUser;
+
+    return this.casesService.moveCase(
+      caseId,
+      stageId,
+      user.organizationId,
+      user.userId,
+    );
+  }
+
+  // =========================
   // GET ONE CASE
   // TENANT SAFE
   // =========================
@@ -120,7 +150,12 @@ export class CasesController {
 
   // =========================
   // DELETE CASE
+  // OWNER / ADMIN ONLY
   // =========================
+  @Roles(
+    Role.OWNER,
+    Role.ADMIN,
+  )
   @Delete(':id')
   remove(
     @Param('id') id: string,
@@ -131,31 +166,6 @@ export class CasesController {
 
     return this.casesService.remove(
       id,
-      user.organizationId,
-      user.userId,
-    );
-  }
-
-  // =========================
-  // MOVE CASE
-  // =========================
-  @Put('move/:caseId/:stageId')
-  moveCase(
-    @Param('caseId')
-    caseId: string,
-
-    @Param('stageId')
-    stageId: string,
-
-    @Req()
-    req: Request,
-  ) {
-    const user =
-      req.user as AuthenticatedUser;
-
-    return this.casesService.moveCase(
-      caseId,
-      stageId,
       user.organizationId,
       user.userId,
     );
