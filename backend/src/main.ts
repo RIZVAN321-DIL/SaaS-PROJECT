@@ -1,13 +1,20 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, Logger } from '@nestjs/common';
-import { AppModule } from './app.module';
+import {
+  ValidationPipe,
+  Logger,
+} from '@nestjs/common';
 
 import helmet from 'helmet';
 
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+import { AppModule } from './app.module';
+import { PrismaService } from './database/prisma.service';
 
-  const logger = new Logger('Bootstrap');
+async function bootstrap() {
+  const app =
+    await NestFactory.create(AppModule);
+
+  const logger =
+    new Logger('Bootstrap');
 
   // =========================
   // SECURITY
@@ -28,7 +35,7 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   // =========================
-  // GLOBAL VALIDATION LAYER
+  // GLOBAL VALIDATION
   // =========================
   app.useGlobalPipes(
     new ValidationPipe({
@@ -44,20 +51,37 @@ async function bootstrap() {
   // =========================
   // PROXY SUPPORT
   // =========================
-  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+  app
+    .getHttpAdapter()
+    .getInstance()
+    .set('trust proxy', 1);
 
   // =========================
-  // GRACEFUL SHUTDOWN
+  // SHUTDOWN HOOKS
   // =========================
   app.enableShutdownHooks();
 
-  const port = Number(process.env.PORT) || 3000;
+  const prisma =
+    app.get(PrismaService);
+
+  prisma.enableShutdownHooks(app);
+
+  const port =
+    Number(process.env.PORT) || 3000;
 
   await app.listen(port);
 
-  logger.log(`Application started`);
-  logger.log(`Port: ${port}`);
-  logger.log(`API: http://localhost:${port}/api`);
+  logger.log(
+    `Application started`,
+  );
+
+  logger.log(
+    `Port: ${port}`,
+  );
+
+  logger.log(
+    `API: http://localhost:${port}/api`,
+  );
 }
 
 bootstrap();
