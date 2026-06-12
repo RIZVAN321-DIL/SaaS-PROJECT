@@ -5,7 +5,10 @@ import { APP_GUARD } from '@nestjs/core';
 // =========================
 // RATE LIMITING
 // =========================
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import {
+  ThrottlerModule,
+  ThrottlerGuard,
+} from '@nestjs/throttler';
 
 // =========================
 // DATABASE
@@ -17,7 +20,9 @@ import { PrismaModule } from './database/prisma.module';
 // =========================
 import { AuthModule } from './modules/auth/auth.module';
 
-// 🔥 GUARDS
+// =========================
+// GUARDS
+// =========================
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -68,100 +73,66 @@ import { CalendarModule } from './modules/calendar/calendar.module';
 
 @Module({
   imports: [
-    // =========================
-    // CONFIG
-    // =========================
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
       expandVariables: true,
     }),
 
-    // =========================
-    // RATE LIMITING
-    // =========================
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => [
-        {
-          ttl: config.get<number>('THROTTLE_TTL', 60),
-          limit: config.get<number>('THROTTLE_LIMIT', 100),
-        },
-      ],
+      useFactory: (config: ConfigService) => ({
+        throttlers: [
+          {
+            ttl: config.get<number>(
+              'THROTTLE_TTL',
+              60,
+            ),
+            limit: config.get<number>(
+              'THROTTLE_LIMIT',
+              100,
+            ),
+          },
+        ],
+      }),
     }),
 
-    // =========================
-    // DATABASE
-    // =========================
     PrismaModule,
 
-    // =========================
-    // CORE
-    // =========================
     AuthModule,
     UsersModule,
     OrganizationsModule,
 
-    // =========================
-    // CRM
-    // =========================
     ClientsModule,
     CasesModule,
     CaseTypesModule,
 
-    // =========================
-    // PIPELINE
-    // =========================
     CaseStageModule,
 
-    // =========================
-    // DASHBOARD
-    // =========================
     DashboardModule,
 
-    // =========================
-    // NOTIFICATIONS
-    // =========================
     NotificationsModule,
 
-    // =========================
-    // SEARCH
-    // =========================
     SearchModule,
 
-    // =========================
-    // AUDIT
-    // =========================
     AuditModule,
 
-    // =========================
-    // OPERATIONS
-    // =========================
     TasksModule,
     DocumentsModule,
     CalendarModule,
   ],
 
   providers: [
-    // =========================
-    // RATE LIMIT
-    // =========================
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
 
-    // =========================
-    // AUTH
-    // =========================
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
 
-    // =========================
-    // RBAC
-    // =========================
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
