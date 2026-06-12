@@ -6,7 +6,10 @@ import {
   Delete,
   Param,
   Body,
+  Req,
 } from '@nestjs/common';
+
+import { Request } from 'express';
 
 import { CaseTypesService } from './case-types.service';
 
@@ -24,13 +27,14 @@ export class CaseTypesController {
   // GET ALL
   // =========================
 
-  @Get(':organizationId')
+  @Get()
   findAll(
-    @Param('organizationId')
-    organizationId: string,
+    @Req() req: Request,
   ) {
+    const user = req.user as any;
+
     return this.caseTypesService.findAll(
-      organizationId,
+      user.organizationId,
     );
   }
 
@@ -40,10 +44,15 @@ export class CaseTypesController {
 
   @Get('single/:id')
   findOne(
-    @Param('id')
-    id: string,
+    @Param('id') id: string,
+    @Req() req: Request,
   ) {
-    return this.caseTypesService.findOne(id);
+    const user = req.user as any;
+
+    return this.caseTypesService.findOne(
+      id,
+      user.organizationId,
+    );
   }
 
   // =========================
@@ -54,8 +63,17 @@ export class CaseTypesController {
   create(
     @Body()
     body: CreateCaseTypeDto,
+
+    @Req()
+    req: Request,
   ) {
-    return this.caseTypesService.create(body);
+    const user = req.user as any;
+
+    return this.caseTypesService.create({
+      ...body,
+      organizationId:
+        user.organizationId,
+    });
   }
 
   // =========================
@@ -69,9 +87,15 @@ export class CaseTypesController {
 
     @Body()
     body: UpdateCaseTypeDto,
+
+    @Req()
+    req: Request,
   ) {
+    const user = req.user as any;
+
     return this.caseTypesService.update(
       id,
+      user.organizationId,
       body,
     );
   }
@@ -84,8 +108,16 @@ export class CaseTypesController {
   remove(
     @Param('id')
     id: string,
+
+    @Req()
+    req: Request,
   ) {
-    return this.caseTypesService.remove(id);
+    const user = req.user as any;
+
+    return this.caseTypesService.remove(
+      id,
+      user.organizationId,
+    );
   }
 
   // =========================
@@ -96,9 +128,16 @@ export class CaseTypesController {
   createCaseFromType(
     @Body()
     body: CreateCaseFromTypeDto,
+
+    @Req()
+    req: Request,
   ) {
-    return this.caseTypesService.createCaseFromType(
-      body,
-    );
+    const user = req.user as any;
+
+    return this.caseTypesService.createCaseFromType({
+      ...body,
+      organizationId:
+        user.organizationId,
+    });
   }
 }
