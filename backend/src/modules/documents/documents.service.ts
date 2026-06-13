@@ -3,13 +3,138 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
+import { promises as fs } from 'fs';
+import * as path from 'path';
+import * as crypto from 'crypto';
+
 import { PrismaService } from '../../database/prisma.service';
+import { DocumentEncryptionService } from './document-encryption.service';
 
 @Injectable()
 export class DocumentsService {
+  private readonly uploadPath =
+    path.join(
+      process.cwd(),
+      'storage',
+      'documents',
+    );
+
   constructor(
     private readonly prisma: PrismaService,
+    private readonly encryption: DocumentEncryptionService,
   ) {}
+
+  // =========================
+  // UPLOAD FILE
+  // =========================
+  async uploadFile(data: {
+    organizationId: string;
+    caseId: string;
+    fileName: string;
+    mimeType: string;
+    buffer: Buffer;
+  }) {
+    const caseItem =
+      await this.prisma.case.findFirst({
+        where: {
+          id: data.caseId,
+          organizationId:
+            data.organizationId,
+        },
+      });
+
+    if (!caseItem) {
+      throw new NotFoundException(
+        'Case not found',
+      );
+    }
+
+    await fs.mkdir(
+      this.uploadPath,
+      {
+        recursive: true,
+      },
+    );
+
+    const encrypted =
+      this.encryption.encrypt(
+        data.buffer,
+      );
+
+    const storageName = `${crypto.randomUUID()}.enc`;
+
+    const filePath = path.join(
+      this.uploadPath,
+      storageName,
+    );
+
+    await fs.writeFile(
+      filePath,
+      encrypted,
+    );
+
+    return this.prisma.document.create({
+      data: {
+        organizationId:
+          data.organizationId,
+
+        caseId:
+          data.caseId,
+
+        name:
+          data.fileName,
+
+        type:
+          data.mimeType,
+
+        fileUrl:
+          storageName,
+      },
+    });
+  }
+
+  // =========================
+  // DOWNLOAD FILE
+  // =========================
+  async downloadFile(
+    id: string,
+    organizationId: string,
+  ) {
+    const document =
+      await this.findById(
+        id,
+        organizationId,
+      );
+
+    if (!document.fileUrl) {
+      throw new NotFoundException(
+        'File not found',
+      );
+    }
+
+    const filePath = path.join(
+      this.uploadPath,
+      document.fileUrl,
+    );
+
+    const encrypted =
+      await fs.readFile(
+        filePath,
+      );
+
+    const decrypted =
+      this.encryption.decrypt(
+        encrypted,
+      );
+
+    return {
+      name: document.name,
+      mimeType:
+        document.type ||
+        'application/octet-stream',
+      buffer: decrypted,
+    };
+  }
 
   // =========================
   // CREATE DOCUMENT
@@ -28,9 +153,6 @@ export class DocumentsService {
           organizationId:
             data.organizationId,
         },
-        select: {
-          id: true,
-        },
       });
 
     if (!caseItem) {
@@ -40,14 +162,7 @@ export class DocumentsService {
     }
 
     return this.prisma.document.create({
-      data: {
-        organizationId:
-          data.organizationId,
-        caseId: data.caseId,
-        name: data.name,
-        fileUrl: data.fileUrl,
-        type: data.type,
-      },
+      data,
     });
   }
 
@@ -62,16 +177,7 @@ export class DocumentsService {
         organizationId,
       },
       include: {
-        case: {
-          select: {
-            id: true,
-            title: true,
-            clientId: true,
-            stageId: true,
-            caseTypeId: true,
-            createdAt: true,
-          },
-        },
+        case: true,
       },
       orderBy: {
         createdAt: 'desc',
@@ -81,7 +187,6 @@ export class DocumentsService {
 
   // =========================
   // GET ONE DOCUMENT
-  // TENANT SAFE
   // =========================
   async findById(
     id: string,
@@ -94,16 +199,7 @@ export class DocumentsService {
           organizationId,
         },
         include: {
-          case: {
-            select: {
-              id: true,
-              title: true,
-              clientId: true,
-              stageId: true,
-              caseTypeId: true,
-              createdAt: true,
-            },
-          },
+          case: true,
         },
       });
 
@@ -118,16 +214,30 @@ export class DocumentsService {
 
   // =========================
   // DELETE DOCUMENT
-  // TENANT SAFE
   // =========================
   async remove(
     id: string,
     organizationId: string,
   ) {
-    await this.findById(
-      id,
-      organizationId,
-    );
+    const document =
+      await this.findById(
+        id,
+        organizationId,
+      );
+
+    if (document.fileUrl) {
+      const filePath =
+        path.join(
+          this.uploadPath,
+          document.fileUrl,
+        );
+
+      try {
+        await fs.unlink(
+          filePath,
+        );
+      } catch {}
+    }
 
     return this.prisma.document.delete({
       where: {
