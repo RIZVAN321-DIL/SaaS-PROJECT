@@ -160,20 +160,57 @@ model Task {
 # DOCUMENT
 # =========================
 model Document {
-  id              String   @id @default(uuid())
-  name            String
-  type            String?
-  fileUrl         String?
+  id             String   @id @default(cuid())
 
-  organizationId  String
-  organization    Organization @relation(fields: [organizationId], references: [id])
+  organizationId String
+  caseId         String
 
-  caseId          String
-  case            Case @relation(fields: [caseId], references: [id])
+  name           String
 
-  createdAt       DateTime @default(now())
+  // =========================
+  // FILE STORAGE
+  // =========================
+  fileUrl        String?
+
+  mimeType       String?
+  fileSize       Int?
+
+  uploadedAt     DateTime @default(now())
+  uploadedById   String?
+
+  // =========================
+  // DOCUMENT META
+  // =========================
+  type           String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // =========================
+  // RELATIONS
+  // =========================
+  organization   Organization @relation(
+    fields: [organizationId],
+    references: [id],
+    onDelete: Cascade,
+  )
+
+  case           Case @relation(
+    fields: [caseId],
+    references: [id],
+    onDelete: Cascade,
+  )
+
+  uploadedBy     User? @relation(
+    "DocumentUploader",
+    fields: [uploadedById],
+    references: [id],
+    onDelete: SetNull,
+  )
 
   @@index([organizationId])
+  @@index([caseId])
+  @@index([uploadedById])
 }
 
 # =========================
