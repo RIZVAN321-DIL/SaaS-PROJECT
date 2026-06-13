@@ -1,12 +1,11 @@
-// src/modules/documents/documents.module.ts
-
 import { Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 
-import { DocumentsService } from './documents.service';
-import { DocumentsController } from './documents.controller';
-
 import { PrismaModule } from '../../database/prisma.module';
+
+import { DocumentsController } from './documents.controller';
+import { DocumentsService } from './documents.service';
+import { DocumentEncryptionService } from './document-encryption.service';
 
 @Module({
   imports: [
@@ -14,15 +13,23 @@ import { PrismaModule } from '../../database/prisma.module';
 
     MulterModule.register({
       limits: {
-        fileSize: 50 * 1024 * 1024, // 50MB
+        fileSize: 50 * 1024 * 1024,
       },
     }),
   ],
 
-  controllers: [DocumentsController],
+  controllers: [
+    DocumentsController,
+  ],
 
-  providers: [DocumentsService],
+  providers: [
+    DocumentsService,
+    DocumentEncryptionService,
+  ],
 
-  exports: [DocumentsService],
+  exports: [
+    DocumentsService,
+    DocumentEncryptionService,
+  ],
 })
 export class DocumentsModule {}
