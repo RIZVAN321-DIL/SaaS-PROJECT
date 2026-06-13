@@ -1,5 +1,3 @@
-// src/modules/documents/documents.controller.ts
-
 import {
   Controller,
   Post,
@@ -15,7 +13,10 @@ import {
 
 import { FileInterceptor } from '@nestjs/platform-express';
 
-import { Request, Response } from 'express';
+import {
+  Request,
+  Response,
+} from 'express';
 
 import { DocumentsService } from './documents.service';
 
@@ -40,7 +41,8 @@ export class DocumentsController {
     FileInterceptor('file'),
   )
   async upload(
-    @Param('caseId') caseId: string,
+    @Param('caseId')
+    caseId: string,
 
     @UploadedFile()
     file: Express.Multer.File,
@@ -61,6 +63,9 @@ export class DocumentsController {
       organizationId:
         user.organizationId,
 
+      uploadedById:
+        user.userId,
+
       caseId,
 
       fileName:
@@ -79,7 +84,8 @@ export class DocumentsController {
   // =========================
   @Get(':id/download')
   async download(
-    @Param('id') id: string,
+    @Param('id')
+    id: string,
 
     @Req()
     req: Request,
@@ -106,7 +112,9 @@ export class DocumentsController {
       `attachment; filename="${file.name}"`,
     );
 
-    return res.send(file.buffer);
+    return res.send(
+      file.buffer,
+    );
   }
 
   // =========================
@@ -114,7 +122,8 @@ export class DocumentsController {
   // =========================
   @Get()
   async findAll(
-    @Req() req: Request,
+    @Req()
+    req: Request,
   ) {
     const user =
       req.user as AuthenticatedUser;
@@ -129,8 +138,11 @@ export class DocumentsController {
   // =========================
   @Get(':id')
   async findOne(
-    @Param('id') id: string,
-    @Req() req: Request,
+    @Param('id')
+    id: string,
+
+    @Req()
+    req: Request,
   ) {
     const user =
       req.user as AuthenticatedUser;
@@ -146,8 +158,11 @@ export class DocumentsController {
   // =========================
   @Delete(':id')
   async remove(
-    @Param('id') id: string,
-    @Req() req: Request,
+    @Param('id')
+    id: string,
+
+    @Req()
+    req: Request,
   ) {
     const user =
       req.user as AuthenticatedUser;
