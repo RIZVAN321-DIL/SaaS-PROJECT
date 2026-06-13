@@ -12,12 +12,11 @@ import { DocumentEncryptionService } from './document-encryption.service';
 
 @Injectable()
 export class DocumentsService {
-  private readonly uploadPath =
-    path.join(
-      process.cwd(),
-      'storage',
-      'documents',
-    );
+  private readonly uploadPath = path.join(
+    process.cwd(),
+    'storage',
+    'documents',
+  );
 
   constructor(
     private readonly prisma: PrismaService,
@@ -33,6 +32,7 @@ export class DocumentsService {
     fileName: string;
     mimeType: string;
     buffer: Buffer;
+    uploadedById?: string;
   }) {
     const caseItem =
       await this.prisma.case.findFirst({
@@ -85,7 +85,19 @@ export class DocumentsService {
           data.fileName,
 
         type:
+          'encrypted',
+
+        mimeType:
           data.mimeType,
+
+        fileSize:
+          data.buffer.length,
+
+        uploadedAt:
+          new Date(),
+
+        uploadedById:
+          data.uploadedById,
 
         fileUrl:
           storageName,
@@ -130,6 +142,7 @@ export class DocumentsService {
     return {
       name: document.name,
       mimeType:
+        document.mimeType ||
         document.type ||
         'application/octet-stream',
       buffer: decrypted,
@@ -226,11 +239,10 @@ export class DocumentsService {
       );
 
     if (document.fileUrl) {
-      const filePath =
-        path.join(
-          this.uploadPath,
-          document.fileUrl,
-        );
+      const filePath = path.join(
+        this.uploadPath,
+        document.fileUrl,
+      );
 
       try {
         await fs.unlink(
