@@ -1,14 +1,22 @@
+// src/modules/documents/documents.controller.ts
+
 import {
   Controller,
-  Get,
   Post,
-  Body,
-  Param,
+  Get,
   Delete,
+  Param,
   Req,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
+  Res,
 } from '@nestjs/common';
 
-import { Request } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+
+import { Request, Response } from 'express';
+
 import { DocumentsService } from './documents.service';
 
 interface AuthenticatedUser {
@@ -25,28 +33,87 @@ export class DocumentsController {
   ) {}
 
   // =========================
-  // CREATE DOCUMENT
+  // UPLOAD DOCUMENT
   // =========================
-  @Post()
-  create(
-    @Body() body: any,
-    @Req() req: Request,
+  @Post('upload/:caseId')
+  @UseInterceptors(
+    FileInterceptor('file'),
+  )
+  async upload(
+    @Param('caseId') caseId: string,
+
+    @UploadedFile()
+    file: Express.Multer.File,
+
+    @Req()
+    req: Request,
   ) {
     const user =
       req.user as AuthenticatedUser;
 
-    return this.documentsService.create({
-      ...body,
+    if (!file) {
+      throw new BadRequestException(
+        'File is required',
+      );
+    }
+
+    return this.documentsService.uploadFile({
       organizationId:
         user.organizationId,
+
+      caseId,
+
+      fileName:
+        file.originalname,
+
+      mimeType:
+        file.mimetype,
+
+      buffer:
+        file.buffer,
     });
+  }
+
+  // =========================
+  // DOWNLOAD DOCUMENT
+  // =========================
+  @Get(':id/download')
+  async download(
+    @Param('id') id: string,
+
+    @Req()
+    req: Request,
+
+    @Res()
+    res: Response,
+  ) {
+    const user =
+      req.user as AuthenticatedUser;
+
+    const file =
+      await this.documentsService.downloadFile(
+        id,
+        user.organizationId,
+      );
+
+    res.setHeader(
+      'Content-Type',
+      file.mimeType,
+    );
+
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${file.name}"`,
+    );
+
+    return res.send(file.buffer);
   }
 
   // =========================
   // GET ALL DOCUMENTS
   // =========================
   @Get()
-  findAll(
+  async findAll(
     @Req() req: Request,
   ) {
     const user =
@@ -59,10 +126,9 @@ export class DocumentsController {
 
   // =========================
   // GET ONE DOCUMENT
-  // TENANT SAFE
   // =========================
   @Get(':id')
-  findOne(
+  async findOne(
     @Param('id') id: string,
     @Req() req: Request,
   ) {
@@ -77,10 +143,9 @@ export class DocumentsController {
 
   // =========================
   // DELETE DOCUMENT
-  // TENANT SAFE
   // =========================
   @Delete(':id')
-  remove(
+  async remove(
     @Param('id') id: string,
     @Req() req: Request,
   ) {
