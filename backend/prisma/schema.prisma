@@ -19,7 +19,6 @@ model Organization {
   documents   Document[]
   calendar    CalendarEvent[]
   stages      CaseStage[]
-
   auditLogs   AuditLog[]
 }
 
@@ -32,10 +31,12 @@ model User {
   organizationId  String
   organization    Organization @relation(fields: [organizationId], references: [id])
 
-  role            Role     @default(LAWYER)
+  role            Role @default(LAWYER)
 
   tasks           Task[]
   auditLogs       AuditLog[]
+
+  documents       Document[] @relation("DocumentUploader")
 
   createdAt       DateTime @default(now())
 
@@ -101,6 +102,8 @@ model Case {
   tasks           Task[]
   documents       Document[]
   auditLogs       AuditLog[]
+
+  calendarEvents  CalendarEvent[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -190,7 +193,7 @@ model CaseStage {
   name            String
   order           Int
 
-  color           String?  @default("#3B82F6")
+  color           String? @default("#3B82F6")
 
   organizationId  String
   organization    Organization @relation(fields: [organizationId], references: [id])
