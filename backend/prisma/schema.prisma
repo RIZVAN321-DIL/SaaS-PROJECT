@@ -4,12 +4,8 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
-# =========================
-# ORGANIZATION
-# =========================
 model Organization {
   id          String   @id @default(uuid())
   name        String
@@ -23,13 +19,9 @@ model Organization {
   documents   Document[]
   calendar    CalendarEvent[]
   stages      CaseStage[]
-
   auditLogs   AuditLog[]
 }
 
-# =========================
-# USER
-# =========================
 model User {
   id              String   @id @default(uuid())
   email           String
@@ -50,9 +42,6 @@ model User {
   @@unique([organizationId, email])
 }
 
-# =========================
-# CLIENT
-# =========================
 model Client {
   id              String   @id @default(uuid())
   fullName        String
@@ -71,9 +60,6 @@ model Client {
   @@index([organizationId, fullName])
 }
 
-# =========================
-# CASE TYPE
-# =========================
 model CaseType {
   id              String   @id @default(uuid())
   name            String
@@ -94,9 +80,6 @@ model CaseType {
   @@unique([organizationId, name])
 }
 
-# =========================
-# CASE
-# =========================
 model Case {
   id              String   @id @default(uuid())
   title           String
@@ -125,9 +108,6 @@ model Case {
   @@index([organizationId, title])
 }
 
-# =========================
-# TASK
-# =========================
 model Task {
   id              String   @id @default(uuid())
 
@@ -156,9 +136,6 @@ model Task {
   @@index([organizationId])
 }
 
-# =========================
-# DOCUMENT
-# =========================
 model Document {
   id             String   @id @default(cuid())
 
@@ -167,9 +144,6 @@ model Document {
 
   name           String
 
-  // =========================
-  // FILE STORAGE
-  // =========================
   fileUrl        String?
 
   mimeType       String?
@@ -178,17 +152,11 @@ model Document {
   uploadedAt     DateTime @default(now())
   uploadedById   String?
 
-  // =========================
-  // DOCUMENT META
-  // =========================
   type           String?
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  // =========================
-  // RELATIONS
-  // =========================
   organization   Organization @relation(
     fields: [organizationId],
     references: [id],
@@ -213,9 +181,6 @@ model Document {
   @@index([uploadedById])
 }
 
-# =========================
-# CALENDAR EVENT
-# =========================
 model CalendarEvent {
   id              String   @id @default(uuid())
   title           String
@@ -233,9 +198,6 @@ model CalendarEvent {
   @@index([organizationId])
 }
 
-# =========================
-# CASE STAGE
-# =========================
 model CaseStage {
   id              String   @id @default(uuid())
 
@@ -256,9 +218,6 @@ model CaseStage {
   @@unique([organizationId, order])
 }
 
-# =========================
-# AUDIT LOG
-# =========================
 model AuditLog {
   id              String   @id @default(uuid())
 
@@ -285,9 +244,6 @@ model AuditLog {
   @@index([organizationId])
 }
 
-# =========================
-# ROLES ENUM
-# =========================
 enum Role {
   OWNER
   ADMIN
