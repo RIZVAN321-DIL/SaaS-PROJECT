@@ -196,6 +196,18 @@ export const documentsApi = {
       method: 'DELETE',
       token,
     }),
+
+  upload: (formData: FormData, token: string) =>
+    fetch(`${API_URL}/documents/upload`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    }).then((res) => {
+      if (!res.ok) throw new Error('Upload failed');
+      return res.json();
+    }),
 };
 
 export const usersApi = {
