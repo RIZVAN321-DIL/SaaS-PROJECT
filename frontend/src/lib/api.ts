@@ -208,4 +208,7 @@ export const caseTypesApi = {
     request('/case-types', { token }),
 };
 
-export { API_URL };
+export const auditApi = {
+  getAll: (token: string) =>
+    request('/audit', { token }),
+};
