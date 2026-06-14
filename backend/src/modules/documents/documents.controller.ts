@@ -33,9 +33,6 @@ export class DocumentsController {
     private readonly documentsService: DocumentsService,
   ) {}
 
-  // =========================
-  // UPLOAD DOCUMENT
-  // =========================
   @Post('upload/:caseId')
   @UseInterceptors(
     FileInterceptor('file'),
@@ -45,7 +42,7 @@ export class DocumentsController {
     caseId: string,
 
     @UploadedFile()
-    file: Express.Multer.File,
+    file: any,
 
     @Req()
     req: Request,
@@ -79,9 +76,6 @@ export class DocumentsController {
     });
   }
 
-  // =========================
-  // DOWNLOAD DOCUMENT
-  // =========================
   @Get(':id/download')
   async download(
     @Param('id')
@@ -117,9 +111,6 @@ export class DocumentsController {
     );
   }
 
-  // =========================
-  // GET ALL DOCUMENTS
-  // =========================
   @Get()
   async findAll(
     @Req()
@@ -133,9 +124,6 @@ export class DocumentsController {
     );
   }
 
-  // =========================
-  // GET ONE DOCUMENT
-  // =========================
   @Get(':id')
   async findOne(
     @Param('id')
@@ -153,9 +141,6 @@ export class DocumentsController {
     );
   }
 
-  // =========================
-  // DELETE DOCUMENT
-  // =========================
   @Delete(':id')
   async remove(
     @Param('id')
