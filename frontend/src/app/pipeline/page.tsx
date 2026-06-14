@@ -120,7 +120,7 @@ export default function PipelinePage() {
     });
 
     try {
-      await casesApi.moveCase(
+      await casesApi.move(
         caseId,
         stageId,
         token,
@@ -302,4 +302,4 @@ export default function PipelinePage() {
       </div>
     </AppShell>
   );
-                  }
+}
