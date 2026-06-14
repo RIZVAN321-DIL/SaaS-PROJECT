@@ -7,7 +7,6 @@ import {
 import helmet from 'helmet';
 
 import { AppModule } from './app.module';
-import { PrismaService } from './database/prisma.service';
 
 async function bootstrap() {
   const app =
@@ -60,11 +59,6 @@ async function bootstrap() {
   // SHUTDOWN HOOKS
   // =========================
   app.enableShutdownHooks();
-
-  const prisma =
-    app.get(PrismaService);
-
-  prisma.enableShutdownHooks(app);
 
   const port =
     Number(process.env.PORT) || 3000;
