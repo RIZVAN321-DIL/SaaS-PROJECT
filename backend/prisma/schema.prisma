@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Organization {
@@ -36,7 +37,6 @@ model User {
   tasks           Task[]
   auditLogs       AuditLog[]
 
-  // FIX: обратная сторона relation DocumentUploader
   uploadedDocuments Document[] @relation("DocumentUploader")
 
   createdAt       DateTime @default(now())
@@ -104,11 +104,10 @@ model Case {
   documents       Document[]
   auditLogs       AuditLog[]
 
+  calendarEvents  CalendarEvent[]
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-
-  // FIX: обратная сторона CalendarEvent.case
-  calendarEvents  CalendarEvent[]
 
   @@index([organizationId])
   @@index([organizationId, title])
@@ -165,7 +164,6 @@ model Document {
   organization   Organization @relation(fields: [organizationId], references: [id])
   case           Case @relation(fields: [caseId], references: [id])
 
-  // FIX: relation + opposite field в User добавлен выше
   uploadedBy     User? @relation("DocumentUploader", fields: [uploadedById], references: [id])
 
   @@index([organizationId])
