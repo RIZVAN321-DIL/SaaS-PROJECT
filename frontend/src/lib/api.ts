@@ -1,6 +1,4 @@
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  'http://localhost:3000/api';
+const API_URL = 'https://crm-backend.onrender.com/api';
 
 import { toast } from '@/lib/toast';
 import { clearAuth } from '@/lib/auth';
@@ -36,9 +34,6 @@ async function request<T>(
     },
   );
 
-  // =========================
-  // GLOBAL ERROR HANDLING
-  // =========================
   if (!response.ok) {
     let message = 'Request failed';
 
@@ -47,9 +42,6 @@ async function request<T>(
       message = error.message || message;
     } catch {}
 
-    // =========================
-    // AUTO LOGOUT (401)
-    // =========================
     if (response.status === 401) {
       clearAuth();
       toast.error('Session expired. Please login again.');
@@ -70,10 +62,6 @@ async function request<T>(
 
   return response.json();
 }
-
-// =========================
-// AUTH
-// =========================
 
 export const authApi = {
   register: (data: {
@@ -105,20 +93,12 @@ export const authApi = {
     }),
 };
 
-// =========================
-// DASHBOARD
-// =========================
-
 export const dashboardApi = {
   getDashboard: (organizationId: string, token: string) =>
     request(`/dashboard/${organizationId}`, {
       token,
     }),
 };
-
-// =========================
-// CLIENTS
-// =========================
 
 export const clientsApi = {
   getAll: (token: string) =>
@@ -147,10 +127,6 @@ export const clientsApi = {
       token,
     }),
 };
-
-// =========================
-// CASES
-// =========================
 
 export const casesApi = {
   getAll: (token: string) =>
@@ -186,10 +162,6 @@ export const casesApi = {
     }),
 };
 
-// =========================
-// TASKS
-// =========================
-
 export const tasksApi = {
   getAll: (token: string) =>
     request('/tasks', { token }),
@@ -215,10 +187,6 @@ export const tasksApi = {
     }),
 };
 
-// =========================
-// DOCUMENTS
-// =========================
-
 export const documentsApi = {
   getAll: (token: string) =>
     request('/documents', { token }),
@@ -230,18 +198,10 @@ export const documentsApi = {
     }),
 };
 
-// =========================
-// USERS
-// =========================
-
 export const usersApi = {
   getAll: (token: string) =>
     request('/users', { token }),
 };
-
-// =========================
-// CASE TYPES
-// =========================
 
 export const caseTypesApi = {
   getAll: (token: string) =>
