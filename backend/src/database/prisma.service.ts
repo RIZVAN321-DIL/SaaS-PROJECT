@@ -30,36 +30,13 @@ export class PrismaService
     });
   }
 
-  // =========================
-  // CONNECT
-  // =========================
   async onModuleInit() {
     await this.$connect();
-
-    this.logger.log(
-      'Prisma connected to database',
-    );
+    this.logger.log('Prisma connected to database');
   }
 
-  // =========================
-  // DISCONNECT
-  // =========================
   async onModuleDestroy() {
     await this.$disconnect();
-
-    this.logger.log(
-      'Prisma disconnected',
-    );
-  }
-
-  // =========================
-  // APP SHUTDOWN SUPPORT
-  // =========================
-  enableShutdownHooks(app: {
-    close(): Promise<void>;
-  }) {
-    this.$on('beforeExit', async () => {
-      await app.close();
-    });
+    this.logger.log('Prisma disconnected');
   }
 }
