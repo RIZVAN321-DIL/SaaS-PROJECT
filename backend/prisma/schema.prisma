@@ -8,54 +8,55 @@ datasource db {
 }
 
 model Organization {
-  id        String   @id @default(uuid())
-  name      String
-  createdAt DateTime @default(now())
+  id          String   @id @default(uuid())
+  name        String
+  createdAt   DateTime @default(now())
 
-  users     User[]
-  clients   Client[]
-  cases     Case[]
-  caseTypes CaseType[]
-  tasks     Task[]
-  documents Document[]
-  calendar  CalendarEvent[]
-  stages    CaseStage[]
-  auditLogs AuditLog[]
+  users       User[]
+  clients     Client[]
+  cases       Case[]
+  caseTypes   CaseType[]
+  tasks       Task[]
+  documents   Document[]
+  calendar    CalendarEvent[]
+  stages      CaseStage[]
+
+  auditLogs   AuditLog[]
 }
 
 model User {
-  id             String   @id @default(uuid())
-  email          String
-  password       String
-  refreshToken   String?
+  id              String   @id @default(uuid())
+  email           String
+  password        String
+  refreshToken    String?
 
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
 
-  role           Role     @default(LAWYER)
+  role            Role     @default(LAWYER)
 
-  tasks          Task[]
-  auditLogs      AuditLog[]
+  tasks           Task[]
+  auditLogs       AuditLog[]
 
-  createdAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
 
   @@index([organizationId])
   @@unique([organizationId, email])
 }
 
 model Client {
-  id             String   @id @default(uuid())
-  fullName       String
-  phone          String?
-  email          String?
-  notes          String?
+  id              String   @id @default(uuid())
+  fullName        String
+  phone           String?
+  email           String?
+  notes           String?
 
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
 
-  cases          Case[]
+  cases           Case[]
 
-  createdAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
 
   @@index([organizationId])
   @@index([organizationId, fullName])
@@ -82,56 +83,57 @@ model CaseType {
 }
 
 model Case {
-  id             String   @id @default(uuid())
-  title          String
-  description    String?
+  id              String   @id @default(uuid())
+  title           String
+  description     String?
 
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
 
-  clientId       String
-  client         Client @relation(fields: [clientId], references: [id])
+  clientId        String
+  client          Client @relation(fields: [clientId], references: [id])
 
-  caseTypeId     String?
-  caseType       CaseType? @relation(fields: [caseTypeId], references: [id])
+  caseTypeId      String?
+  caseType        CaseType? @relation(fields: [caseTypeId], references: [id])
 
-  stageId        String?
-  stage          CaseStage? @relation(fields: [stageId], references: [id])
+  stageId         String?
+  stage           CaseStage? @relation(fields: [stageId], references: [id])
 
-  tasks          Task[]
-  documents      Document[]
-  auditLogs      AuditLog[]
+  tasks           Task[]
+  documents       Document[]
+  auditLogs       AuditLog[]
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([organizationId])
   @@index([organizationId, title])
 }
 
 model Task {
-  id             String   @id @default(uuid())
+  id              String   @id @default(uuid())
 
-  title          String
-  description    String?
-  status         String   @default("pending")
+  title           String
+  description     String?
 
-  dueDate        DateTime?
-  completedAt    DateTime?
+  status          String   @default("pending")
 
-  assignedToId   String?
-  assignedTo     User? @relation(fields: [assignedToId], references: [id])
+  dueDate         DateTime?
+  completedAt     DateTime?
 
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  assignedToId    String?
+  assignedTo      User? @relation(fields: [assignedToId], references: [id])
 
-  caseId         String
-  case           Case @relation(fields: [caseId], references: [id])
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  caseId          String
+  case            Case @relation(fields: [caseId], references: [id])
 
-  auditLogs      AuditLog[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  auditLogs       AuditLog[]
 
   @@index([organizationId])
 }
@@ -152,18 +154,15 @@ model Document {
   uploadedAt     DateTime @default(now())
   uploadedById   String?
 
-  encrypted      Boolean  @default(false)
-  encryptionKey  String?
-
   type           String?
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  case           Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  case           Case @relation(fields: [caseId], references: [id])
 
-  uploadedBy     User? @relation("DocumentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  uploadedBy     User? @relation("DocumentUploader", fields: [uploadedById], references: [id])
 
   @@index([organizationId])
   @@index([caseId])
@@ -171,62 +170,64 @@ model Document {
 }
 
 model CalendarEvent {
-  id             String   @id @default(uuid())
-  title          String
-  description    String?
-  date           DateTime
+  id              String   @id @default(uuid())
+  title           String
+  description     String?
+  date            DateTime
 
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
 
-  caseId         String?
-  case           Case? @relation(fields: [caseId], references: [id])
+  caseId          String?
+  case            Case? @relation(fields: [caseId], references: [id])
 
-  createdAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
 
   @@index([organizationId])
 }
 
 model CaseStage {
-  id             String   @id @default(uuid())
-  name           String
-  order          Int
-  color          String? @default("#3B82F6")
+  id              String   @id @default(uuid())
 
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  name            String
+  order           Int
 
-  cases          Case[]
+  color           String?  @default("#3B82F6")
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+
+  cases           Case[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([organizationId])
   @@unique([organizationId, order])
 }
 
 model AuditLog {
-  id             String   @id @default(uuid())
+  id              String   @id @default(uuid())
 
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
 
-  userId         String
-  user           User @relation(fields: [userId], references: [id])
+  userId          String
+  user            User @relation(fields: [userId], references: [id])
 
-  action         String
-  entity         String
-  entityId       String
+  action          String
+  entity          String
+  entityId        String
 
-  meta           Json?
+  meta            Json?
 
-  caseId         String?
-  case           Case? @relation(fields: [caseId], references: [id])
+  caseId          String?
+  case            Case? @relation(fields: [caseId], references: [id])
 
-  taskId         String?
-  task           Task? @relation(fields: [taskId], references: [id])
+  taskId          String?
+  task            Task? @relation(fields: [taskId], references: [id])
 
-  createdAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
 
   @@index([organizationId])
 }
