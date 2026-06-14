@@ -33,73 +33,57 @@ export class CasesService {
     });
 
     if (!client) {
-      throw new NotFoundException(
-        'Client not found',
-      );
+      throw new NotFoundException('Client not found');
     }
 
     if (data.caseTypeId) {
-      const caseType =
-        await this.prisma.caseType.findFirst({
-          where: {
-            id: data.caseTypeId,
-            organizationId:
-              data.organizationId,
-          },
-        });
+      const caseType = await this.prisma.caseType.findFirst({
+        where: {
+          id: data.caseTypeId,
+          organizationId: data.organizationId,
+        },
+      });
 
       if (!caseType) {
-        throw new NotFoundException(
-          'Case type not found',
-        );
+        throw new NotFoundException('Case type not found');
       }
     }
 
-    const firstStage =
-      await this.prisma.caseStage.findFirst({
-        where: {
-          organizationId:
-            data.organizationId,
-        },
-        orderBy: {
-          order: 'asc',
-        },
-      });
+    const firstStage = await this.prisma.caseStage.findFirst({
+      where: {
+        organizationId: data.organizationId,
+      },
+      orderBy: {
+        order: 'asc',
+      },
+    });
 
-    const newCase =
-      await this.prisma.case.create({
-        data: {
-          clientId: data.clientId,
-          organizationId:
-            data.organizationId,
-          title: data.title.trim(),
-          description:
-            data.description?.trim(),
-          caseTypeId:
-            data.caseTypeId,
-          stageId:
-            firstStage?.id ?? null,
-        },
-        include: {
-          client: true,
-          caseType: true,
-          stage: true,
-        },
-      });
+    const newCase = await this.prisma.case.create({
+      data: {
+        clientId: data.clientId,
+        organizationId: data.organizationId,
+        title: data.title.trim(),
+        description: data.description?.trim(),
+        caseTypeId: data.caseTypeId,
+        stageId: firstStage?.id ?? null,
+      },
+      include: {
+        client: true,
+        caseType: true,
+        stage: true,
+      },
+    });
 
     await this.audit.log({
-      organizationId:
-        data.organizationId,
+      organizationId: data.organizationId,
       userId: data.userId,
       action: 'CASE_CREATED',
       entity: 'Case',
       entityId: newCase.id,
-      caseId: newCase.id,
       meta: {
         title: newCase.title,
         clientId: data.clientId,
-        caseTypeId:
-          data.caseTypeId,
+        caseTypeId: data.caseTypeId,
       },
     });
 
@@ -109,9 +93,7 @@ export class CasesService {
   // =========================
   // GET ALL CASES
   // =========================
-  async findAll(
-    organizationId: string,
-  ) {
+  async findAll(organizationId: string) {
     return this.prisma.case.findMany({
       where: {
         organizationId,
@@ -129,31 +111,24 @@ export class CasesService {
 
   // =========================
   // GET ONE CASE
-  // TENANT SAFE
   // =========================
-  async findById(
-    id: string,
-    organizationId: string,
-  ) {
-    const caseItem =
-      await this.prisma.case.findFirst({
-        where: {
-          id,
-          organizationId,
-        },
-        include: {
-          client: true,
-          caseType: true,
-          stage: true,
-          tasks: true,
-          documents: true,
-        },
-      });
+  async findById(id: string, organizationId: string) {
+    const caseItem = await this.prisma.case.findFirst({
+      where: {
+        id,
+        organizationId,
+      },
+      include: {
+        client: true,
+        caseType: true,
+        stage: true,
+        tasks: true,
+        documents: true,
+      },
+    });
 
     if (!caseItem) {
-      throw new NotFoundException(
-        'Case not found',
-      );
+      throw new NotFoundException('Case not found');
     }
 
     return caseItem;
@@ -173,96 +148,67 @@ export class CasesService {
       userId: string;
     },
   ) {
-    const existingCase =
-      await this.findById(
-        id,
-        data.organizationId,
-      );
+    const existingCase = await this.findById(id, data.organizationId);
 
     if (data.caseTypeId) {
-      const caseType =
-        await this.prisma.caseType.findFirst({
-          where: {
-            id: data.caseTypeId,
-            organizationId:
-              data.organizationId,
-          },
-        });
+      const caseType = await this.prisma.caseType.findFirst({
+        where: {
+          id: data.caseTypeId,
+          organizationId: data.organizationId,
+        },
+      });
 
       if (!caseType) {
-        throw new NotFoundException(
-          'Case type not found',
-        );
+        throw new NotFoundException('Case type not found');
       }
     }
 
     if (data.stageId) {
-      const stage =
-        await this.prisma.caseStage.findFirst({
-          where: {
-            id: data.stageId,
-            organizationId:
-              data.organizationId,
-          },
-        });
-
-      if (!stage) {
-        throw new NotFoundException(
-          'Stage not found',
-        );
-      }
-    }
-
-    const updated =
-      await this.prisma.case.update({
+      const stage = await this.prisma.caseStage.findFirst({
         where: {
-          id,
-        },
-        data: {
-          title:
-            data.title?.trim(),
-          description:
-            data.description?.trim(),
-          caseTypeId:
-            data.caseTypeId,
-          stageId:
-            data.stageId,
-        },
-        include: {
-          client: true,
-          caseType: true,
-          stage: true,
+          id: data.stageId,
+          organizationId: data.organizationId,
         },
       });
 
+      if (!stage) {
+        throw new NotFoundException('Stage not found');
+      }
+    }
+
+    const updated = await this.prisma.case.update({
+      where: { id },
+      data: {
+        title: data.title?.trim(),
+        description: data.description?.trim(),
+        caseTypeId: data.caseTypeId,
+        stageId: data.stageId,
+      },
+      include: {
+        client: true,
+        caseType: true,
+        stage: true,
+      },
+    });
+
     await this.audit.log({
-      organizationId:
-        data.organizationId,
+      organizationId: data.organizationId,
       userId: data.userId,
       action: 'CASE_UPDATED',
       entity: 'Case',
       entityId: id,
-      caseId: id,
       meta: {
         before: {
-          title:
-            existingCase.title,
-          description:
-            existingCase.description,
-          caseTypeId:
-            existingCase.caseTypeId,
-          stageId:
-            existingCase.stageId,
+          title: existingCase.title,
+          description: existingCase.description,
+          caseTypeId: existingCase.caseTypeId,
+          stageId: existingCase.stageId,
         },
         after: {
-          title:
-            updated.title,
-          description:
-            updated.description,
-          caseTypeId:
-            updated.caseTypeId,
-          stageId:
-            updated.stageId,
+          title: updated.title,
+          description: updated.description,
+          caseTypeId: updated.caseTypeId,
+          stageId: updated.stageId,
         },
       },
     });
@@ -273,48 +219,32 @@ export class CasesService {
   // =========================
   // DELETE CASE
   // =========================
-  async remove(
-    id: string,
-    organizationId: string,
-    userId: string,
-  ) {
-    const existingCase =
-      await this.findById(
-        id,
+  async remove(id: string, organizationId: string, userId: string) {
+    const existingCase = await this.findById(id, organizationId);
+
+    const tasksCount = await this.prisma.task.count({
+      where: {
+        caseId: id,
         organizationId,
-      );
+      },
+    });
 
-    const tasksCount =
-      await this.prisma.task.count({
-        where: {
-          caseId: id,
-          organizationId,
-        },
-      });
+    const documentsCount = await this.prisma.document.count({
+      where: {
+        caseId: id,
+        organizationId,
+      },
+    });
 
-    const documentsCount =
-      await this.prisma.document.count({
-        where: {
-          caseId: id,
-          organizationId,
-        },
-      });
-
-    if (
-      tasksCount > 0 ||
-      documentsCount > 0
-    ) {
+    if (tasksCount > 0 || documentsCount > 0) {
       throw new BadRequestException(
         'Cannot delete case with related tasks or documents',
       );
     }
 
-    const deleted =
-      await this.prisma.case.delete({
-        where: {
-          id,
-        },
-      });
+    const deleted = await this.prisma.case.delete({
+      where: { id },
+    });
 
     await this.audit.log({
       organizationId,
@@ -322,10 +252,8 @@ export class CasesService {
       action: 'CASE_DELETED',
       entity: 'Case',
       entityId: id,
-      caseId: id,
       meta: {
-        title:
-          existingCase.title,
+        title: existingCase.title,
       },
     });
 
@@ -335,9 +263,7 @@ export class CasesService {
   // =========================
   // KANBAN BOARD
   // =========================
-  async getBoard(
-    organizationId: string,
-  ) {
+  async getBoard(organizationId: string) {
     return this.prisma.caseStage.findMany({
       where: {
         organizationId,
@@ -369,40 +295,30 @@ export class CasesService {
     organizationId: string,
     userId: string,
   ) {
-    const existingCase =
-      await this.findById(
-        caseId,
-        organizationId,
-      );
+    const existingCase = await this.findById(caseId, organizationId);
 
-    const stage =
-      await this.prisma.caseStage.findFirst({
-        where: {
-          id: stageId,
-          organizationId,
-        },
-      });
+    const stage = await this.prisma.caseStage.findFirst({
+      where: {
+        id: stageId,
+        organizationId,
+      },
+    });
 
     if (!stage) {
-      throw new NotFoundException(
-        'Stage not found',
-      );
+      throw new NotFoundException('Stage not found');
     }
 
-    const updated =
-      await this.prisma.case.update({
-        where: {
-          id: caseId,
-        },
-        data: {
-          stageId,
-        },
-        include: {
-          client: true,
-          caseType: true,
-          stage: true,
-        },
-      });
+    const updated = await this.prisma.case.update({
+      where: { id: caseId },
+      data: {
+        stageId,
+      },
+      include: {
+        client: true,
+        caseType: true,
+        stage: true,
+      },
+    });
 
     await this.audit.log({
       organizationId,
@@ -410,10 +326,8 @@ export class CasesService {
       action: 'CASE_MOVED_STAGE',
       entity: 'Case',
       entityId: caseId,
-      caseId,
       meta: {
-        fromStageId:
-          existingCase.stageId,
+        fromStageId: existingCase.stageId,
         toStageId: stageId,
       },
     });
