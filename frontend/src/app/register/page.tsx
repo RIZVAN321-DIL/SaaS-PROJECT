@@ -20,7 +20,6 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // Сначала создаём организацию
       const orgRes = await fetch('https://saas-project-deog.onrender.com/api/organizations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -31,7 +30,6 @@ export default function RegisterPage() {
       
       const org = await orgRes.json();
 
-      // Регистрируем пользователя
       const response = await authApi.register({
         email,
         password,
@@ -117,4 +115,4 @@ export default function RegisterPage() {
       </div>
     </main>
   );
-        }
+}
