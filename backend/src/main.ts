@@ -5,15 +5,26 @@ import {
 } from '@nestjs/common';
 
 import helmet from 'helmet';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app =
-    await NestFactory.create(AppModule);
+  const logger = new Logger('Bootstrap');
 
-  const logger =
-    new Logger('Bootstrap');
+  // Запускаем миграцию перед стартом
+  try {
+    logger.log('Running database migration...');
+    await execAsync('prisma migrate deploy');
+    logger.log('Migration completed');
+  } catch (err) {
+    logger.error('Migration failed, continuing anyway');
+  }
+
+  const app = await NestFactory.create(AppModule);
 
   // =========================
   // SECURITY
@@ -65,17 +76,9 @@ async function bootstrap() {
 
   await app.listen(port);
 
-  logger.log(
-    `Application started`,
-  );
-
-  logger.log(
-    `Port: ${port}`,
-  );
-
-  logger.log(
-    `API: http://localhost:${port}/api`,
-  );
+  logger.log(`Application started`);
+  logger.log(`Port: ${port}`);
+  logger.log(`API: http://localhost:${port}/api`);
 }
 
 bootstrap();
