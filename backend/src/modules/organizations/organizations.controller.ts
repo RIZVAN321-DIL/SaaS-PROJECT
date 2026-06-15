@@ -13,6 +13,7 @@ import { OrganizationsService } from './organizations.service';
 
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
+import { Public } from '../../common/decorators/public.decorator';
 
 @Controller('organizations')
 export class OrganizationsController {
@@ -20,7 +21,7 @@ export class OrganizationsController {
     private readonly orgService: OrganizationsService,
   ) {}
 
-  @Roles(Role.OWNER)
+  @Public()
   @Post()
   async create(
     @Body() body: { name: string },
