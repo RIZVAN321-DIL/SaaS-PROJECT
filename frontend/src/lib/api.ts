@@ -1,4 +1,4 @@
-const API_URL = 'https://crm-backend.onrender.com/api';
+const API_URL = 'https://saas-project-deog.onrender.com/api';
 
 import { toast } from '@/lib/toast';
 import { clearAuth } from '@/lib/auth';
