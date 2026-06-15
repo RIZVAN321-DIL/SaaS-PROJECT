@@ -184,6 +184,13 @@ export default function LoginPage() {
               : 'Sign In'}
           </button>
         </form>
+
+        <p className="mt-6 text-center text-sm text-muted-foreground">
+          Нет аккаунта?{' '}
+          <a href="/register" className="text-primary hover:underline">
+            Зарегистрироваться
+          </a>
+        </p>
       </div>
     </main>
   );
