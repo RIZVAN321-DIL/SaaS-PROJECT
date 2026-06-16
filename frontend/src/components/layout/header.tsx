@@ -6,6 +6,13 @@ import { getUser } from '@/lib/auth';
 export function Header() {
   const user = getUser();
 
+  const roleLabels: Record<string, string> = {
+    OWNER: 'Владелец',
+    ADMIN: 'Администратор',
+    LAWYER: 'Юрист',
+    ASSISTANT: 'Помощник',
+  };
+
   return (
     <header
       className="
@@ -27,7 +34,7 @@ export function Header() {
             font-bold
           "
         >
-          CRM Dashboard
+          Панель управления
         </h2>
 
         <p
@@ -36,7 +43,7 @@ export function Header() {
             text-muted-foreground
           "
         >
-          Legal Operations Platform
+          Платформа для управления юридической деятельностью
         </p>
       </div>
 
@@ -62,8 +69,7 @@ export function Header() {
               font-medium
             "
           >
-            {user?.email ??
-              'User'}
+            {user?.email ?? 'Пользователь'}
           </span>
 
           <span
@@ -72,8 +78,9 @@ export function Header() {
               text-muted-foreground
             "
           >
-            {user?.role ??
-              'LAWYER'}
+            {user?.role
+              ? roleLabels[user.role] ?? user.role
+              : 'Юрист'}
           </span>
         </div>
       </div>
