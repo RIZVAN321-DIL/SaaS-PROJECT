@@ -59,7 +59,7 @@ export default function CalendarPage() {
 
   const monthName =
     new Date().toLocaleString(
-      'en-US',
+      'ru-RU',
       {
         month: 'long',
         year: 'numeric',
@@ -67,13 +67,13 @@ export default function CalendarPage() {
     );
 
   const weekDays = [
-    'Mon',
-    'Tue',
-    'Wed',
-    'Thu',
-    'Fri',
-    'Sat',
-    'Sun',
+    'Пн',
+    'Вт',
+    'Ср',
+    'Чт',
+    'Пт',
+    'Сб',
+    'Вс',
   ];
 
   const today =
@@ -91,12 +91,11 @@ export default function CalendarPage() {
         >
           <div>
             <h1 className="text-3xl font-bold">
-              Calendar
+              Календарь
             </h1>
 
             <p className="text-muted-foreground">
-              Deadlines, hearings and
-              appointments
+              Дедлайны, заседания и встречи
             </p>
           </div>
 
@@ -111,7 +110,7 @@ export default function CalendarPage() {
               text-primary-foreground
             "
           >
-            Add Event
+            Добавить событие
           </button>
         </div>
 
@@ -146,7 +145,7 @@ export default function CalendarPage() {
                 text-sm
               "
             >
-              Today
+              Сегодня
             </div>
           </div>
 
@@ -218,7 +217,7 @@ export default function CalendarPage() {
             "
           >
             <div className="text-sm text-muted-foreground">
-              Upcoming Hearings
+              Предстоящие заседания
             </div>
 
             <div className="mt-3 text-3xl font-bold">
@@ -236,7 +235,7 @@ export default function CalendarPage() {
             "
           >
             <div className="text-sm text-muted-foreground">
-              Deadlines
+              Дедлайны
             </div>
 
             <div className="mt-3 text-3xl font-bold">
@@ -254,7 +253,7 @@ export default function CalendarPage() {
             "
           >
             <div className="text-sm text-muted-foreground">
-              Meetings
+              Встречи
             </div>
 
             <div className="mt-3 text-3xl font-bold">
@@ -265,4 +264,4 @@ export default function CalendarPage() {
       </div>
     </AppShell>
   );
-          }
+}
