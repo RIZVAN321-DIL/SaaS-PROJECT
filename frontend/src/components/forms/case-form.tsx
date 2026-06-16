@@ -82,7 +82,7 @@ export function CaseForm({
         );
       } catch {
         setError(
-          'Failed to load data',
+          'Не удалось загрузить данные',
         );
       }
     }
@@ -100,7 +100,7 @@ export function CaseForm({
 
     if (!token) {
       setError(
-        'Authentication required',
+        'Требуется авторизация',
       );
       return;
     }
@@ -130,7 +130,7 @@ export function CaseForm({
       onSuccess?.();
     } catch {
       setError(
-        'Failed to create case',
+        'Не удалось создать дело',
       );
     } finally {
       setLoading(false);
@@ -144,7 +144,7 @@ export function CaseForm({
     >
       <div>
         <label className="mb-2 block text-sm font-medium">
-          Case Title
+          Название дела
         </label>
 
         <input
@@ -165,13 +165,13 @@ export function CaseForm({
             px-4
             outline-none
           "
-          placeholder="Contract dispute"
+          placeholder="Спор по договору"
         />
       </div>
 
       <div>
         <label className="mb-2 block text-sm font-medium">
-          Client
+          Клиент
         </label>
 
         <select
@@ -194,7 +194,7 @@ export function CaseForm({
           "
         >
           <option value="">
-            Select client
+            Выберите клиента
           </option>
 
           {clients.map(
@@ -214,7 +214,7 @@ export function CaseForm({
 
       <div>
         <label className="mb-2 block text-sm font-medium">
-          Case Type
+          Тип дела
         </label>
 
         <select
@@ -236,7 +236,7 @@ export function CaseForm({
           "
         >
           <option value="">
-            Select type
+            Выберите тип
           </option>
 
           {caseTypes.map(
@@ -254,7 +254,7 @@ export function CaseForm({
 
       <div>
         <label className="mb-2 block text-sm font-medium">
-          Description
+          Описание
         </label>
 
         <textarea
@@ -275,7 +275,7 @@ export function CaseForm({
             py-3
             outline-none
           "
-          placeholder="Case details..."
+          placeholder="Детали дела..."
         />
       </div>
 
@@ -308,9 +308,9 @@ export function CaseForm({
         "
       >
         {loading
-          ? 'Creating...'
-          : 'Create Case'}
+          ? 'Создание...'
+          : 'Создать дело'}
       </button>
     </form>
   );
-              }
+}
