@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import { tasksApi } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
+import { TaskForm } from '@/components/forms/task-form';
 
 interface Task {
   id: string;
@@ -32,6 +33,9 @@ export default function TasksPage() {
   const [loading, setLoading] =
     useState(true);
 
+  const [showForm, setShowForm] =
+    useState(false);
+
   async function loadTasks() {
     const token =
       getAccessToken();
@@ -47,6 +51,8 @@ export default function TasksPage() {
         );
 
       setTasks(data as Task[]);
+    } catch (err) {
+      // silently fail
     } finally {
       setLoading(false);
     }
@@ -100,15 +106,18 @@ export default function TasksPage() {
         >
           <div>
             <h1 className="text-3xl font-bold">
-              Tasks
+              Задачи
             </h1>
 
             <p className="text-muted-foreground">
-              Team task management
+              Управление задачами команды
             </p>
           </div>
 
           <button
+            onClick={() =>
+              setShowForm(true)
+            }
             className="
               rounded-xl
               bg-primary
@@ -119,14 +128,56 @@ export default function TasksPage() {
               text-primary-foreground
             "
           >
-            New Task
+            Новая задача
           </button>
         </div>
+
+        {showForm && (
+          <div
+            className="
+              fixed
+              inset-0
+              z-50
+              flex
+              items-center
+              justify-center
+              bg-black/50
+            "
+            onClick={() =>
+              setShowForm(false)
+            }
+          >
+            <div
+              className="
+                w-full
+                max-w-lg
+                rounded-2xl
+                bg-background
+                p-6
+                shadow-xl
+              "
+              onClick={(e) =>
+                e.stopPropagation()
+              }
+            >
+              <h2 className="mb-4 text-lg font-semibold">
+                Новая задача
+              </h2>
+
+              <TaskForm
+                onSuccess={() => {
+                  setShowForm(false);
+                  loadTasks();
+                }}
+              />
+            </div>
+          </div>
+        )}
 
         <div className="grid gap-6 md:grid-cols-3">
           <div className="rounded-2xl border border-border bg-card p-6">
             <div className="text-sm text-muted-foreground">
-              Total Tasks
+              Всего задач
             </div>
 
             <div className="mt-2 text-4xl font-bold">
@@ -136,7 +187,7 @@ export default function TasksPage() {
 
           <div className="rounded-2xl border border-border bg-card p-6">
             <div className="text-sm text-muted-foreground">
-              Pending
+              В работе
             </div>
 
             <div className="mt-2 text-4xl font-bold">
@@ -148,7 +199,7 @@ export default function TasksPage() {
 
           <div className="rounded-2xl border border-border bg-card p-6">
             <div className="text-sm text-muted-foreground">
-              Completed
+              Завершено
             </div>
 
             <div className="mt-2 text-4xl font-bold">
@@ -172,23 +223,23 @@ export default function TasksPage() {
             <thead>
               <tr className="border-b border-border">
                 <th className="p-4 text-left">
-                  Task
+                  Задача
                 </th>
 
                 <th className="p-4 text-left">
-                  Case
+                  Дело
                 </th>
 
                 <th className="p-4 text-left">
-                  Assigned
+                  Исполнитель
                 </th>
 
                 <th className="p-4 text-left">
-                  Status
+                  Статус
                 </th>
 
                 <th className="p-4 text-left">
-                  Action
+                  Действие
                 </th>
               </tr>
             </thead>
@@ -200,7 +251,7 @@ export default function TasksPage() {
                     colSpan={5}
                     className="p-8 text-center"
                   >
-                    Loading...
+                    Загрузка...
                   </td>
                 </tr>
               ) : tasks.length ===
@@ -210,7 +261,7 @@ export default function TasksPage() {
                     colSpan={5}
                     className="p-8 text-center"
                   >
-                    No tasks found
+                    Задач пока нет
                   </td>
                 </tr>
               ) : (
@@ -259,7 +310,11 @@ export default function TasksPage() {
                           "
                         >
                           {
-                            task.status
+                            task.status === 'PENDING'
+                              ? 'В работе'
+                              : task.status === 'COMPLETED'
+                              ? 'Завершено'
+                              : task.status
                           }
                         </span>
                       </td>
@@ -282,7 +337,7 @@ export default function TasksPage() {
                               text-sm
                             "
                           >
-                            Complete
+                            Завершить
                           </button>
                         )}
                       </td>
@@ -296,4 +351,4 @@ export default function TasksPage() {
       </div>
     </AppShell>
   );
-          }
+}
