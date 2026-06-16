@@ -52,7 +52,6 @@ export default function DashboardPage() {
 
       const response =
         await dashboardApi.getDashboard(
-          user.organizationId,
           token,
         );
 
