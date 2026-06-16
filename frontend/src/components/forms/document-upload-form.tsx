@@ -94,7 +94,6 @@ export function DocumentUploadForm({
       }
 
       await documentsApi.upload(
-        caseId || '',
         formData,
         token,
       );
