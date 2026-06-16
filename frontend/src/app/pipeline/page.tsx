@@ -166,7 +166,7 @@ export default function PipelinePage() {
           <div
             className="
               flex
-              gap-6
+              gap-4
               overflow-x-auto
               pb-4
             "
@@ -195,24 +195,25 @@ export default function PipelinePage() {
                     );
                   }}
                   className="
-                    min-h-[700px]
-                    min-w-[320px]
+                    min-h-[600px]
+                    min-w-[240px]
+                    max-w-[240px]
                     rounded-2xl
                     border
                     border-border
                     bg-card
-                    p-4
+                    p-3
                   "
                 >
                   <div
                     className="
-                      mb-4
+                      mb-3
                       flex
                       items-center
                       justify-between
                     "
                   >
-                    <h2 className="font-semibold">
+                    <h2 className="font-semibold text-sm">
                       {stage.name}
                     </h2>
 
@@ -222,7 +223,7 @@ export default function PipelinePage() {
                         border
                         border-border
                         px-2
-                        py-1
+                        py-0.5
                         text-xs
                       "
                     >
@@ -234,7 +235,7 @@ export default function PipelinePage() {
                     </span>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {stage.cases.map(
                       (
                         caseItem,
@@ -255,12 +256,12 @@ export default function PipelinePage() {
                             border
                             border-border
                             bg-background
-                            p-4
+                            p-3
                             transition
                             hover:shadow-md
                           "
                         >
-                          <h3 className="font-medium">
+                          <h3 className="font-medium text-sm">
                             {
                               caseItem.title
                             }
@@ -268,8 +269,8 @@ export default function PipelinePage() {
 
                           <div
                             className="
-                              mt-2
-                              text-sm
+                              mt-1
+                              text-xs
                               text-muted-foreground
                             "
                           >
@@ -281,7 +282,7 @@ export default function PipelinePage() {
 
                           <div
                             className="
-                              mt-3
+                              mt-1
                               text-xs
                               text-muted-foreground
                             "
