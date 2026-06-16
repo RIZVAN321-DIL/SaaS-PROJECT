@@ -8,9 +8,6 @@ export class CreateCaseTypeDto {
   @IsString()
   name: string;
 
-  @IsString()
-  organizationId: string;
-
   @IsOptional()
   @IsString()
   description?: string;
