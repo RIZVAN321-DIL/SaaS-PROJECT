@@ -52,13 +52,13 @@ export function DocumentUploadForm({
 
     if (!token) {
       setError(
-        'Authentication required',
+        'Требуется авторизация',
       );
       return;
     }
 
     if (!file) {
-      setError('File is required');
+      setError('Файл обязателен');
       return;
     }
 
@@ -105,7 +105,7 @@ export function DocumentUploadForm({
       onSuccess?.();
     } catch {
       setError(
-        'Failed to upload document',
+        'Не удалось загрузить документ',
       );
     } finally {
       setLoading(false);
@@ -119,7 +119,7 @@ export function DocumentUploadForm({
     >
       <div>
         <label className="mb-2 block text-sm font-medium">
-          File
+          Файл
         </label>
 
         <input
@@ -138,7 +138,7 @@ export function DocumentUploadForm({
 
       <div>
         <label className="mb-2 block text-sm font-medium">
-          Document Name
+          Название документа
         </label>
 
         <input
@@ -158,13 +158,13 @@ export function DocumentUploadForm({
             px-4
             outline-none
           "
-          placeholder="Contract.pdf"
+          placeholder="Договор.pdf"
         />
       </div>
 
       <div>
         <label className="mb-2 block text-sm font-medium">
-          Type
+          Тип
         </label>
 
         <input
@@ -184,7 +184,7 @@ export function DocumentUploadForm({
             px-4
             outline-none
           "
-          placeholder="Contract / Evidence / Other"
+          placeholder="Договор / Доказательство / Другое"
         />
       </div>
 
@@ -217,9 +217,9 @@ export function DocumentUploadForm({
         "
       >
         {loading
-          ? 'Uploading...'
-          : 'Upload Document'}
+          ? 'Загрузка...'
+          : 'Загрузить документ'}
       </button>
     </form>
   );
-              }
+}
