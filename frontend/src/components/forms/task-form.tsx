@@ -118,8 +118,9 @@ export function TaskForm({
           assignedToId:
             assignedToId ||
             undefined,
-          dueDate:
-            dueDate || undefined,
+          dueDate: dueDate
+            ? new Date(dueDate).toISOString()
+            : undefined,
         },
         token,
       );
