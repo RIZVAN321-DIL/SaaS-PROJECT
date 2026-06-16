@@ -5,39 +5,39 @@ import { usePathname } from 'next/navigation';
 
 const navigation = [
   {
-    label: 'Dashboard',
+    label: 'Панель управления',
     href: '/dashboard',
   },
   {
-    label: 'Clients',
+    label: 'Клиенты',
     href: '/clients',
   },
   {
-    label: 'Cases',
+    label: 'Дела',
     href: '/cases',
   },
   {
-    label: 'Pipeline',
+    label: 'Воронка дел',
     href: '/pipeline',
   },
   {
-    label: 'Tasks',
+    label: 'Задачи',
     href: '/tasks',
   },
   {
-    label: 'Documents',
+    label: 'Документы',
     href: '/documents',
   },
   {
-    label: 'Calendar',
+    label: 'Календарь',
     href: '/calendar',
   },
   {
-    label: 'Audit',
+    label: 'Журнал аудита',
     href: '/audit',
   },
   {
-    label: 'Settings',
+    label: 'Настройки',
     href: '/settings',
   },
 ];
@@ -75,7 +75,7 @@ export function Sidebar() {
               font-bold
             "
           >
-            Legal CRM
+            Юридическая CRM
           </h1>
 
           <p
@@ -84,7 +84,7 @@ export function Sidebar() {
               text-muted-foreground
             "
           >
-            Enterprise Edition
+            Корпоративная версия
           </p>
         </div>
       </div>
