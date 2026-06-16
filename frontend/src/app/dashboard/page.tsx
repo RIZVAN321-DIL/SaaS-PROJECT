@@ -22,6 +22,11 @@ interface DashboardData {
 
   clients: {
     totalClients: number;
+    recentClients?: {
+      id: string;
+      fullName: string;
+      createdAt: string;
+    }[];
   };
 
   tasks: {
@@ -33,44 +38,32 @@ interface DashboardData {
 
 export default function DashboardPage() {
   const [data, setData] =
-    useState<DashboardData | null>(
-      null,
-    );
+    useState<DashboardData | null>(null);
 
   const [loading, setLoading] =
     useState(true);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const token =
-          getAccessToken();
+  async function loadDashboard() {
+    try {
+      const token = getAccessToken();
+      const user = getUser();
 
-        const user =
-          getUser();
+      if (!token || !user) return;
 
-        if (
-          !token ||
-          !user
-        ) {
-          return;
-        }
-
-        const response =
-          await dashboardApi.getDashboard(
-            user.organizationId,
-            token,
-          );
-
-        setData(
-          response as DashboardData,
+      const response =
+        await dashboardApi.getDashboard(
+          user.organizationId,
+          token,
         );
-      } finally {
-        setLoading(false);
-      }
-    }
 
-    load();
+      setData(response as DashboardData);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadDashboard();
   }, []);
 
   return (
@@ -78,98 +71,69 @@ export default function DashboardPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">
-            Dashboard
+            Панель управления
           </h1>
-
           <p className="text-muted-foreground">
-            Overview of your law firm
+            Обзор вашей юридической фирмы
           </p>
         </div>
 
         {loading ? (
           <div className="grid gap-6 md:grid-cols-3">
-            {[1, 2, 3].map(
-              (item) => (
-                <div
-                  key={item}
-                  className="
-                    h-36
-                    animate-pulse
-                    rounded-2xl
-                    border
-                    border-border
-                  "
-                />
-              ),
-            )}
+            {[1, 2, 3].map((item) => (
+              <div
+                key={item}
+                className="h-36 animate-pulse rounded-2xl border border-border"
+              />
+            ))}
           </div>
         ) : (
           <>
             <div className="grid gap-6 md:grid-cols-3">
               <div className="rounded-2xl border border-border bg-card p-6">
                 <div className="text-sm text-muted-foreground">
-                  Cases
+                  Дел
                 </div>
-
                 <div className="mt-2 text-4xl font-bold">
-                  {data?.cases
-                    .totalCases ?? 0}
+                  {data?.cases.totalCases ?? 0}
                 </div>
               </div>
 
               <div className="rounded-2xl border border-border bg-card p-6">
                 <div className="text-sm text-muted-foreground">
-                  Clients
+                  Клиентов
                 </div>
-
                 <div className="mt-2 text-4xl font-bold">
-                  {data?.clients
-                    .totalClients ?? 0}
+                  {data?.clients.totalClients ?? 0}
                 </div>
               </div>
 
               <div className="rounded-2xl border border-border bg-card p-6">
                 <div className="text-sm text-muted-foreground">
-                  Tasks
+                  Задач
                 </div>
-
                 <div className="mt-2 text-4xl font-bold">
-                  {data?.tasks
-                    .totalTasks ?? 0}
+                  {data?.tasks.totalTasks ?? 0}
                 </div>
               </div>
             </div>
 
             <div className="rounded-2xl border border-border bg-card p-6">
               <h2 className="mb-4 text-lg font-semibold">
-                Pipeline
+                Воронка дел
               </h2>
-
               <div className="space-y-3">
-                {data?.cases.byStage.map(
-                  (stage) => (
-                    <div
-                      key={stage.stageId}
-                      className="
-                        flex
-                        items-center
-                        justify-between
-                        rounded-xl
-                        border
-                        border-border
-                        p-4
-                      "
-                    >
-                      <span>
-                        {stage.name}
-                      </span>
-
-                      <span className="font-semibold">
-                        {stage.count}
-                      </span>
-                    </div>
-                  ),
-                )}
+                {data?.cases.byStage.map((stage) => (
+                  <div
+                    key={stage.stageId}
+                    className="flex items-center justify-between rounded-xl border border-border p-4"
+                  >
+                    <span>{stage.name}</span>
+                    <span className="font-semibold">
+                      {stage.count}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           </>
