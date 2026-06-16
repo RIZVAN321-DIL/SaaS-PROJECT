@@ -197,8 +197,8 @@ export const documentsApi = {
       token,
     }),
 
-  upload: (caseId: string, formData: FormData, token: string) =>
-    fetch(`${API_URL}/documents/upload/${caseId}`, {
+  upload: (formData: FormData, token: string) =>
+    fetch(`${API_URL}/documents/upload/default`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
