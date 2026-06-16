@@ -36,29 +36,31 @@ export default function PipelinePage() {
   const [draggedCaseId, setDraggedCaseId] =
     useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadBoard() {
-      try {
-        const token =
-          getAccessToken();
+  async function loadBoard() {
+    try {
+      const token =
+        getAccessToken();
 
-        if (!token) {
-          return;
-        }
-
-        const data =
-          await casesApi.getBoard(
-            token,
-          );
-
-        setStages(
-          data as Stage[],
-        );
-      } finally {
-        setLoading(false);
+      if (!token) {
+        return;
       }
-    }
 
+      const data =
+        await casesApi.getBoard(
+          token,
+        );
+
+      setStages(
+        data as Stage[],
+      );
+    } catch (err) {
+      // silently fail
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
     loadBoard();
   }, []);
 
@@ -135,12 +137,11 @@ export default function PipelinePage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">
-            Pipeline
+            Воронка дел
           </h1>
 
           <p className="text-muted-foreground">
-            Kanban board for case
-            workflow management
+            Канбан-доска для управления делами
           </p>
         </div>
 
@@ -275,7 +276,7 @@ export default function PipelinePage() {
                             {caseItem
                               .client
                               ?.fullName ??
-                              'No client'}
+                              'Без клиента'}
                           </div>
 
                           <div
@@ -288,7 +289,7 @@ export default function PipelinePage() {
                             {caseItem
                               .caseType
                               ?.name ??
-                              'General'}
+                              'Общее'}
                           </div>
                         </div>
                       ),
