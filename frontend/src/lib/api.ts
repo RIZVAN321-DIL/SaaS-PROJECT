@@ -136,6 +136,9 @@ export const casesApi = {
   getAll: (token: string) =>
     request('/cases', { token }),
 
+  getById: (id: string, token: string) =>
+    request(`/cases/${id}`, { token }),
+
   getBoard: (token: string) =>
     request('/cases/board', { token }),
 
