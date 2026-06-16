@@ -94,8 +94,8 @@ export const authApi = {
 };
 
 export const dashboardApi = {
-  getDashboard: (organizationId: string, token: string) =>
-    request(`/dashboard/${organizationId}`, {
+  getDashboard: (token: string) =>
+    request('/dashboard', {
       token,
     }),
 };
@@ -197,8 +197,8 @@ export const documentsApi = {
       token,
     }),
 
-  upload: (formData: FormData, token: string) =>
-    fetch(`${API_URL}/documents/upload`, {
+  upload: (caseId: string, formData: FormData, token: string) =>
+    fetch(`${API_URL}/documents/upload/${caseId}`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
