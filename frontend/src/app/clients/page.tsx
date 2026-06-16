@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import { clientsApi } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
+import { ClientForm } from '@/components/forms/client-form';
 
 interface Client {
   id: string;
@@ -23,30 +24,33 @@ export default function ClientsPage() {
   const [loading, setLoading] =
     useState(true);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const token =
-          getAccessToken();
+  const [showForm, setShowForm] =
+    useState(false);
 
-        if (!token) {
-          return;
-        }
+  async function loadClients() {
+    try {
+      const token =
+        getAccessToken();
 
-        const data =
-          await clientsApi.getAll(
-            token,
-          );
-
-        setClients(
-          data as Client[],
-        );
-      } finally {
-        setLoading(false);
+      if (!token) {
+        return;
       }
-    }
 
-    load();
+      const data =
+        await clientsApi.getAll(
+          token,
+        );
+
+      setClients(
+        data as Client[],
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadClients();
   }, []);
 
   return (
@@ -70,6 +74,9 @@ export default function ClientsPage() {
           </div>
 
           <button
+            onClick={() =>
+              setShowForm(true)
+            }
             className="
               rounded-xl
               bg-primary
@@ -83,6 +90,48 @@ export default function ClientsPage() {
             New Client
           </button>
         </div>
+
+        {showForm && (
+          <div
+            className="
+              fixed
+              inset-0
+              z-50
+              flex
+              items-center
+              justify-center
+              bg-black/50
+            "
+            onClick={() =>
+              setShowForm(false)
+            }
+          >
+            <div
+              className="
+                w-full
+                max-w-lg
+                rounded-2xl
+                bg-background
+                p-6
+                shadow-xl
+              "
+              onClick={(e) =>
+                e.stopPropagation()
+              }
+            >
+              <h2 className="mb-4 text-lg font-semibold">
+                New Client
+              </h2>
+
+              <ClientForm
+                onSuccess={() => {
+                  setShowForm(false);
+                  loadClients();
+                }}
+              />
+            </div>
+          </div>
+        )}
 
         <div
           className="
