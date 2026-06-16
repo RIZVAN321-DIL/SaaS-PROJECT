@@ -218,6 +218,26 @@ export const usersApi = {
 export const caseTypesApi = {
   getAll: (token: string) =>
     request('/case-types', { token }),
+
+  create: (data: unknown, token: string) =>
+    request('/case-types', {
+      method: 'POST',
+      token,
+      body: data,
+    }),
+
+  update: (id: string, data: unknown, token: string) =>
+    request(`/case-types/${id}`, {
+      method: 'PUT',
+      token,
+      body: data,
+    }),
+
+  remove: (id: string, token: string) =>
+    request(`/case-types/${id}`, {
+      method: 'DELETE',
+      token,
+    }),
 };
 
 export const auditApi = {
