@@ -23,29 +23,31 @@ export default function AuditPage() {
   const [loading, setLoading] =
     useState(true);
 
-  useEffect(() => {
-    async function loadLogs() {
-      try {
-        const token =
-          getAccessToken();
+  async function loadLogs() {
+    try {
+      const token =
+        getAccessToken();
 
-        if (!token) {
-          return;
-        }
-
-        const data =
-          await auditApi.getAll(
-            token,
-          );
-
-        setLogs(
-          data as AuditLog[],
-        );
-      } finally {
-        setLoading(false);
+      if (!token) {
+        return;
       }
-    }
 
+      const data =
+        await auditApi.getAll(
+          token,
+        );
+
+      setLogs(
+        data as AuditLog[],
+      );
+    } catch (err) {
+      // silently fail
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
     loadLogs();
   }, []);
 
@@ -54,12 +56,11 @@ export default function AuditPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">
-            Audit Log
+            Журнал аудита
           </h1>
 
           <p className="text-muted-foreground">
-            Complete history of
-            actions in the system
+            Полная история действий в системе
           </p>
         </div>
 
@@ -81,23 +82,23 @@ export default function AuditPage() {
                 "
               >
                 <th className="p-4 text-left">
-                  Action
+                  Действие
                 </th>
 
                 <th className="p-4 text-left">
-                  Entity
+                  Объект
                 </th>
 
                 <th className="p-4 text-left">
-                  Entity ID
+                  ID объекта
                 </th>
 
                 <th className="p-4 text-left">
-                  User
+                  Пользователь
                 </th>
 
                 <th className="p-4 text-left">
-                  Date
+                  Дата
                 </th>
               </tr>
             </thead>
@@ -109,7 +110,7 @@ export default function AuditPage() {
                     colSpan={5}
                     className="p-8 text-center"
                   >
-                    Loading...
+                    Загрузка...
                   </td>
                 </tr>
               ) : logs.length ===
@@ -119,7 +120,7 @@ export default function AuditPage() {
                     colSpan={5}
                     className="p-8 text-center"
                   >
-                    No audit records
+                    Записей аудита пока нет
                   </td>
                 </tr>
               ) : (
@@ -163,7 +164,7 @@ export default function AuditPage() {
                       <td className="p-4">
                         {new Date(
                           log.createdAt,
-                        ).toLocaleString()}
+                        ).toLocaleString('ru-RU')}
                       </td>
                     </tr>
                   ),
@@ -175,4 +176,4 @@ export default function AuditPage() {
       </div>
     </AppShell>
   );
-          }
+}
