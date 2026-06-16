@@ -21,6 +21,10 @@ const navigation = [
     href: '/case-types',
   },
   {
+    label: 'Стадии',
+    href: '/stages',
+  },
+  {
     label: 'Воронка дел',
     href: '/pipeline',
   },
