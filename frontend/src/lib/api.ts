@@ -19,7 +19,9 @@ async function request<T>(
       method: options.method || 'GET',
 
       headers: {
-        'Content-Type': 'application/json',
+        ...(options.body instanceof FormData
+          ? {}
+          : { 'Content-Type': 'application/json' }),
 
         ...(options.token
           ? {
@@ -28,7 +30,9 @@ async function request<T>(
           : {}),
       },
 
-      body: options.body
+      body: options.body instanceof FormData
+        ? options.body
+        : options.body
         ? JSON.stringify(options.body)
         : undefined,
     },
@@ -199,15 +203,10 @@ export const documentsApi = {
 
   upload: (formData: FormData, token: string) => {
     const caseId = formData.get('caseId') as string || 'default';
-    return fetch(`${API_URL}/documents/upload/${caseId}`, {
+    return request(`/documents/upload/${caseId}`, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      token,
       body: formData,
-    }).then((res) => {
-      if (!res.ok) throw new Error('Upload failed');
-      return res.json();
     });
   },
 };
