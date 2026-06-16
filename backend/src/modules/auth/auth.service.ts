@@ -9,7 +9,6 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../database/prisma.service';
 
 import * as bcrypt from 'bcrypt';
-import { Role } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -18,9 +17,6 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  // =========================
-  // REGISTER
-  // =========================
   async register(data: {
     email: string;
     password: string;
@@ -54,16 +50,13 @@ export class AuthService {
         email,
         password: hashedPassword,
         organizationId: data.organizationId,
-        role: Role.LAWYER,
+        role: 'LAWYER',
       },
     });
 
     return this.generateTokens(user);
   }
 
-  // =========================
-  // LOGIN
-  // =========================
   async login(email: string, password: string) {
     const normalizedEmail = email.trim().toLowerCase();
 
@@ -84,14 +77,11 @@ export class AuthService {
     return this.generateTokens(user);
   }
 
-  // =========================
-  // GENERATE TOKENS
-  // =========================
   private async generateTokens(user: {
     id: string;
     email: string;
     organizationId: string;
-    role: Role;
+    role: string;
     password: string;
     refreshToken: string | null;
   }) {
@@ -102,21 +92,13 @@ export class AuthService {
       role: user.role,
     };
 
-    const accessToken = this.jwtService.sign(payload, {
-      expiresIn: '15m',
-    });
-
-    const refreshToken = this.jwtService.sign(payload, {
-      expiresIn: '7d',
-    });
-
+    const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
     const hashedRefresh = await bcrypt.hash(refreshToken, 10);
 
     await this.prisma.user.update({
       where: { id: user.id },
-      data: {
-        refreshToken: hashedRefresh,
-      },
+      data: { refreshToken: hashedRefresh },
     });
 
     return {
@@ -125,9 +107,6 @@ export class AuthService {
     };
   }
 
-  // =========================
-  // REFRESH
-  // =========================
   async refresh(userId: string, refreshToken: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -146,15 +125,10 @@ export class AuthService {
     return this.generateTokens(user);
   }
 
-  // =========================
-  // LOGOUT
-  // =========================
   async logout(userId: string) {
     return this.prisma.user.update({
       where: { id: userId },
-      data: {
-        refreshToken: null,
-      },
+      data: { refreshToken: null },
     });
   }
 }
