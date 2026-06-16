@@ -1,9 +1,14 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 
-import { documentsApi } from '@/lib/api';
+import { documentsApi, casesApi } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
+
+interface CaseItem {
+  id: string;
+  title: string;
+}
 
 interface DocumentUploadFormProps {
   caseId?: string;
@@ -28,6 +33,38 @@ export function DocumentUploadForm({
 
   const [error, setError] =
     useState('');
+
+  const [cases, setCases] =
+    useState<CaseItem[]>([]);
+
+  const [selectedCaseId, setSelectedCaseId] =
+    useState(caseId || '');
+
+  useEffect(() => {
+    async function loadCases() {
+      const token =
+        getAccessToken();
+
+      if (!token) {
+        return;
+      }
+
+      try {
+        const data =
+          await casesApi.getAll(
+            token,
+          );
+
+        setCases(
+          data as CaseItem[],
+        );
+      } catch {
+        // silently fail
+      }
+    }
+
+    loadCases();
+  }, []);
 
   function handleFileChange(
     e: React.ChangeEvent<HTMLInputElement>,
@@ -62,6 +99,11 @@ export function DocumentUploadForm({
       return;
     }
 
+    if (!selectedCaseId) {
+      setError('Выберите дело');
+      return;
+    }
+
     try {
       setLoading(true);
       setError('');
@@ -86,12 +128,10 @@ export function DocumentUploadForm({
         );
       }
 
-      if (caseId) {
-        formData.append(
-          'caseId',
-          caseId,
-        );
-      }
+      formData.append(
+        'caseId',
+        selectedCaseId,
+      );
 
       await documentsApi.upload(
         formData,
@@ -101,6 +141,7 @@ export function DocumentUploadForm({
       setFile(null);
       setName('');
       setType('');
+      setSelectedCaseId('');
 
       onSuccess?.();
     } catch {
@@ -117,6 +158,47 @@ export function DocumentUploadForm({
       onSubmit={handleSubmit}
       className="space-y-5"
     >
+      <div>
+        <label className="mb-2 block text-sm font-medium">
+          Дело
+        </label>
+
+        <select
+          required
+          value={selectedCaseId}
+          onChange={(e) =>
+            setSelectedCaseId(
+              e.target.value,
+            )
+          }
+          className="
+            h-12
+            w-full
+            rounded-xl
+            border
+            border-border
+            bg-background
+            px-4
+            outline-none
+          "
+        >
+          <option value="">
+            Выберите дело
+          </option>
+
+          {cases.map(
+            (c) => (
+              <option
+                key={c.id}
+                value={c.id}
+              >
+                {c.title}
+              </option>
+            ),
+          )}
+        </select>
+      </div>
+
       <div>
         <label className="mb-2 block text-sm font-medium">
           Файл
