@@ -81,7 +81,7 @@ export function TaskForm({
         );
       } catch {
         setError(
-          'Failed to load data',
+          'Не удалось загрузить данные',
         );
       }
     }
@@ -99,7 +99,7 @@ export function TaskForm({
 
     if (!token) {
       setError(
-        'Authentication required',
+        'Требуется авторизация',
       );
       return;
     }
@@ -133,7 +133,7 @@ export function TaskForm({
       onSuccess?.();
     } catch {
       setError(
-        'Failed to create task',
+        'Не удалось создать задачу',
       );
     } finally {
       setLoading(false);
@@ -147,7 +147,7 @@ export function TaskForm({
     >
       <div>
         <label className="mb-2 block text-sm font-medium">
-          Task Title
+          Название задачи
         </label>
 
         <input
@@ -158,7 +158,7 @@ export function TaskForm({
               e.target.value,
             )
           }
-          placeholder="Prepare court documents"
+          placeholder="Подготовить документы для суда"
           className="
             h-12
             w-full
@@ -174,7 +174,7 @@ export function TaskForm({
 
       <div>
         <label className="mb-2 block text-sm font-medium">
-          Case
+          Дело
         </label>
 
         <select
@@ -197,7 +197,7 @@ export function TaskForm({
           "
         >
           <option value="">
-            Select case
+            Выберите дело
           </option>
 
           {cases.map(
@@ -221,7 +221,7 @@ export function TaskForm({
 
       <div>
         <label className="mb-2 block text-sm font-medium">
-          Assigned To
+          Исполнитель
         </label>
 
         <select
@@ -243,7 +243,7 @@ export function TaskForm({
           "
         >
           <option value="">
-            Unassigned
+            Не назначен
           </option>
 
           {users.map(
@@ -261,7 +261,7 @@ export function TaskForm({
 
       <div>
         <label className="mb-2 block text-sm font-medium">
-          Due Date
+          Срок выполнения
         </label>
 
         <input
@@ -287,7 +287,7 @@ export function TaskForm({
 
       <div>
         <label className="mb-2 block text-sm font-medium">
-          Description
+          Описание
         </label>
 
         <textarea
@@ -298,7 +298,7 @@ export function TaskForm({
               e.target.value,
             )
           }
-          placeholder="Task details..."
+          placeholder="Детали задачи..."
           className="
             w-full
             rounded-xl
@@ -341,9 +341,9 @@ export function TaskForm({
         "
       >
         {loading
-          ? 'Creating...'
-          : 'Create Task'}
+          ? 'Создание...'
+          : 'Создать задачу'}
       </button>
     </form>
   );
-        }
+}
