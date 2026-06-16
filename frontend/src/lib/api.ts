@@ -197,8 +197,9 @@ export const documentsApi = {
       token,
     }),
 
-  upload: (formData: FormData, token: string) =>
-    fetch(`${API_URL}/documents/upload/default`, {
+  upload: (formData: FormData, token: string) => {
+    const caseId = formData.get('caseId') as string || 'default';
+    return fetch(`${API_URL}/documents/upload/${caseId}`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -207,7 +208,8 @@ export const documentsApi = {
     }).then((res) => {
       if (!res.ok) throw new Error('Upload failed');
       return res.json();
-    }),
+    });
+  },
 };
 
 export const usersApi = {
