@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import { documentsApi } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
+import { DocumentUploadForm } from '@/components/forms/document-upload-form';
 
 interface DocumentItem {
   id: string;
@@ -26,6 +27,9 @@ export default function DocumentsPage() {
   const [loading, setLoading] =
     useState(true);
 
+  const [showForm, setShowForm] =
+    useState(false);
+
   async function loadDocuments() {
     const token =
       getAccessToken();
@@ -43,6 +47,8 @@ export default function DocumentsPage() {
       setDocuments(
         data as DocumentItem[],
       );
+    } catch (err) {
+      // silently fail
     } finally {
       setLoading(false);
     }
@@ -64,15 +70,18 @@ export default function DocumentsPage() {
         >
           <div>
             <h1 className="text-3xl font-bold">
-              Documents
+              Документы
             </h1>
 
             <p className="text-muted-foreground">
-              Secure document storage
+              Безопасное хранение документов
             </p>
           </div>
 
           <button
+            onClick={() =>
+              setShowForm(true)
+            }
             className="
               rounded-xl
               bg-primary
@@ -83,9 +92,51 @@ export default function DocumentsPage() {
               text-primary-foreground
             "
           >
-            Upload Document
+            Загрузить документ
           </button>
         </div>
+
+        {showForm && (
+          <div
+            className="
+              fixed
+              inset-0
+              z-50
+              flex
+              items-center
+              justify-center
+              bg-black/50
+            "
+            onClick={() =>
+              setShowForm(false)
+            }
+          >
+            <div
+              className="
+                w-full
+                max-w-lg
+                rounded-2xl
+                bg-background
+                p-6
+                shadow-xl
+              "
+              onClick={(e) =>
+                e.stopPropagation()
+              }
+            >
+              <h2 className="mb-4 text-lg font-semibold">
+                Загрузить документ
+              </h2>
+
+              <DocumentUploadForm
+                onSuccess={() => {
+                  setShowForm(false);
+                  loadDocuments();
+                }}
+              />
+            </div>
+          </div>
+        )}
 
         <div className="grid gap-4">
           {loading ? (
@@ -99,7 +150,7 @@ export default function DocumentsPage() {
                 text-center
               "
             >
-              Loading...
+              Загрузка...
             </div>
           ) : documents.length ===
             0 ? (
@@ -113,7 +164,7 @@ export default function DocumentsPage() {
                 text-center
               "
             >
-              No documents found
+              Документов пока нет
             </div>
           ) : (
             documents.map(
@@ -147,7 +198,7 @@ export default function DocumentsPage() {
                         text-muted-foreground
                       "
                     >
-                      Case:{' '}
+                      Дело:{' '}
                       {document.case
                         ?.title ??
                         '-'}
@@ -162,7 +213,7 @@ export default function DocumentsPage() {
                     >
                       {new Date(
                         document.createdAt,
-                      ).toLocaleString()}
+                      ).toLocaleString('ru-RU')}
                     </div>
                   </div>
 
@@ -184,7 +235,7 @@ export default function DocumentsPage() {
                       "
                     >
                       {document.type ??
-                        'FILE'}
+                        'ФАЙЛ'}
                     </span>
 
                     {document.fileUrl && (
@@ -203,7 +254,7 @@ export default function DocumentsPage() {
                           text-sm
                         "
                       >
-                        Open
+                        Открыть
                       </a>
                     )}
                   </div>
