@@ -40,7 +40,7 @@ export function ClientForm({
 
     if (!token) {
       setError(
-        'Authentication required',
+        'Требуется авторизация',
       );
       return;
     }
@@ -70,7 +70,7 @@ export function ClientForm({
       onSuccess?.();
     } catch {
       setError(
-        'Failed to create client',
+        'Не удалось создать клиента',
       );
     } finally {
       setLoading(false);
@@ -84,7 +84,7 @@ export function ClientForm({
     >
       <div>
         <label className="mb-2 block text-sm font-medium">
-          Full Name
+          Полное имя
         </label>
 
         <input
@@ -105,7 +105,7 @@ export function ClientForm({
             px-4
             outline-none
           "
-          placeholder="Client name"
+          placeholder="Имя клиента"
         />
       </div>
 
@@ -138,7 +138,7 @@ export function ClientForm({
 
       <div>
         <label className="mb-2 block text-sm font-medium">
-          Phone
+          Телефон
         </label>
 
         <input
@@ -158,13 +158,13 @@ export function ClientForm({
             px-4
             outline-none
           "
-          placeholder="+1 ..."
+          placeholder="+7 ..."
         />
       </div>
 
       <div>
         <label className="mb-2 block text-sm font-medium">
-          Notes
+          Заметки
         </label>
 
         <textarea
@@ -185,7 +185,7 @@ export function ClientForm({
             py-3
             outline-none
           "
-          placeholder="Additional information"
+          placeholder="Дополнительная информация"
         />
       </div>
 
@@ -218,8 +218,8 @@ export function ClientForm({
         "
       >
         {loading
-          ? 'Creating...'
-          : 'Create Client'}
+          ? 'Создание...'
+          : 'Создать клиента'}
       </button>
     </form>
   );
