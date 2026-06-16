@@ -50,12 +50,11 @@ export default function SettingsPage() {
       <div className="space-y-8">
         <div>
           <h1 className="text-3xl font-bold">
-            Settings
+            Настройки
           </h1>
 
           <p className="text-muted-foreground">
-            System preferences and
-            personalization
+            Системные настройки и персонализация
           </p>
         </div>
 
@@ -69,7 +68,7 @@ export default function SettingsPage() {
           "
         >
           <h2 className="mb-4 text-lg font-semibold">
-            Appearance
+            Внешний вид
           </h2>
 
           <div className="flex gap-4">
@@ -93,7 +92,7 @@ export default function SettingsPage() {
                 }
               `}
             >
-              Light Theme
+              Светлая тема
             </button>
 
             <button
@@ -116,7 +115,7 @@ export default function SettingsPage() {
                 }
               `}
             >
-              Dark Theme
+              Тёмная тема
             </button>
           </div>
         </div>
@@ -131,7 +130,7 @@ export default function SettingsPage() {
           "
         >
           <h2 className="mb-4 text-lg font-semibold">
-            Security
+            Безопасность
           </h2>
 
           <div className="space-y-4">
@@ -144,7 +143,7 @@ export default function SettingsPage() {
                 py-3
               "
             >
-              Change Password
+              Сменить пароль
             </button>
 
             <button
@@ -156,7 +155,7 @@ export default function SettingsPage() {
                 py-3
               "
             >
-              Manage Sessions
+              Управление сессиями
             </button>
           </div>
         </div>
@@ -171,12 +170,12 @@ export default function SettingsPage() {
           "
         >
           <h2 className="mb-4 text-lg font-semibold">
-            Organization
+            Организация
           </h2>
 
           <div className="space-y-4">
             <input
-              placeholder="Organization Name"
+              placeholder="Название организации"
               className="
                 h-12
                 w-full
@@ -197,7 +196,7 @@ export default function SettingsPage() {
                 text-primary-foreground
               "
             >
-              Save Changes
+              Сохранить изменения
             </button>
           </div>
         </div>
