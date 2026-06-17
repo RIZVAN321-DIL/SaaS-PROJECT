@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 
 import { AppShell } from '@/components/layout/app-shell';
 import { casesApi } from '@/lib/api';
@@ -32,7 +31,6 @@ interface CaseItem {
 }
 
 export default function CasesPage() {
-  const router = useRouter();
   const [cases, setCases] = useState<CaseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -125,12 +123,7 @@ export default function CasesPage() {
                 cases.map((item) => (
                   <tr key={item.id} className="border-b border-border">
                     <td className="p-4">
-                      <button
-                        onClick={() => router.push(`/cases/${item.id}`)}
-                        className="font-medium text-left hover:text-primary transition"
-                      >
-                        {item.title}
-                      </button>
+                      <div className="font-medium">{item.title}</div>
                       <div className="text-sm text-muted-foreground">
                         {item.description ?? ''}
                       </div>
