@@ -38,6 +38,10 @@ interface CaseDetail {
   updatedAt?: string;
 }
 
+export async function generateStaticParams() {
+  return [];
+}
+
 export default function CaseDetailPage() {
   const { id } = useParams<{ id: string }>();
 
