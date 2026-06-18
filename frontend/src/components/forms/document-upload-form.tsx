@@ -1,9 +1,12 @@
+// frontend/src/components/forms/document-upload-form.tsx
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
 
 import { documentsApi, casesApi } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 interface CaseItem {
   id: string;
@@ -15,49 +18,26 @@ interface DocumentUploadFormProps {
   onSuccess?: () => void;
 }
 
-export function DocumentUploadForm({
-  caseId,
-  onSuccess,
-}: DocumentUploadFormProps) {
-  const [file, setFile] =
-    useState<File | null>(null);
-
-  const [name, setName] =
-    useState('');
-
-  const [type, setType] =
-    useState('');
-
-  const [loading, setLoading] =
-    useState(false);
-
-  const [error, setError] =
-    useState('');
-
-  const [cases, setCases] =
-    useState<CaseItem[]>([]);
-
-  const [selectedCaseId, setSelectedCaseId] =
-    useState(caseId || '');
+export function DocumentUploadForm({ caseId, onSuccess }: DocumentUploadFormProps) {
+  const [file, setFile] = useState<File | null>(null);
+  const [name, setName] = useState('');
+  const [type, setType] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [cases, setCases] = useState<CaseItem[]>([]);
+  const [selectedCaseId, setSelectedCaseId] = useState(caseId || '');
 
   useEffect(() => {
     async function loadCases() {
-      const token =
-        getAccessToken();
+      const token = getAccessToken();
 
       if (!token) {
         return;
       }
 
       try {
-        const data =
-          await casesApi.getAll(
-            token,
-          );
-
-        setCases(
-          data as CaseItem[],
-        );
+        const data = await casesApi.getAll(token);
+        setCases(data as CaseItem[]);
       } catch {
         // silently fail
       }
@@ -66,12 +46,8 @@ export function DocumentUploadForm({
     loadCases();
   }, []);
 
-  function handleFileChange(
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) {
-    const selected =
-      e.target.files?.[0] || null;
-
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const selected = e.target.files?.[0] || null;
     setFile(selected);
 
     if (selected && !name) {
@@ -79,18 +55,13 @@ export function DocumentUploadForm({
     }
   }
 
-  async function handleSubmit(
-    e: FormEvent,
-  ) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
-    const token =
-      getAccessToken();
+    const token = getAccessToken();
 
     if (!token) {
-      setError(
-        'Требуется авторизация',
-      );
+      setError('Требуется авторизация');
       return;
     }
 
@@ -108,35 +79,17 @@ export function DocumentUploadForm({
       setLoading(true);
       setError('');
 
-      const formData =
-        new FormData();
-
-      formData.append(
-        'file',
-        file,
-      );
-
-      formData.append(
-        'name',
-        name,
-      );
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('name', name);
 
       if (type) {
-        formData.append(
-          'type',
-          type,
-        );
+        formData.append('type', type);
       }
 
-      formData.append(
-        'caseId',
-        selectedCaseId,
-      );
+      formData.append('caseId', selectedCaseId);
 
-      await documentsApi.upload(
-        formData,
-        token,
-      );
+      await documentsApi.upload(formData, token);
 
       setFile(null);
       setName('');
@@ -145,163 +98,58 @@ export function DocumentUploadForm({
 
       onSuccess?.();
     } catch {
-      setError(
-        'Не удалось загрузить документ',
-      );
+      setError('Не удалось загрузить документ');
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-5"
-    >
+    <form onSubmit={handleSubmit} className="space-y-5">
       <div>
-        <label className="mb-2 block text-sm font-medium">
-          Дело
-        </label>
+        <label className="mb-2 block text-sm font-medium">Дело</label>
 
         <select
           required
           value={selectedCaseId}
-          onChange={(e) =>
-            setSelectedCaseId(
-              e.target.value,
-            )
-          }
-          className="
-            h-12
-            w-full
-            rounded-xl
-            border
-            border-border
-            bg-background
-            px-4
-            outline-none
-          "
+          onChange={(e) => setSelectedCaseId(e.target.value)}
+          className="h-12 w-full rounded-xl border border-border bg-background px-4 outline-none"
         >
-          <option value="">
-            Выберите дело
-          </option>
+          <option value="">Выберите дело</option>
 
-          {cases.map(
-            (c) => (
-              <option
-                key={c.id}
-                value={c.id}
-              >
-                {c.title}
-              </option>
-            ),
-          )}
+          {cases.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.title}
+            </option>
+          ))}
         </select>
       </div>
 
-      <div>
-        <label className="mb-2 block text-sm font-medium">
-          Файл
-        </label>
+      <Input label="Файл" type="file" onChange={handleFileChange} />
 
-        <input
-          type="file"
-          onChange={handleFileChange}
-          className="
-            w-full
-            rounded-xl
-            border
-            border-border
-            bg-background
-            p-3
-          "
-        />
-      </div>
+      <Input
+        label="Название документа"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Договор.pdf"
+      />
 
-      <div>
-        <label className="mb-2 block text-sm font-medium">
-          Название документа
-        </label>
-
-        <input
-          value={name}
-          onChange={(e) =>
-            setName(
-              e.target.value,
-            )
-          }
-          className="
-            h-12
-            w-full
-            rounded-xl
-            border
-            border-border
-            bg-background
-            px-4
-            outline-none
-          "
-          placeholder="Договор.pdf"
-        />
-      </div>
-
-      <div>
-        <label className="mb-2 block text-sm font-medium">
-          Тип
-        </label>
-
-        <input
-          value={type}
-          onChange={(e) =>
-            setType(
-              e.target.value,
-            )
-          }
-          className="
-            h-12
-            w-full
-            rounded-xl
-            border
-            border-border
-            bg-background
-            px-4
-            outline-none
-          "
-          placeholder="Договор / Доказательство / Другое"
-        />
-      </div>
+      <Input
+        label="Тип"
+        value={type}
+        onChange={(e) => setType(e.target.value)}
+        placeholder="Договор / Доказательство / Другое"
+      />
 
       {error && (
-        <div
-          className="
-            rounded-xl
-            border
-            border-red-500/30
-            p-3
-            text-sm
-          "
-        >
+        <div className="rounded-xl border border-red-500/30 p-3 text-sm">
           {error}
         </div>
       )}
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="
-          h-12
-          w-full
-          rounded-xl
-          bg-primary
-          font-medium
-          text-primary-foreground
-          transition
-          disabled:opacity-50
-        "
-      >
-        {loading
-          ? 'Загрузка...'
-          : 'Загрузить документ'}
-      </button>
+      <Button type="submit" loading={loading} className="w-full">
+        Загрузить документ
+      </Button>
     </form>
   );
 }
