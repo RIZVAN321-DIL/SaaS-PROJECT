@@ -1,9 +1,12 @@
+// frontend/src/app/layout.tsx
 import type { Metadata } from 'next';
 import './globals.css';
 
 import { Inter } from 'next/font/google';
 
 import { ThemeProvider } from '@/components/providers/theme-provider';
+import { ToastProvider } from '@/components/ui/toast';
+import { ToastBridge } from '@/components/providers/toast-bridge';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -11,8 +14,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: 'CRM',
-  description:
-    'Legal CRM Platform',
+  description: 'Legal CRM Platform',
 };
 
 export default function RootLayout({
@@ -21,15 +23,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-    >
-      <body
-        className={inter.className}
-      >
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.className}>
         <ThemeProvider>
-          {children}
+          <ToastProvider>
+            <ToastBridge />
+            {children}
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>
