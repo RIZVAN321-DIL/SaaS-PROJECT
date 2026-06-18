@@ -1,3 +1,4 @@
+// frontend/src/app/cases/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -6,6 +7,8 @@ import { AppShell } from '@/components/layout/app-shell';
 import { casesApi } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
 import { CaseForm } from '@/components/forms/case-form';
+import { Button } from '@/components/ui/button';
+import { Modal } from '@/components/ui/modal';
 
 interface CaseItem {
   id: string;
@@ -65,35 +68,23 @@ export default function CasesPage() {
             </p>
           </div>
 
-          <button
-            onClick={() => setShowForm(true)}
-            className="rounded-xl bg-primary px-5 py-3 text-sm font-medium text-primary-foreground"
-          >
+          <Button onClick={() => setShowForm(true)}>
             Новое дело
-          </button>
+          </Button>
         </div>
 
-        {showForm && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-            onClick={() => setShowForm(false)}
-          >
-            <div
-              className="w-full max-w-lg rounded-2xl bg-background p-6 shadow-xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h2 className="mb-4 text-lg font-semibold">
-                Новое дело
-              </h2>
-              <CaseForm
-                onSuccess={() => {
-                  setShowForm(false);
-                  loadCases();
-                }}
-              />
-            </div>
-          </div>
-        )}
+        <Modal
+          open={showForm}
+          onClose={() => setShowForm(false)}
+          title="Новое дело"
+        >
+          <CaseForm
+            onSuccess={() => {
+              setShowForm(false);
+              loadCases();
+            }}
+          />
+        </Modal>
 
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
           <table className="w-full">
