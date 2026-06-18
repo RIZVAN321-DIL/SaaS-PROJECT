@@ -95,6 +95,12 @@ export const authApi = {
       method: 'POST',
       body: data,
     }),
+
+  logout: (token: string) =>
+    request('/auth/logout', {
+      method: 'POST',
+      token,
+    }),
 };
 
 export const dashboardApi = {
