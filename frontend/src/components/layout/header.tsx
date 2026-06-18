@@ -1,10 +1,24 @@
+// frontend/src/components/layout/header.tsx
 'use client';
 
-import { ThemeToggle } from '@/components/theme/theme-toggle';
-import { getUser } from '@/lib/auth';
+import { useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Menu, LogOut } from 'lucide-react';
 
-export function Header() {
+import { ThemeToggle } from '@/components/theme/theme-toggle';
+import { getUser, getAccessToken, clearAuth } from '@/lib/auth';
+import { authApi } from '@/lib/api';
+import { navigation } from '@/components/layout/sidebar';
+
+interface HeaderProps {
+  onMenuClick?: () => void;
+}
+
+export function Header({ onMenuClick }: HeaderProps) {
   const user = getUser();
+  const pathname = usePathname();
+  const router = useRouter();
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const roleLabels: Record<string, string> = {
     OWNER: 'Владелец',
@@ -13,76 +27,68 @@ export function Header() {
     ASSISTANT: 'Помощник',
   };
 
-  return (
-    <header
-      className="
-        flex
-        h-20
-        items-center
-        justify-between
-        border-b
-        border-border
-        bg-background/80
-        px-6
-        backdrop-blur
-      "
-    >
-      <div>
-        <h2
-          className="
-            text-2xl
-            font-bold
-          "
-        >
-          Панель управления
-        </h2>
+  const currentPage = navigation.find(
+    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
+  );
 
-        <p
-          className="
-            text-sm
-            text-muted-foreground
-          "
+  async function handleLogout() {
+    setLoggingOut(true);
+
+    try {
+      const token = getAccessToken();
+      if (token) {
+        await authApi.logout(token);
+      }
+    } catch {
+      // даже если запрос на бэкенд не прошёл, локальную сессию всё равно завершаем
+    } finally {
+      clearAuth();
+      router.push('/login');
+    }
+  }
+
+  return (
+    <header className="flex h-20 items-center justify-between border-b border-border bg-background/80 px-4 md:px-6 backdrop-blur gap-4">
+      <div className="flex items-center gap-3 min-w-0">
+        <button
+          type="button"
+          aria-label="Открыть меню"
+          onClick={onMenuClick}
+          className="md:hidden shrink-0 rounded-lg p-2 hover:bg-accent"
         >
-          Платформа для управления юридической деятельностью
-        </p>
+          <Menu size={20} />
+        </button>
+
+        <div className="min-w-0">
+          <h2 className="text-xl md:text-2xl font-bold truncate">
+            {currentPage?.label ?? 'Юридическая CRM'}
+          </h2>
+          <p className="hidden sm:block text-sm text-muted-foreground truncate">
+            Платформа для управления юридической деятельностью
+          </p>
+        </div>
       </div>
 
-      <div
-        className="
-          flex
-          items-center
-          gap-4
-        "
-      >
+      <div className="flex items-center gap-2 md:gap-4 shrink-0">
         <ThemeToggle />
 
-        <div
-          className="
-            flex
-            flex-col
-            items-end
-          "
-        >
-          <span
-            className="
-              text-sm
-              font-medium
-            "
-          >
-            {user?.email ?? 'Пользователь'}
-          </span>
-
-          <span
-            className="
-              text-xs
-              text-muted-foreground
-            "
-          >
-            {user?.role
-              ? roleLabels[user.role] ?? user.role
-              : 'Юрист'}
+        <div className="hidden sm:flex flex-col items-end">
+          <span className="text-sm font-medium">{user?.email ?? 'Пользователь'}</span>
+          <span className="text-xs text-muted-foreground">
+            {user?.role ? roleLabels[user.role] ?? user.role : 'Юрист'}
           </span>
         </div>
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          disabled={loggingOut}
+          title="Выйти"
+          aria-label="Выйти"
+          className="flex items-center justify-center rounded-xl border border-border h-11 w-11 hover:bg-accent transition disabled:opacity-50"
+        >
+          <LogOut size={18} />
+        </button>
       </div>
     </header>
   );
