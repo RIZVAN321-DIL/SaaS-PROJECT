@@ -1,3 +1,4 @@
+// Файл 11: backend/src/modules/dashboard/dashboard.service.ts
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 
@@ -164,6 +165,59 @@ export class DashboardService {
         },
       });
 
+    // =========================
+    // LOAD BY LAWYER (для дашборда "Загрузка юристов")
+    // =========================
+    const users = await this.prisma.user.findMany({
+      where: {
+        organizationId,
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+      },
+    });
+
+    const tasksByUser = await this.prisma.task.findMany({
+      where: {
+        organizationId,
+        status: {
+          not: 'completed',
+        },
+      },
+      select: {
+        assignedToId: true,
+        dueDate: true,
+      },
+    });
+
+    const now = new Date();
+
+    const byAssignee = users
+      .map((user) => {
+        const userTasks = tasksByUser.filter(
+          (task) => task.assignedToId === user.id,
+        );
+
+        const overdue = userTasks.filter(
+          (task) => task.dueDate && new Date(task.dueDate) < now,
+        ).length;
+
+        return {
+          userId: user.id,
+          email: user.email,
+          role: user.role,
+          activeTasks: userTasks.length,
+          overdueTasks: overdue,
+        };
+      })
+      .sort((a, b) => b.activeTasks - a.activeTasks);
+
+    const unassignedTasks = tasksByUser.filter(
+      (task) => !task.assignedToId,
+    ).length;
+
     return {
       totalTasks,
       pendingTasks,
@@ -180,6 +234,8 @@ export class DashboardService {
                 100
               ).toFixed(2),
             ),
+      byAssignee,
+      unassignedTasks,
     };
   }
 
@@ -213,4 +269,4 @@ export class DashboardService {
       tasks,
     };
   }
-}
+      }
