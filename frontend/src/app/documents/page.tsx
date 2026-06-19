@@ -114,11 +114,11 @@ export default function DocumentsPage() {
                   </span>
 
                   {document.fileUrl && (
-                    <a
+                    
                       href={document.fileUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-accent"
+                      className="rounded-lg border border-border px-3 py-2 text-sm"
                     >
                       Открыть
                     </a>
