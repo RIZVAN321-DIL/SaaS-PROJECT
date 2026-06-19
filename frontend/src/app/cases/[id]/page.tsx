@@ -1,4 +1,3 @@
-// Файл 8 (НОВЫЙ): frontend/src/app/cases/[id]/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -514,7 +513,7 @@ export default function CaseDetailPage() {
                         </span>
                       )}
                       {doc.fileUrl && (
-                        
+                        <a
                           href={doc.fileUrl}
                           target="_blank"
                           rel="noreferrer"
@@ -572,4 +571,4 @@ export default function CaseDetailPage() {
       </div>
     </AppShell>
   );
-}
+          }
