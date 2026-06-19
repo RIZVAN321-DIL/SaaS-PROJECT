@@ -1,4 +1,4 @@
-// frontend/src/components/forms/case-form.tsx
+// Файл 2: frontend/src/components/forms/case-form.tsx
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
@@ -18,18 +18,33 @@ interface CaseType {
   name: string;
 }
 
+interface CaseToEdit {
+  id: string;
+  title: string;
+  description?: string;
+  clientId: string;
+  caseTypeId?: string;
+}
+
 interface CaseFormProps {
+  clientId?: string;
+  caseToEdit?: CaseToEdit;
   onSuccess?: () => void;
 }
 
-export function CaseForm({ onSuccess }: CaseFormProps) {
+export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
+  const isEditing = Boolean(caseToEdit);
+  const lockClient = Boolean(clientId) && !isEditing;
+
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [caseTypes, setCaseTypes] = useState<CaseType[]>([]);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [clientId, setClientId] = useState('');
-  const [caseTypeId, setCaseTypeId] = useState('');
+  const [title, setTitle] = useState(caseToEdit?.title ?? '');
+  const [description, setDescription] = useState(caseToEdit?.description ?? '');
+  const [selectedClientId, setSelectedClientId] = useState(
+    caseToEdit?.clientId ?? clientId ?? '',
+  );
+  const [caseTypeId, setCaseTypeId] = useState(caseToEdit?.caseTypeId ?? '');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -70,24 +85,29 @@ export function CaseForm({ onSuccess }: CaseFormProps) {
       setLoading(true);
       setError('');
 
-      await casesApi.create(
-        {
-          title,
-          description: description.trim() || undefined,
-          clientId,
-          caseTypeId: caseTypeId || undefined,
-        },
-        token,
-      );
+      const payload = {
+        title,
+        description: description.trim() || undefined,
+        clientId: selectedClientId,
+        caseTypeId: caseTypeId || undefined,
+      };
 
-      setTitle('');
-      setDescription('');
-      setClientId('');
-      setCaseTypeId('');
+      if (isEditing && caseToEdit) {
+        await casesApi.update(caseToEdit.id, payload, token);
+      } else {
+        await casesApi.create(payload, token);
+
+        setTitle('');
+        setDescription('');
+        if (!clientId) setSelectedClientId('');
+        setCaseTypeId('');
+      }
 
       onSuccess?.();
     } catch {
-      setError('Не удалось создать дело');
+      setError(
+        isEditing ? 'Не удалось сохранить изменения' : 'Не удалось создать дело',
+      );
     } finally {
       setLoading(false);
     }
@@ -103,24 +123,26 @@ export function CaseForm({ onSuccess }: CaseFormProps) {
         placeholder="Спор по договору"
       />
 
-      <div>
-        <label className="mb-2 block text-sm font-medium">Клиент</label>
+      {!lockClient && (
+        <div>
+          <label className="mb-2 block text-sm font-medium">Клиент</label>
 
-        <select
-          required
-          value={clientId}
-          onChange={(e) => setClientId(e.target.value)}
-          className="h-12 w-full rounded-xl border border-border bg-background px-4 outline-none"
-        >
-          <option value="">Выберите клиента</option>
+          <select
+            required
+            value={selectedClientId}
+            onChange={(e) => setSelectedClientId(e.target.value)}
+            className="h-12 w-full rounded-xl border border-border bg-background px-4 outline-none"
+          >
+            <option value="">Выберите клиента</option>
 
-          {clients.map((client) => (
-            <option key={client.id} value={client.id}>
-              {client.fullName}
-            </option>
-          ))}
-        </select>
-      </div>
+            {clients.map((client) => (
+              <option key={client.id} value={client.id}>
+                {client.fullName}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div>
         <label className="mb-2 block text-sm font-medium">Тип дела</label>
@@ -159,7 +181,7 @@ export function CaseForm({ onSuccess }: CaseFormProps) {
       )}
 
       <Button type="submit" loading={loading} className="w-full">
-        Создать дело
+        {isEditing ? 'Сохранить изменения' : 'Создать дело'}
       </Button>
     </form>
   );
