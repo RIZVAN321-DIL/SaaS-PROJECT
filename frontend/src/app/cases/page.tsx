@@ -1,7 +1,8 @@
-// frontend/src/app/cases/page.tsx
+// Файл 5: frontend/src/app/cases/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import { AppShell } from '@/components/layout/app-shell';
 import { casesApi } from '@/lib/api';
@@ -34,6 +35,7 @@ interface CaseItem {
 }
 
 export default function CasesPage() {
+  const router = useRouter();
   const [cases, setCases] = useState<CaseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -112,7 +114,11 @@ export default function CasesPage() {
                 </tr>
               ) : (
                 cases.map((item) => (
-                  <tr key={item.id} className="border-b border-border">
+                  <tr
+                    key={item.id}
+                    onClick={() => router.push(`/cases/${item.id}`)}
+                    className="border-b border-border last:border-0 hover:bg-accent/50 cursor-pointer transition"
+                  >
                     <td className="p-4">
                       <div className="font-medium">{item.title}</div>
                       <div className="text-sm text-muted-foreground">
