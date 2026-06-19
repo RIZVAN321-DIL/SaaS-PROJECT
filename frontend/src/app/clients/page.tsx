@@ -1,7 +1,8 @@
-// frontend/src/app/clients/page.tsx
+// Файл 6: frontend/src/app/clients/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import { AppShell } from '@/components/layout/app-shell';
 import { clientsApi } from '@/lib/api';
@@ -21,6 +22,7 @@ interface Client {
 }
 
 export default function ClientsPage() {
+  const router = useRouter();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -98,7 +100,11 @@ export default function ClientsPage() {
                 </tr>
               ) : (
                 clients.map((client) => (
-                  <tr key={client.id} className="border-b border-border">
+                  <tr
+                    key={client.id}
+                    onClick={() => router.push(`/clients/${client.id}`)}
+                    className="border-b border-border last:border-0 hover:bg-accent/50 cursor-pointer transition"
+                  >
                     <td className="p-4 font-medium">
                       {client.fullName}
                     </td>
