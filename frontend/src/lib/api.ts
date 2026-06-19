@@ -266,3 +266,13 @@ export const caseStagesApi = {
   getAll: (token: string) =>
     request('/case-stages', { token }),
 };
+
+export const searchApi = {
+  search: (query: string, token: string) =>
+    request(`/search?query=${encodeURIComponent(query)}`, { token }),
+};
+
+export const notificationsApi = {
+  getAll: (token: string) =>
+    request('/notifications', { token }),
+};
