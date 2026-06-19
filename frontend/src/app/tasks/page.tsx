@@ -1,7 +1,8 @@
-// frontend/src/app/tasks/page.tsx
+// Файл 7: frontend/src/app/tasks/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import { AppShell } from '@/components/layout/app-shell';
 import { tasksApi } from '@/lib/api';
@@ -17,6 +18,7 @@ interface Task {
   status: string;
   dueDate?: string;
   completedAt?: string;
+  caseId: string;
 
   case?: {
     id: string;
@@ -29,10 +31,18 @@ interface Task {
   };
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'В работе',
+  in_progress: 'Выполняется',
+  completed: 'Завершено',
+};
+
 export default function TasksPage() {
+  const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
 
   async function loadTasks() {
     const token = getAccessToken();
@@ -66,8 +76,22 @@ export default function TasksPage() {
     await loadTasks();
   }
 
-  const pendingTasks = tasks.filter((task) => task.status === 'PENDING');
-  const completedTasks = tasks.filter((task) => task.status === 'COMPLETED');
+  async function removeTask(id: string) {
+    const token = getAccessToken();
+
+    if (!token) {
+      return;
+    }
+
+    const confirmed = window.confirm('Удалить эту задачу?');
+    if (!confirmed) return;
+
+    await tasksApi.remove(id, token);
+    await loadTasks();
+  }
+
+  const pendingTasks = tasks.filter((task) => task.status !== 'completed');
+  const completedTasks = tasks.filter((task) => task.status === 'completed');
 
   return (
     <AppShell>
@@ -83,19 +107,40 @@ export default function TasksPage() {
             </p>
           </div>
 
-          <Button onClick={() => setShowForm(true)}>
+          <Button
+            onClick={() => {
+              setTaskToEdit(null);
+              setShowForm(true);
+            }}
+          >
             Новая задача
           </Button>
         </div>
 
         <Modal
           open={showForm}
-          onClose={() => setShowForm(false)}
-          title="Новая задача"
+          onClose={() => {
+            setShowForm(false);
+            setTaskToEdit(null);
+          }}
+          title={taskToEdit ? 'Редактировать задачу' : 'Новая задача'}
         >
           <TaskForm
+            taskToEdit={
+              taskToEdit
+                ? {
+                    id: taskToEdit.id,
+                    title: taskToEdit.title,
+                    description: taskToEdit.description,
+                    caseId: taskToEdit.caseId,
+                    assignedToId: taskToEdit.assignedTo?.id,
+                    dueDate: taskToEdit.dueDate,
+                  }
+                : undefined
+            }
             onSuccess={() => {
               setShowForm(false);
+              setTaskToEdit(null);
               loadTasks();
             }}
           />
@@ -141,7 +186,7 @@ export default function TasksPage() {
                 <th className="p-4 text-left">Дело</th>
                 <th className="p-4 text-left">Исполнитель</th>
                 <th className="p-4 text-left">Статус</th>
-                <th className="p-4 text-left">Действие</th>
+                <th className="p-4 text-left">Действия</th>
               </tr>
             </thead>
 
@@ -160,7 +205,7 @@ export default function TasksPage() {
                 </tr>
               ) : (
                 tasks.map((task) => (
-                  <tr key={task.id} className="border-b border-border">
+                  <tr key={task.id} className="border-b border-border last:border-0">
                     <td className="p-4">
                       <div className="font-medium">{task.title}</div>
 
@@ -171,30 +216,59 @@ export default function TasksPage() {
                       )}
                     </td>
 
-                    <td className="p-4">{task.case?.title ?? '-'}</td>
+                    <td className="p-4">
+                      {task.case ? (
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/cases/${task.case!.id}`)}
+                          className="text-primary hover:underline"
+                        >
+                          {task.case.title}
+                        </button>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
 
                     <td className="p-4">{task.assignedTo?.email ?? '-'}</td>
 
                     <td className="p-4">
                       <span className="rounded-lg border border-border px-3 py-1 text-xs">
-                        {task.status === 'PENDING'
-                          ? 'В работе'
-                          : task.status === 'COMPLETED'
-                          ? 'Завершено'
-                          : task.status}
+                        {STATUS_LABELS[task.status] ?? task.status}
                       </span>
                     </td>
 
                     <td className="p-4">
-                      {task.status !== 'COMPLETED' && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {task.status !== 'completed' && (
+                          <Button
+                            variant="secondary"
+                            onClick={() => completeTask(task.id)}
+                            className="h-9 px-3 text-sm"
+                          >
+                            Завершить
+                          </Button>
+                        )}
+
                         <Button
                           variant="secondary"
-                          onClick={() => completeTask(task.id)}
+                          onClick={() => {
+                            setTaskToEdit(task);
+                            setShowForm(true);
+                          }}
                           className="h-9 px-3 text-sm"
                         >
-                          Завершить
+                          Изменить
                         </Button>
-                      )}
+
+                        <Button
+                          variant="danger"
+                          onClick={() => removeTask(task.id)}
+                          className="h-9 px-3 text-sm"
+                        >
+                          Удалить
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -205,4 +279,4 @@ export default function TasksPage() {
       </div>
     </AppShell>
   );
-                      }
+}
