@@ -1,4 +1,4 @@
-// frontend/src/components/forms/client-form.tsx
+// Файл 4: frontend/src/components/forms/client-form.tsx
 'use client';
 
 import { FormEvent, useState } from 'react';
@@ -8,16 +8,27 @@ import { getAccessToken } from '@/lib/auth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
+interface ClientToEdit {
+  id: string;
+  fullName: string;
+  email?: string;
+  phone?: string;
+  notes?: string;
+}
+
 interface ClientFormProps {
+  clientToEdit?: ClientToEdit;
   onSuccess?: () => void;
 }
 
-export function ClientForm({ onSuccess }: ClientFormProps) {
+export function ClientForm({ clientToEdit, onSuccess }: ClientFormProps) {
+  const isEditing = Boolean(clientToEdit);
+
   const [loading, setLoading] = useState(false);
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [notes, setNotes] = useState('');
+  const [fullName, setFullName] = useState(clientToEdit?.fullName ?? '');
+  const [email, setEmail] = useState(clientToEdit?.email ?? '');
+  const [phone, setPhone] = useState(clientToEdit?.phone ?? '');
+  const [notes, setNotes] = useState(clientToEdit?.notes ?? '');
   const [error, setError] = useState('');
 
   async function handleSubmit(e: FormEvent) {
@@ -34,24 +45,29 @@ export function ClientForm({ onSuccess }: ClientFormProps) {
       setLoading(true);
       setError('');
 
-      await clientsApi.create(
-        {
-          fullName,
-          email: email.trim() || undefined,
-          phone: phone.trim() || undefined,
-          notes: notes.trim() || undefined,
-        },
-        token,
-      );
+      const payload = {
+        fullName,
+        email: email.trim() || undefined,
+        phone: phone.trim() || undefined,
+        notes: notes.trim() || undefined,
+      };
 
-      setFullName('');
-      setEmail('');
-      setPhone('');
-      setNotes('');
+      if (isEditing && clientToEdit) {
+        await clientsApi.update(clientToEdit.id, payload, token);
+      } else {
+        await clientsApi.create(payload, token);
+
+        setFullName('');
+        setEmail('');
+        setPhone('');
+        setNotes('');
+      }
 
       onSuccess?.();
     } catch {
-      setError('Не удалось создать клиента');
+      setError(
+        isEditing ? 'Не удалось сохранить изменения' : 'Не удалось создать клиента',
+      );
     } finally {
       setLoading(false);
     }
@@ -101,7 +117,7 @@ export function ClientForm({ onSuccess }: ClientFormProps) {
       )}
 
       <Button type="submit" loading={loading} className="w-full">
-        Создать клиента
+        {isEditing ? 'Сохранить изменения' : 'Создать клиента'}
       </Button>
     </form>
   );
