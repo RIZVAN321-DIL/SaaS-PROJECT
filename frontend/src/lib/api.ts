@@ -1,3 +1,4 @@
+// Файл 1: frontend/src/lib/api.ts
 const API_URL = 'https://saas-project-deog.onrender.com/api';
 
 import { toast } from '@/lib/toast';
@@ -198,6 +199,12 @@ export const tasksApi = {
       method: 'PUT',
       token,
     }),
+
+  remove: (id: string, token: string) =>
+    request(`/tasks/${id}`, {
+      method: 'DELETE',
+      token,
+    }),
 };
 
 export const documentsApi = {
@@ -253,4 +260,9 @@ export const caseTypesApi = {
 export const auditApi = {
   getAll: (token: string) =>
     request('/audit', { token }),
+};
+
+export const caseStagesApi = {
+  getAll: (token: string) =>
+    request('/case-stages', { token }),
 };
