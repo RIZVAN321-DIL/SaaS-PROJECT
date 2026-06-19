@@ -1,4 +1,3 @@
-// frontend/src/app/documents/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -114,7 +113,7 @@ export default function DocumentsPage() {
                   </span>
 
                   {document.fileUrl && (
-                    
+                    <a
                       href={document.fileUrl}
                       target="_blank"
                       rel="noreferrer"
