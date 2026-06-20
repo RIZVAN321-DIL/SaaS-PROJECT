@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { AppShell } from '@/components/layout/app-shell';
 import { casesApi, tasksApi, documentsApi, auditApi, caseStagesApi } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
+import { openBlobInNewTab } from '@/lib/download';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { CaseForm } from '@/components/forms/case-form';
@@ -67,10 +68,10 @@ interface AuditLog {
 type Tab = 'overview' | 'documents' | 'tasks' | 'history';
 
 const tabs: { key: Tab; label: string }[] = [
-  { key: 'overview',   label: 'Обзор'      },
-  { key: 'tasks',      label: 'Задачи'     },
-  { key: 'documents',  label: 'Документы'  },
-  { key: 'history',    label: 'История'    },
+  { key: 'overview', label: 'Обзор' },
+  { key: 'tasks', label: 'Задачи' },
+  { key: 'documents', label: 'Документы' },
+  { key: 'history', label: 'История' },
 ];
 
 // ─── Компонент ───────────────────────────────────────────────────────────────
@@ -91,6 +92,7 @@ export default function CaseDetailPage() {
   const [taskToEdit, setTaskToEdit] = useState<TaskItem | null>(null);
   const [showUploadDoc, setShowUploadDoc] = useState(false);
   const [deletingDoc, setDeletingDoc] = useState<string | null>(null);
+  const [openingDoc, setOpeningDoc] = useState<string | null>(null);
   const [movingStage, setMovingStage] = useState(false);
 
   // ── Загрузка данных ─────────────────────────────────────────────────────
@@ -151,6 +153,19 @@ export default function CaseDetailPage() {
       load();
     } catch {
       toast.error('Не удалось удалить задачу');
+    }
+  }
+
+  async function handleOpenDoc(docId: string) {
+    if (!token) return;
+    setOpeningDoc(docId);
+    try {
+      const blob = await documentsApi.download(docId, token);
+      openBlobInNewTab(blob);
+    } catch {
+      toast.error('Не удалось открыть документ');
+    } finally {
+      setOpeningDoc(null);
     }
   }
 
@@ -513,14 +528,14 @@ export default function CaseDetailPage() {
                         </span>
                       )}
                       {doc.fileUrl && (
-                        <a
-                          href={doc.fileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-accent"
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDoc(doc.id)}
+                          disabled={openingDoc === doc.id}
+                          className="rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-accent disabled:opacity-50"
                         >
-                          Открыть
-                        </a>
+                          {openingDoc === doc.id ? 'Открываем...' : 'Открыть'}
+                        </button>
                       )}
                       <Button
                         variant="danger"
@@ -571,4 +586,4 @@ export default function CaseDetailPage() {
       </div>
     </AppShell>
   );
-          }
+        }
