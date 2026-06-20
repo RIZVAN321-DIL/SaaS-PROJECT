@@ -1,11 +1,13 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
   HttpCode,
   HttpStatus,
   Req,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -14,6 +16,7 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerifyTwoFactorDto } from './dto/verify-two-factor.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { JwtUser } from './jwt.strategy';
 
@@ -49,6 +52,7 @@ export class AuthController {
 
   // =========================
   // LOGIN
+  // Может вернуть либо токены, либо { requiresTwoFactor, challengeId }
   // =========================
   @Public()
   @Post('login')
@@ -60,6 +64,55 @@ export class AuthController {
       body.email,
       body.password,
     );
+  }
+
+  // =========================
+  // 2FA: ПРОВЕРКА КОДА ИЗ ПИСЬМА
+  // Жёстко ограничен по частоте — это точка перебора 6-значного кода
+  // =========================
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post('verify-2fa')
+  @HttpCode(HttpStatus.OK)
+  async verifyTwoFactor(
+    @Body() body: VerifyTwoFactorDto,
+  ) {
+    return this.authService.verifyTwoFactor(
+      body.challengeId,
+      body.code,
+    );
+  }
+
+  // =========================
+  // 2FA: ВКЛЮЧИТЬ / ВЫКЛЮЧИТЬ (для текущего пользователя)
+  // =========================
+  @Post('2fa/enable')
+  @HttpCode(HttpStatus.OK)
+  async enableTwoFactor(
+    @Req() req: Request,
+  ) {
+    const user = req.user as JwtUser;
+    return this.authService.enableTwoFactor(user.userId);
+  }
+
+  @Post('2fa/disable')
+  @HttpCode(HttpStatus.OK)
+  async disableTwoFactor(
+    @Req() req: Request,
+  ) {
+    const user = req.user as JwtUser;
+    return this.authService.disableTwoFactor(user.userId);
+  }
+
+  // =========================
+  // ТЕКУЩИЙ ПОЛЬЗОВАТЕЛЬ
+  // =========================
+  @Get('me')
+  async me(
+    @Req() req: Request,
+  ) {
+    const user = req.user as JwtUser;
+    return this.authService.getMe(user.userId);
   }
 
   // =========================
@@ -113,9 +166,7 @@ export class AuthController {
     @Req() req: Request,
   ) {
     const user = req.user as JwtUser;
-    await this.authService.logout(
-      user.userId,
-    );
+    await this.authService.logout(user.userId);
     return { success: true };
   }
 }
