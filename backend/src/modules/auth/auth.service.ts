@@ -13,6 +13,7 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 час
+const OTP_TTL_MS = 10 * 60 * 1000; // 10 минут
 
 @Injectable()
 export class AuthService {
@@ -66,7 +67,7 @@ export class AuthService {
   }
 
   // =========================
-  // REGISTER ORGANIZATION (новый, атомарный способ — для регистрации с нуля)
+  // REGISTER ORGANIZATION (атомарный способ — для регистрации с нуля)
   // Создаёт организацию + владельца + дефолтные стадии канбана одной транзакцией.
   // =========================
   async registerWithOrganization(data: {
@@ -104,8 +105,6 @@ export class AuthService {
         },
       });
 
-      // Сидируем дефолтные стадии канбана, чтобы воронка дел
-      // не была пустой с первого дня после регистрации.
       await tx.caseStage.createMany({
         data: [
           {
@@ -143,6 +142,8 @@ export class AuthService {
 
   // =========================
   // LOGIN
+  // Если у пользователя включена 2FA — вместо токенов возвращаем
+  // challengeId, по которому фронт запросит ввод кода из письма.
   // =========================
   async login(email: string, password: string) {
     const normalizedEmail = email.trim().toLowerCase();
@@ -160,13 +161,113 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (user.twoFactorEnabled) {
+      return this.startTwoFactorChallenge(user.id, user.email);
+    }
+
     return this.generateTokens(user);
   }
 
   // =========================
+  // 2FA: СОЗДАНИЕ ОДНОРАЗОВОГО КОДА
+  // =========================
+  private async startTwoFactorChallenge(userId: string, email: string) {
+    const code = crypto.randomInt(100000, 1000000).toString();
+    const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+    const expiresAt = new Date(Date.now() + OTP_TTL_MS);
+
+    const otp = await this.prisma.loginOtp.create({
+      data: {
+        userId,
+        codeHash,
+        expiresAt,
+      },
+    });
+
+    this.logger.log(
+      `[2FA STUB] Код входа для ${email}: ${code} (действует 10 минут)`,
+    );
+
+    return {
+      requiresTwoFactor: true,
+      challengeId: otp.id,
+    };
+  }
+
+  // =========================
+  // 2FA: ПРОВЕРКА КОДА
+  // =========================
+  async verifyTwoFactor(challengeId: string, code: string) {
+    const otp = await this.prisma.loginOtp.findUnique({
+      where: { id: challengeId },
+    });
+
+    if (!otp || otp.usedAt || otp.expiresAt < new Date()) {
+      throw new UnauthorizedException('Код недействителен или устарел');
+    }
+
+    const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+    if (codeHash !== otp.codeHash) {
+      throw new UnauthorizedException('Неверный код');
+    }
+
+    await this.prisma.loginOtp.update({
+      where: { id: otp.id },
+      data: { usedAt: new Date() },
+    });
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: otp.userId },
+    });
+    if (!user) {
+      throw new UnauthorizedException('Пользователь не найден');
+    }
+
+    return this.generateTokens(user);
+  }
+
+  // =========================
+  // 2FA: ВКЛЮЧИТЬ / ВЫКЛЮЧИТЬ
+  // =========================
+  async enableTwoFactor(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { twoFactorEnabled: true },
+    });
+    return { twoFactorEnabled: true };
+  }
+
+  async disableTwoFactor(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { twoFactorEnabled: false },
+    });
+    return { twoFactorEnabled: false };
+  }
+
+  // =========================
+  // ТЕКУЩИЙ ПОЛЬЗОВАТЕЛЬ
+  // =========================
+  async getMe(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        organizationId: true,
+        twoFactorEnabled: true,
+        createdAt: true,
+      },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
+  }
+
+  // =========================
   // FORGOT PASSWORD
-  // Намеренно всегда отвечает одинаково, существует ли email или нет —
-  // чтобы нельзя было перебором узнать, какие email зарегистрированы.
   // =========================
   async forgotPassword(email: string) {
     const normalizedEmail = email.trim().toLowerCase();
@@ -204,8 +305,6 @@ export class AuthService {
       this.config.get<string>('FRONTEND_URL') || 'http://localhost:3000';
     const resetLink = `${frontendUrl}/reset-password?token=${rawToken}`;
 
-    // ЗАГЛУШКА: email-провайдер ещё не подключён.
-    // Ссылку для сброса пароля логируем в консоль бэкенда (видно в логах Render).
     this.logger.log(
       `[PASSWORD RESET STUB] Ссылка для ${normalizedEmail}: ${resetLink}`,
     );
@@ -243,7 +342,6 @@ export class AuthService {
         where: { id: resetToken.userId },
         data: {
           password: hashedPassword,
-          // Отзываем текущую сессию — после смены пароля нужно войти заново
           refreshToken: null,
         },
       }),
@@ -309,4 +407,4 @@ export class AuthService {
       data: { refreshToken: null },
     });
   }
-      }
+}
