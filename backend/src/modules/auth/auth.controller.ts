@@ -6,15 +6,14 @@ import {
   HttpStatus,
   Req,
 } from '@nestjs/common';
-
 import { Request } from 'express';
-
 import { AuthService } from './auth.service';
-
 import { RegisterDto } from './dto/register.dto';
+import { RegisterOrganizationDto } from './dto/register-organization.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
-
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { JwtUser } from './jwt.strategy';
 
@@ -25,7 +24,7 @@ export class AuthController {
   ) {}
 
   // =========================
-  // REGISTER
+  // REGISTER (пользователь в существующей организации)
   // =========================
   @Public()
   @Post('register')
@@ -34,6 +33,18 @@ export class AuthController {
     @Body() body: RegisterDto,
   ) {
     return this.authService.register(body);
+  }
+
+  // =========================
+  // REGISTER ORGANIZATION (атомарная регистрация с нуля)
+  // =========================
+  @Public()
+  @Post('register-organization')
+  @HttpCode(HttpStatus.CREATED)
+  async registerOrganization(
+    @Body() body: RegisterOrganizationDto,
+  ) {
+    return this.authService.registerWithOrganization(body);
   }
 
   // =========================
@@ -67,6 +78,33 @@ export class AuthController {
   }
 
   // =========================
+  // FORGOT PASSWORD
+  // =========================
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(
+    @Body() body: ForgotPasswordDto,
+  ) {
+    return this.authService.forgotPassword(body.email);
+  }
+
+  // =========================
+  // RESET PASSWORD
+  // =========================
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(
+    @Body() body: ResetPasswordDto,
+  ) {
+    return this.authService.resetPassword(
+      body.token,
+      body.newPassword,
+    );
+  }
+
+  // =========================
   // LOGOUT
   // =========================
   @Post('logout')
@@ -74,15 +112,10 @@ export class AuthController {
   async logout(
     @Req() req: Request,
   ) {
-    const user =
-      req.user as JwtUser;
-
+    const user = req.user as JwtUser;
     await this.authService.logout(
       user.userId,
     );
-
-    return {
-      success: true,
-    };
+    return { success: true };
   }
 }
