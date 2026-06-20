@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import { documentsApi } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
+import { openBlobInNewTab } from '@/lib/download';
+import { toast } from '@/lib/toast';
 import { DocumentUploadForm } from '@/components/forms/document-upload-form';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
@@ -26,6 +28,7 @@ export default function DocumentsPage() {
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [openingId, setOpeningId] = useState<string | null>(null);
 
   async function loadDocuments() {
     const token = getAccessToken();
@@ -47,6 +50,21 @@ export default function DocumentsPage() {
   useEffect(() => {
     loadDocuments();
   }, []);
+
+  async function handleOpen(document: DocumentItem) {
+    const token = getAccessToken();
+    if (!token) return;
+
+    setOpeningId(document.id);
+    try {
+      const blob = await documentsApi.download(document.id, token);
+      openBlobInNewTab(blob);
+    } catch {
+      toast.error('Не удалось открыть документ');
+    } finally {
+      setOpeningId(null);
+    }
+  }
 
   return (
     <AppShell>
@@ -113,14 +131,14 @@ export default function DocumentsPage() {
                   </span>
 
                   {document.fileUrl && (
-                    <a
-                      href={document.fileUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="rounded-lg border border-border px-3 py-2 text-sm"
+                    <button
+                      type="button"
+                      onClick={() => handleOpen(document)}
+                      disabled={openingId === document.id}
+                      className="rounded-lg border border-border px-3 py-2 text-sm transition hover:bg-accent disabled:opacity-50"
                     >
-                      Открыть
-                    </a>
+                      {openingId === document.id ? 'Открываем...' : 'Открыть'}
+                    </button>
                   )}
                 </div>
               </div>
