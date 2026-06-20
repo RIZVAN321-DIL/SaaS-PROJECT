@@ -20,7 +20,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
 
   // Шаг проверки кода 2FA
-  const [showTwoFactor, setShowTwoFactor] = useState(false);
+  const [challengeId, setChallengeId] = useState('');
   const [code, setCode] = useState('');
 
   async function handlePasswordSubmit(e: React.FormEvent) {
@@ -34,8 +34,8 @@ export default function LoginPage() {
         password,
       })) as LoginResponse;
 
-      if (response.requiresTwoFactor) {
-        setShowTwoFactor(true);
+      if (response.requiresTwoFactor && response.challengeId) {
+        setChallengeId(response.challengeId);
         setLoading(false);
         return;
       }
@@ -58,9 +58,8 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // Отправляем email вместе с кодом
       const response = await authApi.verifyTwoFactor({
-        challengeId: email,
+        challengeId,
         code,
       });
       saveLogin(
@@ -79,7 +78,7 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-6">
       <div className="w-full max-w-md rounded-3xl border border-border bg-card p-8 shadow-sm">
-        {showTwoFactor ? (
+        {challengeId ? (
           <>
             <div className="mb-8">
               <h1 className="text-3xl font-bold">
@@ -127,7 +126,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => {
-                  setShowTwoFactor(false);
+                  setChallengeId('');
                   setCode('');
                   setError('');
                 }}
@@ -200,4 +199,4 @@ export default function LoginPage() {
       </div>
     </main>
   );
-                    }
+}
