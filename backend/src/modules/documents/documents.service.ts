@@ -2,25 +2,17 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-
-import { promises as fs } from 'fs';
-import * as path from 'path';
 import * as crypto from 'crypto';
-
 import { PrismaService } from '../../database/prisma.service';
 import { DocumentEncryptionService } from './document-encryption.service';
+import { S3StorageService } from './s3-storage.service';
 
 @Injectable()
 export class DocumentsService {
-  private readonly uploadPath = path.join(
-    process.cwd(),
-    'storage',
-    'documents',
-  );
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly encryption: DocumentEncryptionService,
+    private readonly storage: S3StorageService,
   ) {}
 
   // =========================
@@ -34,73 +26,38 @@ export class DocumentsService {
     buffer: Buffer;
     uploadedById?: string;
   }) {
-    const caseItem =
-      await this.prisma.case.findFirst({
-        where: {
-          id: data.caseId,
-          organizationId:
-            data.organizationId,
-        },
-      });
+    const caseItem = await this.prisma.case.findFirst({
+      where: {
+        id: data.caseId,
+        organizationId: data.organizationId,
+      },
+    });
 
     if (!caseItem) {
-      throw new NotFoundException(
-        'Case not found',
-      );
+      throw new NotFoundException('Case not found');
     }
 
-    await fs.mkdir(
-      this.uploadPath,
-      {
-        recursive: true,
-      },
-    );
+    const encrypted = this.encryption.encrypt(data.buffer);
 
-    const encrypted =
-      this.encryption.encrypt(
-        data.buffer,
-      );
+    const storageKey = `documents/${data.organizationId}/${data.caseId}/${crypto.randomUUID()}.enc`;
 
-    const storageName = `${crypto.randomUUID()}.enc`;
-
-    const filePath = path.join(
-      this.uploadPath,
-      storageName,
-    );
-
-    await fs.writeFile(
-      filePath,
+    await this.storage.upload(
+      storageKey,
       encrypted,
+      'application/octet-stream',
     );
 
     return this.prisma.document.create({
       data: {
-        organizationId:
-          data.organizationId,
-
-        caseId:
-          data.caseId,
-
-        name:
-          data.fileName,
-
-        type:
-          'encrypted',
-
-        mimeType:
-          data.mimeType,
-
-        fileSize:
-          data.buffer.length,
-
-        uploadedAt:
-          new Date(),
-
-        uploadedById:
-          data.uploadedById,
-
-        fileUrl:
-          storageName,
+        organizationId: data.organizationId,
+        caseId: data.caseId,
+        name: data.fileName,
+        type: 'encrypted',
+        mimeType: data.mimeType,
+        fileSize: data.buffer.length,
+        uploadedAt: new Date(),
+        uploadedById: data.uploadedById,
+        fileUrl: storageKey,
       },
     });
   }
@@ -112,39 +69,18 @@ export class DocumentsService {
     id: string,
     organizationId: string,
   ) {
-    const document =
-      await this.findById(
-        id,
-        organizationId,
-      );
+    const document = await this.findById(id, organizationId);
 
     if (!document.fileUrl) {
-      throw new NotFoundException(
-        'File not found',
-      );
+      throw new NotFoundException('File not found');
     }
 
-    const filePath = path.join(
-      this.uploadPath,
-      document.fileUrl,
-    );
-
-    const encrypted =
-      await fs.readFile(
-        filePath,
-      );
-
-    const decrypted =
-      this.encryption.decrypt(
-        encrypted,
-      );
+    const encrypted = await this.storage.download(document.fileUrl);
+    const decrypted = this.encryption.decrypt(encrypted);
 
     return {
       name: document.name,
-      mimeType:
-        document.mimeType ||
-        document.type ||
-        'application/octet-stream',
+      mimeType: document.mimeType || document.type || 'application/octet-stream',
       buffer: decrypted,
     };
   }
@@ -159,67 +95,42 @@ export class DocumentsService {
     fileUrl?: string;
     type?: string;
   }) {
-    const caseItem =
-      await this.prisma.case.findFirst({
-        where: {
-          id: data.caseId,
-          organizationId:
-            data.organizationId,
-        },
-      });
+    const caseItem = await this.prisma.case.findFirst({
+      where: {
+        id: data.caseId,
+        organizationId: data.organizationId,
+      },
+    });
 
     if (!caseItem) {
-      throw new NotFoundException(
-        'Case not found',
-      );
+      throw new NotFoundException('Case not found');
     }
 
-    return this.prisma.document.create({
-      data,
-    });
+    return this.prisma.document.create({ data });
   }
 
   // =========================
   // GET ALL DOCUMENTS
   // =========================
-  async findAll(
-    organizationId: string,
-  ) {
+  async findAll(organizationId: string) {
     return this.prisma.document.findMany({
-      where: {
-        organizationId,
-      },
-      include: {
-        case: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      where: { organizationId },
+      include: { case: true },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
   // =========================
   // GET ONE DOCUMENT
   // =========================
-  async findById(
-    id: string,
-    organizationId: string,
-  ) {
-    const doc =
-      await this.prisma.document.findFirst({
-        where: {
-          id,
-          organizationId,
-        },
-        include: {
-          case: true,
-        },
-      });
+  async findById(id: string, organizationId: string) {
+    const doc = await this.prisma.document.findFirst({
+      where: { id, organizationId },
+      include: { case: true },
+    });
 
     if (!doc) {
-      throw new NotFoundException(
-        'Document not found',
-      );
+      throw new NotFoundException('Document not found');
     }
 
     return doc;
@@ -228,33 +139,13 @@ export class DocumentsService {
   // =========================
   // DELETE DOCUMENT
   // =========================
-  async remove(
-    id: string,
-    organizationId: string,
-  ) {
-    const document =
-      await this.findById(
-        id,
-        organizationId,
-      );
+  async remove(id: string, organizationId: string) {
+    const document = await this.findById(id, organizationId);
 
     if (document.fileUrl) {
-      const filePath = path.join(
-        this.uploadPath,
-        document.fileUrl,
-      );
-
-      try {
-        await fs.unlink(
-          filePath,
-        );
-      } catch {}
+      await this.storage.delete(document.fileUrl);
     }
 
-    return this.prisma.document.delete({
-      where: {
-        id,
-      },
-    });
+    return this.prisma.document.delete({ where: { id } });
   }
-}
+  }
