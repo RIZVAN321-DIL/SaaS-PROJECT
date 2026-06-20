@@ -1,8 +1,12 @@
-// frontend/src/middleware.ts
 import { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
-const PUBLIC_ROUTES = ['/login', '/register'];
+const PUBLIC_ROUTES = [
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
