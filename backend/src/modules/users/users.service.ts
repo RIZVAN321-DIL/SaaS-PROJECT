@@ -2,10 +2,10 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
-
 import * as bcrypt from 'bcrypt';
-
+import * as crypto from 'crypto';
 import { PrismaService } from '../../database/prisma.service';
 import { Role } from '../../common/enums/role.enum';
 
@@ -22,7 +22,6 @@ export class UsersService {
       where: {
         organizationId,
       },
-
       select: {
         id: true,
         email: true,
@@ -30,7 +29,6 @@ export class UsersService {
         organizationId: true,
         createdAt: true,
       },
-
       orderBy: {
         createdAt: 'desc',
       },
@@ -41,21 +39,19 @@ export class UsersService {
     id: string,
     organizationId: string,
   ) {
-    const user =
-      await this.prisma.user.findFirst({
-        where: {
-          id,
-          organizationId,
-        },
-
-        select: {
-          id: true,
-          email: true,
-          role: true,
-          organizationId: true,
-          createdAt: true,
-        },
-      });
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id,
+        organizationId,
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        organizationId: true,
+        createdAt: true,
+      },
+    });
 
     if (!user) {
       throw new NotFoundException(
@@ -66,44 +62,53 @@ export class UsersService {
     return user;
   }
 
+  // =========================
+  // CREATE (приглашение сотрудника владельцем/админом)
+  // Пароль не принимается от клиента — генерируется на сервере
+  // и возвращается один раз в ответе, чтобы владелец передал его сотруднику.
+  // =========================
   async create(data: {
     email: string;
-    password: string;
     organizationId: string;
     role?: Role;
   }) {
-    const existing =
-      await this.prisma.user.findFirst({
-        where: {
-          email: data.email,
-          organizationId:
-            data.organizationId,
-        },
-      });
+    const email = data.email.trim().toLowerCase();
 
-    if (existing) {
-      throw new ConflictException(
-        'User already exists',
+    if (data.role === Role.OWNER) {
+      throw new BadRequestException(
+        'Нельзя создать второго владельца через приглашение',
       );
     }
 
-    const password =
-      await bcrypt.hash(
-        data.password,
-        10,
-      );
-
-    return this.prisma.user.create({
-      data: {
-        email: data.email,
-        password,
-        organizationId:
-          data.organizationId,
-        role:
-          data.role ??
-          Role.LAWYER,
+    const existing = await this.prisma.user.findFirst({
+      where: {
+        email,
+        organizationId: data.organizationId,
       },
+    });
 
+    if (existing) {
+      throw new ConflictException(
+        'Пользователь с таким email уже есть в организации',
+      );
+    }
+
+    const temporaryPassword = crypto
+      .randomBytes(9)
+      .toString('base64url');
+
+    const hashedPassword = await bcrypt.hash(
+      temporaryPassword,
+      10,
+    );
+
+    const user = await this.prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        organizationId: data.organizationId,
+        role: data.role ?? Role.LAWYER,
+      },
       select: {
         id: true,
         email: true,
@@ -112,5 +117,10 @@ export class UsersService {
         createdAt: true,
       },
     });
+
+    return {
+      ...user,
+      temporaryPassword,
+    };
   }
 }
