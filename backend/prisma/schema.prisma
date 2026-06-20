@@ -1,3 +1,4 @@
+// Файл 1: backend/prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
@@ -39,10 +40,27 @@ model User {
 
   uploadedDocuments Document[] @relation("DocumentUploader")
 
+  passwordResetTokens PasswordResetToken[]
+
   createdAt       DateTime @default(now())
 
   @@index([organizationId])
   @@unique([organizationId, email])
+}
+
+model PasswordResetToken {
+  id          String    @id @default(uuid())
+
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model Client {
