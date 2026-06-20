@@ -33,7 +33,7 @@ export class AuthService {
   }
 
   // =========================
-  // REGISTER (старый способ — для пользователя в УЖЕ существующей организации)
+  // REGISTER (старый способ)
   // =========================
   async register(data: {
     email: string;
@@ -74,7 +74,7 @@ export class AuthService {
   }
 
   // =========================
-  // REGISTER ORGANIZATION (атомарный способ — для регистрации с нуля)
+  // REGISTER ORGANIZATION
   // =========================
   async registerWithOrganization(data: {
     organizationName: string;
@@ -158,7 +158,7 @@ export class AuthService {
     const codeHash = crypto.createHash('sha256').update(code).digest('hex');
     const expiresAt = new Date(Date.now() + OTP_TTL_MS);
 
-    await this.prisma.loginOtp.create({
+    const otp = await this.prisma.loginOtp.create({
       data: { userId, codeHash, expiresAt },
     });
 
@@ -171,29 +171,18 @@ export class AuthService {
 
     return {
       requiresTwoFactor: true,
-      challengeId: '', // не нужен — код уже отправлен
+      challengeId: otp.id,
     };
   }
 
   // =========================
   // 2FA: ПРОВЕРКА КОДА
   // =========================
-  async verifyTwoFactor(code: string, email: string) {
-    const user = await this.prisma.user.findFirst({
-      where: { email: email.trim().toLowerCase() },
+  async verifyTwoFactor(challengeId: string, code: string) {
+    const otp = await this.prisma.loginOtp.findUnique({
+      where: { id: challengeId },
     });
 
-    if (!user) {
-      throw new UnauthorizedException('Пользователь не найден');
-    }
-
-    const otps = await this.prisma.loginOtp.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: 'desc' },
-      take: 1,
-    });
-
-    const otp = otps[0];
     if (!otp || otp.usedAt || otp.expiresAt < new Date()) {
       throw new UnauthorizedException('Код недействителен или устарел');
     }
@@ -207,6 +196,13 @@ export class AuthService {
       where: { id: otp.id },
       data: { usedAt: new Date() },
     });
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: otp.userId },
+    });
+    if (!user) {
+      throw new UnauthorizedException('Пользователь не найден');
+    }
 
     return this.generateTokens(user);
   }
@@ -410,4 +406,4 @@ export class AuthService {
       data: { refreshToken: null },
     });
   }
-        }
+      }
