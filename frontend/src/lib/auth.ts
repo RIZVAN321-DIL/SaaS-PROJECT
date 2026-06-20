@@ -1,4 +1,3 @@
-// frontend/src/lib/auth.ts
 'use client';
 
 const ACCESS_TOKEN_KEY = 'crm_access_token';
@@ -34,14 +33,11 @@ function getMaxAgeFromToken(token: string): number {
 
 function setAuthCookie(token: string) {
   if (typeof document === 'undefined') return;
-
   const maxAge = getMaxAgeFromToken(token);
   const isSecure =
-    typeof window !== 'undefined' && window.location.protocol === 'https:';
-
-  document.cookie = `${ACCESS_TOKEN_COOKIE}=${token}; path=/; max-age=${maxAge}; SameSite=Lax${
-    isSecure ? '; Secure' : ''
-  }`;
+    typeof window !== 'undefined' &&
+    window.location.protocol === 'https:';
+  document.cookie = `${ACCESS_TOKEN_COOKIE}=${token}; path=/; max-age=${maxAge}; SameSite=Lax${isSecure ? '; Secure' : ''}`;
 }
 
 function clearAuthCookie() {
@@ -59,13 +55,9 @@ export function getRefreshToken() {
   return localStorage.getItem(REFRESH_TOKEN_KEY);
 }
 
-export function setTokens(data: {
-  access_token: string;
-  refresh_token: string;
-}) {
+export function setTokens(data: { access_token: string; refresh_token: string }) {
   localStorage.setItem(ACCESS_TOKEN_KEY, data.access_token);
   localStorage.setItem(REFRESH_TOKEN_KEY, data.refresh_token);
-
   // Кука нужна, чтобы middleware (выполняется на сервере/edge,
   // не имеет доступа к localStorage) мог проверить авторизацию.
   setAuthCookie(data.access_token);
@@ -84,10 +76,8 @@ export function setUser(user: AuthUser) {
 
 export function getUser(): AuthUser | null {
   if (typeof window === 'undefined') return null;
-
   const value = localStorage.getItem(USER_KEY);
   if (!value) return null;
-
   try {
     return JSON.parse(value) as AuthUser;
   } catch {
@@ -99,15 +89,10 @@ export function isAuthenticated() {
   return !!getAccessToken();
 }
 
-export function saveLogin(tokens: {
-  access_token: string;
-  refresh_token: string;
-}) {
+export function saveLogin(tokens: { access_token: string; refresh_token: string }) {
   setTokens(tokens);
-
   const payload = parseJwt(tokens.access_token);
   if (!payload) return;
-
   setUser({
     userId: payload.sub,
     email: payload.email,
