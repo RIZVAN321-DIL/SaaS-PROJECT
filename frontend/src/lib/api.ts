@@ -1,4 +1,3 @@
-// Файл 1: frontend/src/lib/api.ts
 const API_URL = 'https://saas-project-deog.onrender.com/api';
 
 import { toast } from '@/lib/toast';
@@ -18,30 +17,24 @@ async function request<T>(
     `${API_URL}${endpoint}`,
     {
       method: options.method || 'GET',
-
       headers: {
         ...(options.body instanceof FormData
           ? {}
           : { 'Content-Type': 'application/json' }),
-
         ...(options.token
-          ? {
-              Authorization: `Bearer ${options.token}`,
-            }
+          ? { Authorization: `Bearer ${options.token}` }
           : {}),
       },
-
       body: options.body instanceof FormData
         ? options.body
         : options.body
-        ? JSON.stringify(options.body)
-        : undefined,
+          ? JSON.stringify(options.body)
+          : undefined,
     },
   );
 
   if (!response.ok) {
     let message = 'Request failed';
-
     try {
       const error = await response.json();
       message = error.message || message;
@@ -79,20 +72,36 @@ export const authApi = {
       body: data,
     }),
 
-  login: (data: {
+  registerOrganization: (data: {
+    organizationName: string;
     email: string;
     password: string;
   }) =>
+    request('/auth/register-organization', {
+      method: 'POST',
+      body: data,
+    }),
+
+  login: (data: { email: string; password: string }) =>
     request('/auth/login', {
       method: 'POST',
       body: data,
     }),
 
-  refresh: (data: {
-    userId: string;
-    refreshToken: string;
-  }) =>
+  refresh: (data: { userId: string; refreshToken: string }) =>
     request('/auth/refresh', {
+      method: 'POST',
+      body: data,
+    }),
+
+  forgotPassword: (data: { email: string }) =>
+    request('/auth/forgot-password', {
+      method: 'POST',
+      body: data,
+    }),
+
+  resetPassword: (data: { token: string; newPassword: string }) =>
+    request('/auth/reset-password', {
       method: 'POST',
       body: data,
     }),
@@ -106,32 +115,26 @@ export const authApi = {
 
 export const dashboardApi = {
   getDashboard: (token: string) =>
-    request('/dashboard', {
-      token,
-    }),
+    request('/dashboard', { token }),
 };
 
 export const clientsApi = {
   getAll: (token: string) =>
     request('/clients', { token }),
-
   getById: (id: string, token: string) =>
     request(`/clients/${id}`, { token }),
-
   create: (data: unknown, token: string) =>
     request('/clients', {
       method: 'POST',
       token,
       body: data,
     }),
-
   update: (id: string, data: unknown, token: string) =>
     request(`/clients/${id}`, {
       method: 'PUT',
       token,
       body: data,
     }),
-
   remove: (id: string, token: string) =>
     request(`/clients/${id}`, {
       method: 'DELETE',
@@ -142,33 +145,27 @@ export const clientsApi = {
 export const casesApi = {
   getAll: (token: string) =>
     request('/cases', { token }),
-
   getById: (id: string, token: string) =>
     request(`/cases/${id}`, { token }),
-
   getBoard: (token: string) =>
     request('/cases/board', { token }),
-
   create: (data: unknown, token: string) =>
     request('/cases', {
       method: 'POST',
       token,
       body: data,
     }),
-
   update: (id: string, data: unknown, token: string) =>
     request(`/cases/${id}`, {
       method: 'PUT',
       token,
       body: data,
     }),
-
   remove: (id: string, token: string) =>
     request(`/cases/${id}`, {
       method: 'DELETE',
       token,
     }),
-
   move: (caseId: string, stageId: string, token: string) =>
     request(`/cases/move/${caseId}/${stageId}`, {
       method: 'PUT',
@@ -179,27 +176,23 @@ export const casesApi = {
 export const tasksApi = {
   getAll: (token: string) =>
     request('/tasks', { token }),
-
   create: (data: unknown, token: string) =>
     request('/tasks', {
       method: 'POST',
       token,
       body: data,
     }),
-
   update: (id: string, data: unknown, token: string) =>
     request(`/tasks/${id}`, {
       method: 'PUT',
       token,
       body: data,
     }),
-
   complete: (id: string, token: string) =>
     request(`/tasks/${id}/complete`, {
       method: 'PUT',
       token,
     }),
-
   remove: (id: string, token: string) =>
     request(`/tasks/${id}`, {
       method: 'DELETE',
@@ -210,15 +203,13 @@ export const tasksApi = {
 export const documentsApi = {
   getAll: (token: string) =>
     request('/documents', { token }),
-
   remove: (id: string, token: string) =>
     request(`/documents/${id}`, {
       method: 'DELETE',
       token,
     }),
-
   upload: (formData: FormData, token: string) => {
-    const caseId = formData.get('caseId') as string || 'default';
+    const caseId = (formData.get('caseId') as string) || 'default';
     return request(`/documents/upload/${caseId}`, {
       method: 'POST',
       token,
@@ -230,26 +221,29 @@ export const documentsApi = {
 export const usersApi = {
   getAll: (token: string) =>
     request('/users', { token }),
+  create: (data: { email: string; role?: string }, token: string) =>
+    request('/users', {
+      method: 'POST',
+      token,
+      body: data,
+    }),
 };
 
 export const caseTypesApi = {
   getAll: (token: string) =>
     request('/case-types', { token }),
-
   create: (data: unknown, token: string) =>
     request('/case-types', {
       method: 'POST',
       token,
       body: data,
     }),
-
   update: (id: string, data: unknown, token: string) =>
     request(`/case-types/${id}`, {
       method: 'PUT',
       token,
       body: data,
     }),
-
   remove: (id: string, token: string) =>
     request(`/case-types/${id}`, {
       method: 'DELETE',
