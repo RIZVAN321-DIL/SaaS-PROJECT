@@ -3,10 +3,16 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/app-shell';
+import { authApi } from '@/lib/api';
+import { getAccessToken } from '@/lib/auth';
+import { toast } from '@/lib/toast';
 
 export default function SettingsPage() {
   const router = useRouter();
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [loadingTwoFactor, setLoadingTwoFactor] = useState(true);
+  const [togglingTwoFactor, setTogglingTwoFactor] = useState(false);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as
@@ -18,6 +24,24 @@ export default function SettingsPage() {
     }
   }, []);
 
+  useEffect(() => {
+    async function loadMe() {
+      const token = getAccessToken();
+      if (!token) return;
+      try {
+        const me = (await authApi.me(token)) as {
+          twoFactorEnabled: boolean;
+        };
+        setTwoFactorEnabled(me.twoFactorEnabled);
+      } catch {
+        // silently fail
+      } finally {
+        setLoadingTwoFactor(false);
+      }
+    }
+    loadMe();
+  }, []);
+
   function changeTheme(value: 'light' | 'dark') {
     setTheme(value);
     localStorage.setItem('theme', value);
@@ -25,6 +49,27 @@ export default function SettingsPage() {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
+    }
+  }
+
+  async function toggleTwoFactor() {
+    const token = getAccessToken();
+    if (!token) return;
+    setTogglingTwoFactor(true);
+    try {
+      if (twoFactorEnabled) {
+        await authApi.disableTwoFactor(token);
+        setTwoFactorEnabled(false);
+        toast.success('Двухфакторная аутентификация отключена');
+      } else {
+        await authApi.enableTwoFactor(token);
+        setTwoFactorEnabled(true);
+        toast.success('Двухфакторная аутентификация включена');
+      }
+    } catch {
+      toast.error('Не удалось изменить настройку 2FA');
+    } finally {
+      setTogglingTwoFactor(false);
     }
   }
 
@@ -76,16 +121,46 @@ export default function SettingsPage() {
 
         <div className="rounded-2xl border border-border bg-card p-6">
           <h2 className="mb-4 text-lg font-semibold">Безопасность</h2>
-          <div className="space-y-4">
-            <button
-              onClick={() => router.push('/forgot-password')}
-              className="rounded-xl border border-border px-5 py-3"
-            >
-              Сменить пароль
-            </button>
-            <button className="rounded-xl border border-border px-5 py-3">
-              Управление сессиями
-            </button>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <div className="font-medium">
+                  Двухфакторная аутентификация
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  При входе дополнительно потребуется код, отправленный на
+                  email.
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={twoFactorEnabled}
+                disabled={loadingTwoFactor || togglingTwoFactor}
+                onClick={toggleTwoFactor}
+                className={`relative h-7 w-12 shrink-0 rounded-full transition disabled:opacity-50 ${
+                  twoFactorEnabled ? 'bg-primary' : 'bg-muted'
+                }`}
+              >
+                <span
+                  className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-transform ${
+                    twoFactorEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            <div className="space-y-4 border-t border-border pt-4">
+              <button
+                onClick={() => router.push('/forgot-password')}
+                className="rounded-xl border border-border px-5 py-3"
+              >
+                Сменить пароль
+              </button>
+              <button className="rounded-xl border border-border px-5 py-3">
+                Управление сессиями
+              </button>
+            </div>
           </div>
         </div>
 
