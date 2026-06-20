@@ -7,7 +7,6 @@ import { saveLogin } from '@/lib/auth';
 
 export default function RegisterPage() {
   const router = useRouter();
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [orgName, setOrgName] = useState('');
@@ -20,24 +19,14 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const orgRes = await fetch('https://saas-project-deog.onrender.com/api/organizations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: orgName }),
-      });
-      
-      if (!orgRes.ok) throw new Error('Ошибка создания организации');
-      
-      const org = await orgRes.json();
-
-      const response = await authApi.register({
+      const response = await authApi.registerOrganization({
+        organizationName: orgName,
         email,
         password,
-        organizationId: org.id,
       });
 
       saveLogin(response as { access_token: string; refresh_token: string });
-      router.push('/dashboard');
+      router.push('/onboarding');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка регистрации');
     } finally {
@@ -50,17 +39,22 @@ export default function RegisterPage() {
       <div className="w-full max-w-md rounded-3xl border border-border bg-card p-8 shadow-sm">
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Регистрация</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Создайте аккаунт для вашей юридической фирмы</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Создайте аккаунт для вашей юридической фирмы
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-2 block text-sm font-medium">Название организации</label>
+            <label className="mb-2 block text-sm font-medium">
+              Название организации
+            </label>
             <input
               type="text"
               value={orgName}
               onChange={(e) => setOrgName(e.target.value)}
               required
+              minLength={2}
               className="h-12 w-full rounded-xl border border-border bg-background px-4 outline-none"
               placeholder="Моя юридическая фирма"
             />
