@@ -61,6 +61,30 @@ async function request<T>(
   return response.json();
 }
 
+async function downloadBlob(
+  endpoint: string,
+  token: string,
+): Promise<Blob> {
+  const response = await fetch(`${API_URL}${endpoint}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      clearAuth();
+      toast.error('Session expired. Please login again.');
+      window.location.href = '/login';
+    } else {
+      toast.error('Не удалось скачать файл');
+    }
+    throw new Error('Download failed');
+  }
+
+  return response.blob();
+}
+
 export const authApi = {
   register: (data: {
     email: string;
@@ -104,6 +128,27 @@ export const authApi = {
     request('/auth/reset-password', {
       method: 'POST',
       body: data,
+    }),
+
+  me: (token: string) =>
+    request('/auth/me', { token }),
+
+  verifyTwoFactor: (data: { challengeId: string; code: string }) =>
+    request('/auth/verify-2fa', {
+      method: 'POST',
+      body: data,
+    }),
+
+  enableTwoFactor: (token: string) =>
+    request('/auth/2fa/enable', {
+      method: 'POST',
+      token,
+    }),
+
+  disableTwoFactor: (token: string) =>
+    request('/auth/2fa/disable', {
+      method: 'POST',
+      token,
     }),
 
   logout: (token: string) =>
@@ -203,6 +248,8 @@ export const tasksApi = {
 export const documentsApi = {
   getAll: (token: string) =>
     request('/documents', { token }),
+  download: (id: string, token: string) =>
+    downloadBlob(`/documents/${id}/download`, token),
   remove: (id: string, token: string) =>
     request(`/documents/${id}`, {
       method: 'DELETE',
