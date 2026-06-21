@@ -34,127 +34,48 @@ export class DocumentsController {
   ) {}
 
   @Post('upload/:caseId')
-  @UseInterceptors(
-    FileInterceptor('file'),
-  )
+  @UseInterceptors(FileInterceptor('file'))
   async upload(
-    @Param('caseId')
-    caseId: string,
-
-    @UploadedFile()
-    file: any,
-
-    @Req()
-    req: Request,
+    @Param('caseId') caseId: string,
+    @UploadedFile() file: any,
+    @Req() req: Request,
   ) {
-    const user =
-      req.user as AuthenticatedUser;
-
-    if (!file) {
-      throw new BadRequestException(
-        'File is required',
-      );
-    }
-
+    const user = req.user as AuthenticatedUser;
+    if (!file) throw new BadRequestException('File is required');
     return this.documentsService.uploadFile({
-      organizationId:
-        user.organizationId,
-
-      uploadedById:
-        user.userId,
-
+      organizationId: user.organizationId,
+      uploadedById: user.userId,
       caseId,
-
-      fileName:
-        file.originalname,
-
-      mimeType:
-        file.mimetype,
-
-      buffer:
-        file.buffer,
+      fileName: file.originalname,
+      mimeType: file.mimetype,
+      buffer: file.buffer,
     });
   }
 
   @Get(':id/download')
-  async download(
-    @Param('id')
-    id: string,
-
-    @Req()
-    req: Request,
-
-    @Res()
-    res: Response,
-  ) {
-    const user =
-      req.user as AuthenticatedUser;
-
-    const file =
-      await this.documentsService.downloadFile(
-        id,
-        user.organizationId,
-      );
-
-    res.setHeader(
-      'Content-Type',
-      file.mimeType,
-    );
-
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${file.name}"`,
-    );
-
-    return res.send(
-      file.buffer,
-    );
+  async download(@Param('id') id: string, @Req() req: Request, @Res() res: Response) {
+    const user = req.user as AuthenticatedUser;
+    const file = await this.documentsService.downloadFile(id, user.organizationId);
+    res.setHeader('Content-Type', file.mimeType);
+    res.setHeader('Content-Disposition', `attachment; filename="${file.name}"`);
+    return res.send(file.buffer);
   }
 
   @Get()
-  async findAll(
-    @Req()
-    req: Request,
-  ) {
-    const user =
-      req.user as AuthenticatedUser;
-
-    return this.documentsService.findAll(
-      user.organizationId,
-    );
+  async findAll(@Req() req: Request) {
+    const user = req.user as AuthenticatedUser;
+    return this.documentsService.findAll(user.organizationId);
   }
 
   @Get(':id')
-  async findOne(
-    @Param('id')
-    id: string,
-
-    @Req()
-    req: Request,
-  ) {
-    const user =
-      req.user as AuthenticatedUser;
-
-    return this.documentsService.findById(
-      id,
-      user.organizationId,
-    );
+  async findOne(@Param('id') id: string, @Req() req: Request) {
+    const user = req.user as AuthenticatedUser;
+    return this.documentsService.findById(id, user.organizationId);
   }
 
   @Delete(':id')
-  async remove(
-    @Param('id')
-    id: string,
-
-    @Req()
-    req: Request,
-  ) {
-    const user =
-      req.user as AuthenticatedUser;
-
-    return this.documentsService.remove(
-      id,
-      user.organizationId,
-    );
+  async remove(@Param('id') id: string, @Req() req: Request) {
+    const user = req.user as AuthenticatedUser;
+    return this.documentsService.remove(id, user.organizationId, user.userId);
   }
 }
