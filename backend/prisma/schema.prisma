@@ -8,18 +8,19 @@ datasource db {
 }
 
 model Organization {
-  id             String           @id @default(uuid())
-  name           String
-  createdAt      DateTime         @default(now())
-  users          User[]
-  clients        Client[]
-  cases          Case[]
-  caseTypes      CaseType[]
-  tasks          Task[]
-  documents      Document[]
-  calendar       CalendarEvent[]
-  stages         CaseStage[]
-  auditLogs      AuditLog[]
+  id           String         @id @default(uuid())
+  name         String
+  createdAt    DateTime       @default(now())
+  users        User[]
+  clients      Client[]
+  cases        Case[]
+  caseTypes    CaseType[]
+  tasks        Task[]
+  documents    Document[]
+  calendar     CalendarEvent[]
+  stages       CaseStage[]
+  auditLogs    AuditLog[]
+  subscription Subscription?
 }
 
 model User {
@@ -36,6 +37,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   loginOtps           LoginOtp[]
   twoFactorEnabled    Boolean              @default(false)
+  isPlatformAdmin     Boolean              @default(false)
   createdAt           DateTime             @default(now())
 
   @@index([organizationId])
@@ -208,4 +210,41 @@ model AuditLog {
   createdAt       DateTime     @default(now())
 
   @@index([organizationId])
+}
+
+model Plan {
+  id             String         @id @default(uuid())
+  key            String         @unique
+  name           String
+  description    String?
+  priceMonthly   Int
+  currency       String         @default("usd")
+  maxUsers       Int?
+  stripePriceId  String?
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  subscriptions  Subscription[]
+}
+
+model Subscription {
+  id                   String        @id @default(uuid())
+  organizationId       String        @unique
+  organization         Organization  @relation(fields: [organizationId], references: [id])
+  planId               String?
+  plan                 Plan?         @relation(fields: [planId], references: [id])
+  status               String        @default("trialing")
+  stripeCustomerId     String?
+  stripeSubscriptionId String?       @unique
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean       @default(false)
+  manualOverride       Boolean       @default(false)
+  overrideReason       String?
+  overrideExpiresAt    DateTime?
+  overrideGrantedBy    String?
+  overrideGrantedAt    DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  @@index([stripeCustomerId])
 }
