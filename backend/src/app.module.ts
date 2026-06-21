@@ -71,6 +71,12 @@ import { TasksModule } from './modules/tasks/tasks.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
 
+// =========================
+// БИЛЛИНГ И АДМИНКА
+// =========================
+import { BillingModule } from './modules/billing/billing.module';
+import { AdminModule } from './modules/admin/admin.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -84,14 +90,8 @@ import { CalendarModule } from './modules/calendar/calendar.module';
       useFactory: (config: ConfigService) => ({
         throttlers: [
           {
-            ttl: config.get<number>(
-              'THROTTLE_TTL',
-              60,
-            ),
-            limit: config.get<number>(
-              'THROTTLE_LIMIT',
-              100,
-            ),
+            ttl: config.get<number>('THROTTLE_TTL', 60),
+            limit: config.get<number>('THROTTLE_LIMIT', 100),
           },
         ],
       }),
@@ -120,23 +120,15 @@ import { CalendarModule } from './modules/calendar/calendar.module';
     TasksModule,
     DocumentsModule,
     CalendarModule,
+
+    BillingModule,
+    AdminModule,
   ],
 
   providers: [
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard,
-    },
-
-    {
-      provide: APP_GUARD,
-      useClass: JwtAuthGuard,
-    },
-
-    {
-      provide: APP_GUARD,
-      useClass: RolesGuard,
-    },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })
 export class AppModule {}
