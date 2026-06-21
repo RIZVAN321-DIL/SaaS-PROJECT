@@ -13,6 +13,7 @@ export default function SettingsPage() {
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [loadingTwoFactor, setLoadingTwoFactor] = useState(true);
   const [togglingTwoFactor, setTogglingTwoFactor] = useState(false);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as
@@ -31,8 +32,10 @@ export default function SettingsPage() {
       try {
         const me = (await authApi.me(token)) as {
           twoFactorEnabled: boolean;
+          isPlatformAdmin: boolean;
         };
         setTwoFactorEnabled(me.twoFactorEnabled);
+        setIsPlatformAdmin(me.isPlatformAdmin);
       } catch {
         // silently fail
       } finally {
@@ -120,6 +123,19 @@ export default function SettingsPage() {
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-6">
+          <h2 className="mb-4 text-lg font-semibold">Тариф и оплата</h2>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Текущий тариф организации, оформление и управление подпиской.
+          </p>
+          <button
+            onClick={() => router.push('/settings/billing')}
+            className="rounded-xl bg-primary px-5 py-3 text-primary-foreground"
+          >
+            Перейти к тарифам
+          </button>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card p-6">
           <h2 className="mb-4 text-lg font-semibold">Безопасность</h2>
           <div className="space-y-6">
             <div className="flex items-center justify-between gap-4">
@@ -176,7 +192,22 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
+
+        {isPlatformAdmin && (
+          <div className="rounded-2xl border border-primary/40 bg-card p-6">
+            <h2 className="mb-4 text-lg font-semibold">Платформенная админка</h2>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Вы — платформенный администратор. Видны все организации сервиса, можно вручную выдавать бесплатный доступ.
+            </p>
+            <button
+              onClick={() => router.push('/admin')}
+              className="rounded-xl border border-primary px-5 py-3 text-primary"
+            >
+              Открыть админ-панель
+            </button>
+          </div>
+        )}
       </div>
     </AppShell>
   );
-}
+    }
