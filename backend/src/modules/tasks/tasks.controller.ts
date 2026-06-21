@@ -25,130 +25,49 @@ export class TasksController {
     private readonly tasksService: TasksService,
   ) {}
 
-  // =========================
-  // CREATE TASK
-  // =========================
   @Post()
-  create(
-    @Body() body: any,
-    @Req() req: Request,
-  ) {
-    const user =
-      req.user as AuthenticatedUser;
-
+  create(@Body() body: any, @Req() req: Request) {
+    const user = req.user as AuthenticatedUser;
     return this.tasksService.create({
       ...body,
-      organizationId:
-        user.organizationId,
+      organizationId: user.organizationId,
+      userId: user.userId,
     });
   }
 
-  // =========================
-  // GET ALL TASKS
-  // =========================
   @Get()
-  findAll(
-    @Req() req: Request,
-  ) {
-    const user =
-      req.user as AuthenticatedUser;
-
-    return this.tasksService.findAll(
-      user.organizationId,
-    );
+  findAll(@Req() req: Request) {
+    const user = req.user as AuthenticatedUser;
+    return this.tasksService.findAll(user.organizationId);
   }
 
-  // =========================
-  // GET ONE TASK
-  // TENANT SAFE
-  // =========================
   @Get(':id')
-  findOne(
-    @Param('id') id: string,
-    @Req() req: Request,
-  ) {
-    const user =
-      req.user as AuthenticatedUser;
-
-    return this.tasksService.findById(
-      id,
-      user.organizationId,
-    );
+  findOne(@Param('id') id: string, @Req() req: Request) {
+    const user = req.user as AuthenticatedUser;
+    return this.tasksService.findById(id, user.organizationId);
   }
 
-  // =========================
-  // UPDATE TASK
-  // TENANT SAFE
-  // =========================
   @Put(':id')
-  update(
-    @Param('id') id: string,
-    @Body() body: any,
-    @Req() req: Request,
-  ) {
-    const user =
-      req.user as AuthenticatedUser;
-
-    return this.tasksService.update(
-      id,
-      user.organizationId,
-      body,
-    );
+  update(@Param('id') id: string, @Body() body: any, @Req() req: Request) {
+    const user = req.user as AuthenticatedUser;
+    return this.tasksService.update(id, user.organizationId, body);
   }
 
-  // =========================
-  // DELETE TASK
-  // TENANT SAFE
-  // =========================
   @Delete(':id')
-  remove(
-    @Param('id') id: string,
-    @Req() req: Request,
-  ) {
-    const user =
-      req.user as AuthenticatedUser;
-
-    return this.tasksService.remove(
-      id,
-      user.organizationId,
-    );
+  remove(@Param('id') id: string, @Req() req: Request) {
+    const user = req.user as AuthenticatedUser;
+    return this.tasksService.remove(id, user.organizationId);
   }
 
-  // =========================
-  // ASSIGN TASK
-  // TENANT SAFE
-  // =========================
   @Put(':id/assign/:userId')
-  assign(
-    @Param('id') id: string,
-    @Param('userId') userId: string,
-    @Req() req: Request,
-  ) {
-    const user =
-      req.user as AuthenticatedUser;
-
-    return this.tasksService.assignTask(
-      id,
-      userId,
-      user.organizationId,
-    );
+  assign(@Param('id') id: string, @Param('userId') userId: string, @Req() req: Request) {
+    const user = req.user as AuthenticatedUser;
+    return this.tasksService.assignTask(id, userId, user.organizationId);
   }
 
-  // =========================
-  // COMPLETE TASK
-  // TENANT SAFE
-  // =========================
   @Put(':id/complete')
-  complete(
-    @Param('id') id: string,
-    @Req() req: Request,
-  ) {
-    const user =
-      req.user as AuthenticatedUser;
-
-    return this.tasksService.completeTask(
-      id,
-      user.organizationId,
-    );
+  complete(@Param('id') id: string, @Req() req: Request) {
+    const user = req.user as AuthenticatedUser;
+    return this.tasksService.completeTask(id, user.organizationId, user.userId);
   }
 }
