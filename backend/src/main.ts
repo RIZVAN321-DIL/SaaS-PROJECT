@@ -1,15 +1,9 @@
 import { NestFactory } from '@nestjs/core';
-import {
-  ValidationPipe,
-  Logger,
-} from '@nestjs/common';
-
+import { ValidationPipe, Logger } from '@nestjs/common';
 import helmet from 'helmet';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-
 const execAsync = promisify(exec);
-
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -24,7 +18,9 @@ async function bootstrap() {
     logger.error('Migration failed, continuing anyway');
   }
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    rawBody: true,
+  });
 
   // =========================
   // SECURITY
@@ -61,21 +57,15 @@ async function bootstrap() {
   // =========================
   // PROXY SUPPORT
   // =========================
-  app
-    .getHttpAdapter()
-    .getInstance()
-    .set('trust proxy', 1);
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
   // =========================
   // SHUTDOWN HOOKS
   // =========================
   app.enableShutdownHooks();
 
-  const port =
-    Number(process.env.PORT) || 3000;
-
+  const port = Number(process.env.PORT) || 3000;
   await app.listen(port);
-
   logger.log(`Application started`);
   logger.log(`Port: ${port}`);
   logger.log(`API: http://localhost:${port}/api`);
