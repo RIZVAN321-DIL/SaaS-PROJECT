@@ -1,10 +1,8 @@
-// Файл 3 (НОВЫЙ): frontend/src/components/notifications/notification-bell.tsx
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bell, AlertTriangle, Clock } from 'lucide-react';
-
 import { notificationsApi } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
 
@@ -12,10 +10,7 @@ interface NotificationTask {
   id: string;
   title: string;
   dueDate?: string;
-  case?: {
-    id: string;
-    title: string;
-  };
+  case?: { id: string; title: string };
 }
 
 interface NotificationsResponse {
@@ -29,17 +24,14 @@ const POLL_INTERVAL_MS = 60_000;
 
 export function NotificationBell() {
   const router = useRouter();
-
   const [data, setData] = useState<NotificationsResponse | null>(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-
   const containerRef = useRef<HTMLDivElement>(null);
 
   async function load() {
     const token = getAccessToken();
     if (!token) return;
-
     try {
       const response = await notificationsApi.getAll(token);
       setData(response as NotificationsResponse);
@@ -52,12 +44,10 @@ export function NotificationBell() {
 
   useEffect(() => {
     load();
-
     const interval = setInterval(load, POLL_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
 
-  // Закрытие по клику снаружи
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (
@@ -67,16 +57,13 @@ export function NotificationBell() {
         setOpen(false);
       }
     }
-
     function handleEscape(e: KeyboardEvent) {
       if (e.key === 'Escape') setOpen(false);
     }
-
     if (open) {
       document.addEventListener('mousedown', handleClickOutside);
       document.addEventListener('keydown', handleEscape);
     }
-
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscape);
@@ -108,10 +95,9 @@ export function NotificationBell() {
         onClick={toggle}
         title="Уведомления"
         aria-label="Уведомления"
-        className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-border transition hover:bg-accent"
+        className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-border transition hover:bg-accent"
       >
-        <Bell size={18} />
-
+        <Bell size={16} />
         {totalCount > 0 && (
           <span className="absolute -right-1 -top-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
             {badgeLabel}
@@ -120,7 +106,7 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-border bg-background shadow-2xl">
+        <div className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
           <div className="border-b border-border px-4 py-3">
             <h3 className="text-sm font-semibold">Уведомления</h3>
           </div>
@@ -142,7 +128,6 @@ export function NotificationBell() {
                       <AlertTriangle size={12} />
                       Просрочено
                     </div>
-
                     {data!.overdue.map((task) => (
                       <button
                         key={task.id}
@@ -151,7 +136,6 @@ export function NotificationBell() {
                         className="flex w-full flex-col items-start gap-0.5 px-4 py-2.5 text-left transition hover:bg-accent/50"
                       >
                         <span className="text-sm font-medium">{task.title}</span>
-
                         <span className="text-xs text-muted-foreground">
                           {task.case?.title ?? 'Без дела'}
                           {task.dueDate &&
@@ -168,7 +152,6 @@ export function NotificationBell() {
                       <Clock size={12} />
                       Скоро (24 часа)
                     </div>
-
                     {data!.upcoming.map((task) => (
                       <button
                         key={task.id}
@@ -177,11 +160,15 @@ export function NotificationBell() {
                         className="flex w-full flex-col items-start gap-0.5 px-4 py-2.5 text-left transition hover:bg-accent/50"
                       >
                         <span className="text-sm font-medium">{task.title}</span>
-
                         <span className="text-xs text-muted-foreground">
                           {task.case?.title ?? 'Без дела'}
                           {task.dueDate &&
-                            ` · до ${new Date(task.dueDate).toLocaleString('ru-RU', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}`}
+                            ` · до ${new Date(task.dueDate).toLocaleString('ru-RU', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              day: '2-digit',
+                              month: '2-digit',
+                            })}`}
                         </span>
                       </button>
                     ))}
@@ -205,4 +192,4 @@ export function NotificationBell() {
       )}
     </div>
   );
-      }
+}
