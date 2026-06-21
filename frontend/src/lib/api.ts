@@ -317,3 +317,72 @@ export const notificationsApi = {
   getAll: (token: string) =>
     request('/notifications', { token }),
 };
+
+export const billingApi = {
+  getPlans: () =>
+    request('/billing/plans'),
+  getSubscription: (token: string) =>
+    request('/billing/subscription', { token }),
+  createCheckout: (planId: string, token: string) =>
+    request('/billing/checkout', {
+      method: 'POST',
+      token,
+      body: { planId },
+    }),
+  createPortal: (token: string) =>
+    request('/billing/portal', {
+      method: 'POST',
+      token,
+    }),
+};
+
+export const adminApi = {
+  getOrganizations: (token: string) =>
+    request('/admin/organizations', { token }),
+  grantOverride: (
+    organizationId: string,
+    data: { reason?: string; expiresAt?: string },
+    token: string,
+  ) =>
+    request(`/admin/organizations/${organizationId}/override`, {
+      method: 'POST',
+      token,
+      body: data,
+    }),
+  revokeOverride: (organizationId: string, token: string) =>
+    request(`/admin/organizations/${organizationId}/override`, {
+      method: 'DELETE',
+      token,
+    }),
+};
+
+export const calendarApi = {
+  getAll: (token: string) =>
+    request('/calendar', { token }),
+  getById: (id: string, token: string) =>
+    request(`/calendar/${id}`, { token }),
+  create: (
+    data: { title: string; description?: string; date: string; caseId?: string },
+    token: string,
+  ) =>
+    request('/calendar', {
+      method: 'POST',
+      token,
+      body: data,
+    }),
+  update: (
+    id: string,
+    data: { title?: string; description?: string; date?: string },
+    token: string,
+  ) =>
+    request(`/calendar/${id}`, {
+      method: 'PUT',
+      token,
+      body: data,
+    }),
+  remove: (id: string, token: string) =>
+    request(`/calendar/${id}`, {
+      method: 'DELETE',
+      token,
+    }),
+};
