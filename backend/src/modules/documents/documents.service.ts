@@ -4,6 +4,7 @@ import {
 } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { PrismaService } from '../../database/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { DocumentEncryptionService } from './document-encryption.service';
 import { S3StorageService } from './s3-storage.service';
 
@@ -11,13 +12,11 @@ import { S3StorageService } from './s3-storage.service';
 export class DocumentsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
     private readonly encryption: DocumentEncryptionService,
     private readonly storage: S3StorageService,
   ) {}
 
-  // =========================
-  // UPLOAD FILE
-  // =========================
   async uploadFile(data: {
     organizationId: string;
     caseId: string;
@@ -27,27 +26,16 @@ export class DocumentsService {
     uploadedById?: string;
   }) {
     const caseItem = await this.prisma.case.findFirst({
-      where: {
-        id: data.caseId,
-        organizationId: data.organizationId,
-      },
+      where: { id: data.caseId, organizationId: data.organizationId },
     });
-
-    if (!caseItem) {
-      throw new NotFoundException('Case not found');
-    }
+    if (!caseItem) throw new NotFoundException('Case not found');
 
     const encrypted = this.encryption.encrypt(data.buffer);
-
     const storageKey = `documents/${data.organizationId}/${data.caseId}/${crypto.randomUUID()}.enc`;
 
-    await this.storage.upload(
-      storageKey,
-      encrypted,
-      'application/octet-stream',
-    );
+    await this.storage.upload(storageKey, encrypted, 'application/octet-stream');
 
-    return this.prisma.document.create({
+    const document = await this.prisma.document.create({
       data: {
         organizationId: data.organizationId,
         caseId: data.caseId,
@@ -60,24 +48,26 @@ export class DocumentsService {
         fileUrl: storageKey,
       },
     });
-  }
 
-  // =========================
-  // DOWNLOAD FILE
-  // =========================
-  async downloadFile(
-    id: string,
-    organizationId: string,
-  ) {
-    const document = await this.findById(id, organizationId);
-
-    if (!document.fileUrl) {
-      throw new NotFoundException('File not found');
+    if (data.uploadedById) {
+      await this.audit.log({
+        organizationId: data.organizationId,
+        userId: data.uploadedById,
+        action: 'DOCUMENT_UPLOADED',
+        entity: 'Document',
+        entityId: document.id,
+        meta: { name: document.name, caseId: data.caseId },
+      });
     }
 
+    return document;
+  }
+
+  async downloadFile(id: string, organizationId: string) {
+    const document = await this.findById(id, organizationId);
+    if (!document.fileUrl) throw new NotFoundException('File not found');
     const encrypted = await this.storage.download(document.fileUrl);
     const decrypted = this.encryption.decrypt(encrypted);
-
     return {
       name: document.name,
       mimeType: document.mimeType || document.type || 'application/octet-stream',
@@ -85,33 +75,14 @@ export class DocumentsService {
     };
   }
 
-  // =========================
-  // CREATE DOCUMENT
-  // =========================
-  async create(data: {
-    organizationId: string;
-    caseId: string;
-    name: string;
-    fileUrl?: string;
-    type?: string;
-  }) {
+  async create(data: { organizationId: string; caseId: string; name: string; fileUrl?: string; type?: string }) {
     const caseItem = await this.prisma.case.findFirst({
-      where: {
-        id: data.caseId,
-        organizationId: data.organizationId,
-      },
+      where: { id: data.caseId, organizationId: data.organizationId },
     });
-
-    if (!caseItem) {
-      throw new NotFoundException('Case not found');
-    }
-
+    if (!caseItem) throw new NotFoundException('Case not found');
     return this.prisma.document.create({ data });
   }
 
-  // =========================
-  // GET ALL DOCUMENTS
-  // =========================
   async findAll(organizationId: string) {
     return this.prisma.document.findMany({
       where: { organizationId },
@@ -120,32 +91,29 @@ export class DocumentsService {
     });
   }
 
-  // =========================
-  // GET ONE DOCUMENT
-  // =========================
   async findById(id: string, organizationId: string) {
     const doc = await this.prisma.document.findFirst({
       where: { id, organizationId },
       include: { case: true },
     });
-
-    if (!doc) {
-      throw new NotFoundException('Document not found');
-    }
-
+    if (!doc) throw new NotFoundException('Document not found');
     return doc;
   }
 
-  // =========================
-  // DELETE DOCUMENT
-  // =========================
-  async remove(id: string, organizationId: string) {
+  async remove(id: string, organizationId: string, userId?: string) {
     const document = await this.findById(id, organizationId);
-
-    if (document.fileUrl) {
-      await this.storage.delete(document.fileUrl);
+    if (document.fileUrl) await this.storage.delete(document.fileUrl);
+    const removed = await this.prisma.document.delete({ where: { id } });
+    if (userId) {
+      await this.audit.log({
+        organizationId,
+        userId,
+        action: 'DOCUMENT_DELETED',
+        entity: 'Document',
+        entityId: id,
+        meta: { name: document.name, caseId: document.caseId },
+      });
     }
-
-    return this.prisma.document.delete({ where: { id } });
+    return removed;
   }
-  }
+}
