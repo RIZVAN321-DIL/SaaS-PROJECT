@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Copy, Check } from 'lucide-react';
+import { Users, Copy, Check, Plus, ChevronLeft } from 'lucide-react';
 
 import { AppShell } from '@/components/layout/app-shell';
 import { usersApi } from '@/lib/api';
@@ -29,13 +29,23 @@ const ROLE_LABELS: Record<string, string> = {
   ASSISTANT: 'Помощник',
 };
 
+const ROLE_COLORS: Record<string, string> = {
+  OWNER: 'bg-primary/10 text-primary',
+  ADMIN: 'bg-amber-500/10 text-amber-600',
+  LAWYER: 'bg-emerald-500/10 text-emerald-600',
+  ASSISTANT: 'bg-muted text-muted-foreground',
+};
+
 const INVITABLE_ROLES = ['ADMIN', 'LAWYER', 'ASSISTANT'];
+
+function initials(email: string) {
+  return email.slice(0, 2).toUpperCase();
+}
 
 export default function TeamSettingsPage() {
   const router = useRouter();
   const currentUser = getUser();
-  const canInvite =
-    currentUser?.role === 'OWNER' || currentUser?.role === 'ADMIN';
+  const canInvite = currentUser?.role === 'OWNER' || currentUser?.role === 'ADMIN';
 
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,9 +54,7 @@ export default function TeamSettingsPage() {
   const [role, setRole] = useState('LAWYER');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [createdUser, setCreatedUser] = useState<CreatedUserResult | null>(
-    null,
-  );
+  const [createdUser, setCreatedUser] = useState<CreatedUserResult | null>(null);
   const [copied, setCopied] = useState(false);
 
   async function loadMembers() {
@@ -62,9 +70,7 @@ export default function TeamSettingsPage() {
     }
   }
 
-  useEffect(() => {
-    loadMembers();
-  }, []);
+  useEffect(() => { loadMembers(); }, []);
 
   function openInviteForm() {
     setEmail('');
@@ -77,31 +83,20 @@ export default function TeamSettingsPage() {
 
   function closeModal() {
     setShowInviteForm(false);
-    // Если приглашение было успешным — обновляем список после закрытия
-    if (createdUser) {
-      loadMembers();
-    }
+    if (createdUser) loadMembers();
   }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const token = getAccessToken();
-    if (!token) {
-      setError('Требуется авторизация');
-      return;
-    }
-
+    if (!token) { setError('Требуется авторизация'); return; }
+    setSubmitting(true);
+    setError('');
     try {
-      setSubmitting(true);
-      setError('');
       const result = await usersApi.create({ email, role }, token);
       setCreatedUser(result as CreatedUserResult);
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Не удалось пригласить сотрудника',
-      );
+      setError(err instanceof Error ? err.message : 'Не удалось пригласить сотрудника');
     } finally {
       setSubmitting(false);
     }
@@ -115,125 +110,59 @@ export default function TeamSettingsPage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // буфер обмена недоступен — пользователь скопирует вручную
+      // clipboard unavailable
     }
   }
 
   return (
     <AppShell>
-      <div className="space-y-6">
-        <button
-          type="button"
-          onClick={() => router.push('/settings')}
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          ← Настройки
+      <div className="space-y-5">
+        <button type="button" onClick={() => router.push('/settings')} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ChevronLeft size={14} /> Настройки
         </button>
 
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Команда</h1>
-            <p className="text-muted-foreground">
-              Сотрудники вашей организации
-            </p>
+            <h1 className="text-2xl font-bold">Команда</h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">Сотрудники вашей организации</p>
           </div>
           {canInvite && (
-            <Button onClick={openInviteForm}>Пригласить сотрудника</Button>
+            <Button onClick={openInviteForm} className="h-9 px-3 text-sm">
+              <Plus size={14} /> Пригласить сотрудника
+            </Button>
           )}
         </div>
 
-        <Modal
-          open={showInviteForm}
-          onClose={closeModal}
-          title={
-            createdUser ? 'Сотрудник добавлен' : 'Пригласить сотрудника'
-          }
-        >
+        <Modal open={showInviteForm} onClose={closeModal} title={createdUser ? 'Сотрудник добавлен' : 'Пригласить сотрудника'}>
           {createdUser ? (
-            <div className="space-y-5">
-              <p className="text-sm text-muted-foreground">
-                Аккаунт создан. Передайте эти данные сотруднику любым удобным
-                способом — повторно пароль показан не будет.
-              </p>
-
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">Аккаунт создан. Передайте эти данные сотруднику — повторно пароль показан не будет.</p>
               <div className="space-y-3 rounded-xl border border-border bg-background p-4">
                 <div>
-                  <div className="text-xs text-muted-foreground">Email</div>
-                  <div className="font-mono text-sm">{createdUser.email}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Email</div>
+                  <div className="mt-0.5 font-mono text-sm">{createdUser.email}</div>
                 </div>
                 <div>
-                  <div className="text-xs text-muted-foreground">
-                    Временный пароль
-                  </div>
-                  <div className="font-mono text-sm">
-                    {createdUser.temporaryPassword}
-                  </div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Временный пароль</div>
+                  <div className="mt-0.5 font-mono text-sm">{createdUser.temporaryPassword}</div>
                 </div>
               </div>
-
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={copyCredentials}
-                className="w-full"
-              >
-                {copied ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <Check size={16} />
-                    Скопировано
-                  </span>
-                ) : (
-                  <span className="flex items-center justify-center gap-2">
-                    <Copy size={16} />
-                    Скопировать
-                  </span>
-                )}
+              <Button type="button" variant="secondary" onClick={copyCredentials} className="w-full">
+                {copied ? <><Check size={14} /> Скопировано</> : <><Copy size={14} /> Скопировать данные</>}
               </Button>
-
-              <p className="text-xs text-muted-foreground">
-                Сотрудник сможет войти с этими данными или запросить смену
-                пароля через «Забыли пароль?» на странице входа.
-              </p>
-
-              <Button type="button" onClick={closeModal} className="w-full">
-                Готово
-              </Button>
+              <Button type="button" onClick={closeModal} className="w-full">Готово</Button>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <Input
-                label="Email сотрудника"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="lawyer@firma.ru"
-              />
-
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <Input label="Email сотрудника" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="lawyer@firma.ru" />
               <div>
                 <label className="mb-2 block text-sm font-medium">Роль</label>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="h-12 w-full rounded-xl border border-border bg-background px-4 outline-none"
-                >
-                  {INVITABLE_ROLES.map((r) => (
-                    <option key={r} value={r}>
-                      {ROLE_LABELS[r]}
-                    </option>
-                  ))}
+                <select value={role} onChange={(e) => setRole(e.target.value)} className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm outline-none focus:border-primary">
+                  {INVITABLE_ROLES.map((r) => (<option key={r} value={r}>{ROLE_LABELS[r]}</option>))}
                 </select>
               </div>
-
-              {error && (
-                <div className="rounded-xl border border-red-500/30 p-3 text-sm text-red-500">
-                  {error}
-                </div>
-              )}
-
-              <Button type="submit" loading={submitting} className="w-full">
-                Создать аккаунт
-              </Button>
+              {error && <div className="rounded-xl border border-red-500/30 p-3 text-sm text-red-500">{error}</div>}
+              <Button type="submit" loading={submitting} className="w-full">Создать аккаунт</Button>
             </form>
           )}
         </Modal>
@@ -242,38 +171,43 @@ export default function TeamSettingsPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
-                <th className="p-4 text-left">Email</th>
-                <th className="p-4 text-left">Роль</th>
-                <th className="p-4 text-left">В команде с</th>
+                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Сотрудник</th>
+                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Роль</th>
+                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">В команде с</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={3} className="p-8 text-center">
-                    Загрузка...
-                  </td>
-                </tr>
+                [1, 2, 3].map((i) => (
+                  <tr key={i} className="border-b border-border last:border-0">
+                    {[1, 2, 3].map((j) => <td key={j} className="p-4"><div className="h-4 animate-pulse rounded bg-muted" /></td>)}
+                  </tr>
+                ))
               ) : members.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="p-8 text-center">
-                    В организации пока нет сотрудников
+                  <td colSpan={3} className="py-16 text-center">
+                    <Users size={28} className="mx-auto mb-3 text-muted-foreground/40" />
+                    <p className="text-sm text-muted-foreground">В организации пока нет сотрудников</p>
                   </td>
                 </tr>
               ) : (
                 members.map((member) => (
-                  <tr
-                    key={member.id}
-                    className="border-b border-border last:border-0"
-                  >
-                    <td className="p-4 font-medium">{member.email}</td>
+                  <tr key={member.id} className="border-b border-border last:border-0">
                     <td className="p-4">
-                      <span className="rounded-lg border border-border px-3 py-1 text-xs">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                          {initials(member.email)}
+                        </div>
+                        <span className="text-sm font-medium">{member.email}</span>
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${ROLE_COLORS[member.role] ?? 'bg-muted text-muted-foreground'}`}>
                         {ROLE_LABELS[member.role] ?? member.role}
                       </span>
                     </td>
                     <td className="p-4 text-sm text-muted-foreground">
-                      {new Date(member.createdAt).toLocaleDateString('ru-RU')}
+                      {new Date(member.createdAt).toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </td>
                   </tr>
                 ))
@@ -283,12 +217,9 @@ export default function TeamSettingsPage() {
         </div>
 
         {!canInvite && (
-          <p className="text-sm text-muted-foreground">
-            Приглашать новых сотрудников может только владелец или
-            администратор организации.
-          </p>
+          <p className="text-xs text-muted-foreground">Приглашать сотрудников может только владелец или администратор организации.</p>
         )}
       </div>
     </AppShell>
   );
-}
+              }
