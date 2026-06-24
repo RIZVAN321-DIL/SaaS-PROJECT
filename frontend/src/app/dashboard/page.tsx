@@ -1,10 +1,5 @@
 'use client';
 
-**`frontend/src/app/dashboard/page.tsx`**
-
-```tsx
-'use client';
-
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -117,7 +112,6 @@ export default function DashboardPage() {
   return (
     <AppShell>
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold">Рабочий стол</h1>
@@ -142,7 +136,6 @@ export default function DashboardPage() {
           </div>
         ) : (
           <>
-            {/* Stat cards */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <StatCard
                 label="Дел"
@@ -185,17 +178,12 @@ export default function DashboardPage() {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
-              {/* Funnel */}
               <div className="rounded-2xl border border-border bg-card p-5">
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="flex items-center gap-2 text-sm font-semibold">
                     <Briefcase size={15} /> Воронка дел
                   </h2>
-                  <button
-                    type="button"
-                    onClick={() => router.push('/cases')}
-                    className="flex items-center gap-1 text-xs text-primary hover:underline"
-                  >
+                  <button type="button" onClick={() => router.push('/cases')} className="flex items-center gap-1 text-xs text-primary hover:underline">
                     Все дела <ArrowRight size={11} />
                   </button>
                 </div>
@@ -222,17 +210,12 @@ export default function DashboardPage() {
                 )}
               </div>
 
-              {/* Team load */}
               <div className="rounded-2xl border border-border bg-card p-5">
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="flex items-center gap-2 text-sm font-semibold">
                     <Users size={15} /> Загрузка команды
                   </h2>
-                  <button
-                    type="button"
-                    onClick={() => router.push('/tasks')}
-                    className="flex items-center gap-1 text-xs text-primary hover:underline"
-                  >
+                  <button type="button" onClick={() => router.push('/tasks')} className="flex items-center gap-1 text-xs text-primary hover:underline">
                     Все задачи <ArrowRight size={11} />
                   </button>
                 </div>
@@ -260,27 +243,20 @@ export default function DashboardPage() {
                       </div>
                     ))}
                     {Boolean(data.tasks.unassignedTasks) && (
-                      <p className="text-xs text-muted-foreground">
-                        Без исполнителя: {data.tasks.unassignedTasks}
-                      </p>
+                      <p className="text-xs text-muted-foreground">Без исполнителя: {data.tasks.unassignedTasks}</p>
                     )}
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Recent clients */}
             {(data?.clients.recentClients?.length ?? 0) > 0 && (
               <div className="rounded-2xl border border-border bg-card p-5">
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="flex items-center gap-2 text-sm font-semibold">
                     <Users size={15} /> Новые клиенты
                   </h2>
-                  <button
-                    type="button"
-                    onClick={() => router.push('/clients')}
-                    className="flex items-center gap-1 text-xs text-primary hover:underline"
-                  >
+                  <button type="button" onClick={() => router.push('/clients')} className="flex items-center gap-1 text-xs text-primary hover:underline">
                     Все клиенты <ArrowRight size={11} />
                   </button>
                 </div>
@@ -305,5 +281,4 @@ export default function DashboardPage() {
       </div>
     </AppShell>
   );
-}
-```
+                          }
