@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
+import { Shield, Building2, Users, Briefcase, Zap, X } from 'lucide-react';
 import { AppShell } from '@/components/layout/app-shell';
 import { adminApi, authApi } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
@@ -30,7 +31,7 @@ interface OrganizationRow {
 const STATUS_LABELS: Record<string, string> = {
   trialing: 'Пробный период',
   active: 'Активна',
-  past_due: 'Просрочена оплата',
+  past_due: 'Просрочена',
   canceled: 'Отменена',
   incomplete: 'Не завершена',
 };
@@ -65,9 +66,7 @@ export default function AdminPage() {
       try {
         const me = (await authApi.me(token)) as { isPlatformAdmin: boolean };
         setIsPlatformAdmin(me.isPlatformAdmin);
-        if (me.isPlatformAdmin) {
-          await loadOrganizations();
-        }
+        if (me.isPlatformAdmin) await loadOrganizations();
       } catch {
         // silently fail
       } finally {
@@ -80,11 +79,7 @@ export default function AdminPage() {
   function openOverrideModal(org: OrganizationRow) {
     setOverrideTarget(org);
     setReason(org.subscription?.overrideReason ?? '');
-    setExpiresAt(
-      org.subscription?.overrideExpiresAt
-        ? org.subscription.overrideExpiresAt.slice(0, 10)
-        : '',
-    );
+    setExpiresAt(org.subscription?.overrideExpiresAt ? org.subscription.overrideExpiresAt.slice(0, 10) : '');
   }
 
   async function handleGrant(e: FormEvent) {
@@ -93,14 +88,10 @@ export default function AdminPage() {
     if (!token || !overrideTarget) return;
     setSubmitting(true);
     try {
-      await adminApi.grantOverride(
-        overrideTarget.id,
-        {
-          reason: reason.trim() || undefined,
-          expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
-        },
-        token,
-      );
+      await adminApi.grantOverride(overrideTarget.id, {
+        reason: reason.trim() || undefined,
+        expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
+      }, token);
       toast.success('Бесплатный доступ предоставлен');
       setOverrideTarget(null);
       loadOrganizations();
@@ -114,8 +105,7 @@ export default function AdminPage() {
   async function handleRevoke(org: OrganizationRow) {
     const token = getAccessToken();
     if (!token) return;
-    const confirmed = window.confirm(`Отозвать бесплатный доступ у «${org.name}»?`);
-    if (!confirmed) return;
+    if (!confirm(`Отозвать бесплатный доступ у «${org.name}»?`)) return;
     try {
       await adminApi.revokeOverride(org.id, token);
       toast.success('Доступ отозван');
@@ -126,21 +116,16 @@ export default function AdminPage() {
   }
 
   if (checkingAccess) {
-    return (
-      <AppShell>
-        <div className="text-center text-muted-foreground">Загрузка...</div>
-      </AppShell>
-    );
+    return <AppShell><div className="flex h-64 items-center justify-center text-muted-foreground">Загрузка...</div></AppShell>;
   }
 
   if (!isPlatformAdmin) {
     return (
       <AppShell>
-        <div className="space-y-4 rounded-2xl border border-border bg-card p-12 text-center">
-          <p className="text-lg font-medium">Доступ запрещён</p>
-          <p className="text-sm text-muted-foreground">
-            Эта страница доступна только платформенным администраторам.
-          </p>
+        <div className="flex h-64 flex-col items-center justify-center gap-3 text-center">
+          <Shield size={32} className="text-muted-foreground/40" />
+          <p className="font-medium">Доступ запрещён</p>
+          <p className="text-sm text-muted-foreground">Эта страница доступна только платформенным администраторам.</p>
         </div>
       </AppShell>
     );
@@ -148,105 +133,85 @@ export default function AdminPage() {
 
   return (
     <AppShell>
-      <div className="space-y-6">
+      <div className="space-y-5">
         <div>
-          <h1 className="text-3xl font-bold">Админ-панель</h1>
-          <p className="text-muted-foreground">Все организации платформы</p>
+          <h1 className="text-2xl font-bold">Админ-панель</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">Все организации платформы</p>
         </div>
 
-        <Modal
-          open={Boolean(overrideTarget)}
-          onClose={() => setOverrideTarget(null)}
-          title={`Бесплатный доступ — ${overrideTarget?.name ?? ''}`}
-        >
-          <form onSubmit={handleGrant} className="space-y-5">
-            <Input
-              label="Причина (необязательно)"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Например: друг проекта"
-            />
-            <Input
-              label="Действует до (необязательно)"
-              type="date"
-              value={expiresAt}
-              onChange={(e) => setExpiresAt(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Если не указать дату — доступ будет бессрочным, пока вы не отзовёте его вручную.
-            </p>
-            <Button type="submit" loading={submitting} className="w-full">
-              Предоставить доступ
-            </Button>
+        <Modal open={Boolean(overrideTarget)} onClose={() => setOverrideTarget(null)} title={`Бесплатный доступ — ${overrideTarget?.name ?? ''}`}>
+          <form onSubmit={handleGrant} className="space-y-4">
+            <Input label="Причина (необязательно)" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Например: друг проекта" />
+            <Input label="Действует до (необязательно)" type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
+            <p className="text-xs text-muted-foreground">Если не указать дату — доступ будет бессрочным до ручного отзыва.</p>
+            <Button type="submit" loading={submitting} className="w-full">Предоставить доступ</Button>
           </form>
         </Modal>
+
+        {!loading && (
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-border bg-card p-4">
+              <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Building2 size={12} /> Организаций</div>
+              <div className="mt-1 text-2xl font-bold">{organizations.length}</div>
+            </div>
+            <div className="rounded-2xl border border-border bg-card p-4">
+              <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Users size={12} /> Пользователей</div>
+              <div className="mt-1 text-2xl font-bold">{organizations.reduce((s, o) => s + o.usersCount, 0)}</div>
+            </div>
+            <div className="rounded-2xl border border-border bg-card p-4">
+              <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Zap size={12} /> С ручным доступом</div>
+              <div className="mt-1 text-2xl font-bold">{organizations.filter((o) => o.subscription?.manualOverride).length}</div>
+            </div>
+          </div>
+        )}
 
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
-                <th className="p-4 text-left">Организация</th>
-                <th className="p-4 text-left">Пользователей</th>
-                <th className="p-4 text-left">Дел / Клиентов</th>
-                <th className="p-4 text-left">Статус</th>
-                <th className="p-4 text-left">Действия</th>
+                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Организация</th>
+                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Пользователи</th>
+                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Дел / Клиентов</th>
+                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Статус</th>
+                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Действия</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={5} className="p-8 text-center">Загрузка...</td>
-                </tr>
+                [1, 2, 3].map((i) => (
+                  <tr key={i} className="border-b border-border last:border-0">
+                    {[1, 2, 3, 4, 5].map((j) => <td key={j} className="p-4"><div className="h-4 animate-pulse rounded bg-muted" /></td>)}
+                  </tr>
+                ))
               ) : organizations.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center">Организаций пока нет</td>
+                  <td colSpan={5} className="py-16 text-center">
+                    <Building2 size={28} className="mx-auto mb-3 text-muted-foreground/40" />
+                    <p className="text-sm text-muted-foreground">Организаций пока нет</p>
+                  </td>
                 </tr>
               ) : (
                 organizations.map((org) => (
                   <tr key={org.id} className="border-b border-border last:border-0">
                     <td className="p-4">
                       <div className="font-medium">{org.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {new Date(org.createdAt).toLocaleDateString('ru-RU')}
-                      </div>
+                      <div className="mt-0.5 text-xs text-muted-foreground">{new Date(org.createdAt).toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
                     </td>
-                    <td className="p-4">{org.usersCount}</td>
-                    <td className="p-4">{org.casesCount} / {org.clientsCount}</td>
+                    <td className="p-4"><span className="flex items-center gap-1 text-sm"><Users size={13} className="text-muted-foreground" /> {org.usersCount}</span></td>
+                    <td className="p-4 text-sm"><span className="flex items-center gap-1"><Briefcase size={13} className="text-muted-foreground" /> {org.casesCount}</span><span className="text-xs text-muted-foreground">{org.clientsCount} клиентов</span></td>
                     <td className="p-4">
                       {org.subscription?.manualOverride ? (
-                        <span className="rounded-lg bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                          Ручной доступ
-                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary"><Zap size={10} /> Ручной доступ</span>
                       ) : (
-                        <span className="rounded-lg border border-border px-3 py-1 text-xs">
-                          {org.subscription
-                            ? STATUS_LABELS[org.subscription.status] ?? org.subscription.status
-                            : 'Нет подписки'}
-                        </span>
+                        <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px]">{org.subscription ? STATUS_LABELS[org.subscription.status] ?? org.subscription.status : 'Нет подписки'}</span>
                       )}
-                      {org.subscription?.plan && (
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          {org.subscription.plan.name}
-                        </div>
-                      )}
+                      {org.subscription?.plan && <div className="mt-0.5 text-[11px] text-muted-foreground">{org.subscription.plan.name}</div>}
                     </td>
                     <td className="p-4">
                       {org.subscription?.manualOverride ? (
-                        <Button
-                          variant="danger"
-                          onClick={() => handleRevoke(org)}
-                          className="h-9 px-3 text-sm"
-                        >
-                          Отозвать доступ
-                        </Button>
+                        <button type="button" onClick={() => handleRevoke(org)} className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-500 transition hover:bg-red-500/10"><X size={12} /> Отозвать</button>
                       ) : (
-                        <Button
-                          variant="secondary"
-                          onClick={() => openOverrideModal(org)}
-                          className="h-9 px-3 text-sm"
-                        >
-                          Дать бесплатный доступ
-                        </Button>
+                        <button type="button" onClick={() => openOverrideModal(org)} className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-primary transition hover:bg-primary/10"><Zap size={12} /> Дать доступ</button>
                       )}
                     </td>
                   </tr>
@@ -258,4 +223,4 @@ export default function AdminPage() {
       </div>
     </AppShell>
   );
-  }
+            }
