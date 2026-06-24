@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Check } from 'lucide-react';
+import { Check, CreditCard, ChevronLeft, Zap } from 'lucide-react';
 import { AppShell } from '@/components/layout/app-shell';
 import { billingApi } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
@@ -42,8 +42,8 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 function formatPrice(plan: Plan) {
-  const amount = (plan.priceMonthly / 100).toFixed(2);
-  return `${amount} ${plan.currency.toUpperCase()} / мес`;
+  const amount = (plan.priceMonthly / 100).toFixed(0);
+  return `${amount} ${plan.currency.toUpperCase()}`;
 }
 
 function BillingContent() {
@@ -74,11 +74,8 @@ function BillingContent() {
 
   useEffect(() => {
     loadData();
-    if (searchParams.get('success') === 'true') {
-      toast.success('Подписка оформлена! Обновляем статус...');
-    } else if (searchParams.get('canceled') === 'true') {
-      toast.info('Оформление подписки отменено');
-    }
+    if (searchParams.get('success') === 'true') toast.success('Подписка оформлена! Обновляем статус...');
+    else if (searchParams.get('canceled') === 'true') toast.info('Оформление подписки отменено');
   }, []);
 
   async function handleCheckout(planId: string) {
@@ -109,122 +106,86 @@ function BillingContent() {
 
   return (
     <AppShell>
-      <div className="space-y-8">
-        <button
-          type="button"
-          onClick={() => router.push('/settings')}
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          ← Настройки
+      <div className="space-y-5">
+        <button type="button" onClick={() => router.push('/settings')} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ChevronLeft size={14} /> Настройки
         </button>
 
         <div>
-          <h1 className="text-3xl font-bold">Тариф и оплата</h1>
-          <p className="text-muted-foreground">Управление подпиской организации</p>
+          <h1 className="text-2xl font-bold">Тариф и оплата</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">Управление подпиской организации</p>
         </div>
 
         {loading ? (
-          <div className="rounded-2xl border border-border bg-card p-8 text-center text-muted-foreground">
-            Загрузка...
+          <div className="space-y-3">
+            <div className="h-28 animate-pulse rounded-2xl border border-border bg-card" />
+            <div className="grid gap-4 md:grid-cols-3">
+              {[1, 2, 3].map((i) => <div key={i} className="h-56 animate-pulse rounded-2xl border border-border bg-card" />)}
+            </div>
           </div>
         ) : (
           <>
-            <div className="rounded-2xl border border-border bg-card p-6">
-              <h2 className="mb-4 text-lg font-semibold">Текущий статус</h2>
+            <div className="rounded-2xl border border-border bg-card p-5">
+              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+                <CreditCard size={15} /> Текущий статус
+              </h2>
               {subscription?.manualOverride ? (
-                <div className="space-y-2">
-                  <span className="inline-block rounded-lg bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
-                    Бесплатный доступ предоставлен администратором
+                <div className="space-y-1">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                    <Zap size={11} /> Бесплатный доступ от администратора
                   </span>
-                  {subscription.overrideReason && (
-                    <p className="text-sm text-muted-foreground">{subscription.overrideReason}</p>
-                  )}
+                  {subscription.overrideReason && <p className="mt-1 text-sm text-muted-foreground">{subscription.overrideReason}</p>}
                   {subscription.overrideExpiresAt && (
-                    <p className="text-sm text-muted-foreground">
-                      Действует до{' '}
-                      {new Date(subscription.overrideExpiresAt).toLocaleDateString('ru-RU')}
-                    </p>
+                    <p className="text-xs text-muted-foreground">Действует до {new Date(subscription.overrideExpiresAt).toLocaleDateString('ru-RU')}</p>
                   )}
                 </div>
               ) : (
                 <div className="flex flex-wrap items-center gap-3">
-                  <span
-                    className={`rounded-lg px-3 py-1 text-sm font-medium ${
-                      subscription?.isActive
-                        ? 'bg-primary/10 text-primary'
-                        : 'bg-red-500/10 text-red-500'
-                    }`}
-                  >
-                    {subscription
-                      ? STATUS_LABELS[subscription.status] ?? subscription.status
-                      : 'Нет подписки'}
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${subscription?.isActive ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-500'}`}>
+                    {subscription ? STATUS_LABELS[subscription.status] ?? subscription.status : 'Нет подписки'}
                   </span>
-                  {subscription?.plan && (
-                    <span className="text-sm text-muted-foreground">
-                      Тариф: {subscription.plan.name}
-                    </span>
-                  )}
+                  {subscription?.plan && <span className="text-sm text-muted-foreground">Тариф: <strong>{subscription.plan.name}</strong></span>}
                   {subscription?.currentPeriodEnd && (
                     <span className="text-sm text-muted-foreground">
-                      {subscription.cancelAtPeriodEnd ? 'Действует до' : 'Продление'}{' '}
-                      {new Date(subscription.currentPeriodEnd).toLocaleDateString('ru-RU')}
+                      {subscription.cancelAtPeriodEnd ? 'Действует до' : 'Продление'} {new Date(subscription.currentPeriodEnd).toLocaleDateString('ru-RU')}
                     </span>
                   )}
                 </div>
               )}
               {subscription?.stripeCustomerId && (
-                <Button
-                  variant="secondary"
-                  onClick={handlePortal}
-                  loading={openingPortal}
-                  className="mt-4"
-                >
-                  Управление подпиской
+                <Button variant="secondary" onClick={handlePortal} loading={openingPortal} className="mt-4 h-9 px-3 text-sm">
+                  Управление подпиской →
                 </Button>
               )}
             </div>
 
             <div>
-              <h2 className="mb-4 text-lg font-semibold">Доступные тарифы</h2>
+              <h2 className="mb-3 text-sm font-semibold">Доступные тарифы</h2>
               {plans.length === 0 ? (
-                <div className="rounded-2xl border border-border bg-card p-8 text-center text-muted-foreground">
-                  Тарифы пока не настроены
-                </div>
+                <div className="rounded-2xl border border-border bg-card py-12 text-center text-sm text-muted-foreground">Тарифы пока не настроены</div>
               ) : (
-                <div className="grid gap-6 md:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-3">
                   {plans.map((plan) => {
                     const isCurrent = subscription?.planId === plan.id;
                     return (
-                      <div
-                        key={plan.id}
-                        className={`flex flex-col rounded-2xl border bg-card p-6 ${
-                          isCurrent ? 'border-primary' : 'border-border'
-                        }`}
-                      >
-                        <h3 className="text-lg font-semibold">{plan.name}</h3>
-                        <p className="mt-1 text-2xl font-bold">{formatPrice(plan)}</p>
-                        {plan.description && (
-                          <p className="mt-2 text-sm text-muted-foreground">{plan.description}</p>
-                        )}
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          {plan.maxUsers
-                            ? `До ${plan.maxUsers} пользователей`
-                            : 'Без ограничения по пользователям'}
-                        </p>
+                      <div key={plan.id} className={`flex flex-col rounded-2xl border bg-card p-5 ${isCurrent ? 'border-primary ring-1 ring-primary/20' : 'border-border'}`}>
+                        <div className="flex items-start justify-between">
+                          <h3 className="font-semibold">{plan.name}</h3>
+                          {isCurrent && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">Текущий</span>}
+                        </div>
+                        <div className="mt-3">
+                          <span className="text-3xl font-bold">{formatPrice(plan)}</span>
+                          <span className="ml-1 text-xs text-muted-foreground">/ мес</span>
+                        </div>
+                        {plan.description && <p className="mt-2 text-xs text-muted-foreground">{plan.description}</p>}
+                        <p className="mt-1 text-xs text-muted-foreground">{plan.maxUsers ? `До ${plan.maxUsers} пользователей` : 'Без ограничений'}</p>
                         <div className="flex-1" />
                         {isCurrent ? (
-                          <div className="mt-6 flex items-center justify-center gap-2 rounded-xl border border-primary py-3 text-sm font-medium text-primary">
-                            <Check size={16} />
-                            Текущий тариф
+                          <div className="mt-5 flex items-center justify-center gap-2 rounded-xl border border-primary py-2.5 text-sm font-medium text-primary">
+                            <Check size={14} /> Текущий тариф
                           </div>
                         ) : (
-                          <Button
-                            onClick={() => handleCheckout(plan.id)}
-                            loading={checkingOutPlanId === plan.id}
-                            className="mt-6 w-full"
-                          >
-                            Подключить
-                          </Button>
+                          <Button onClick={() => handleCheckout(plan.id)} loading={checkingOutPlanId === plan.id} className="mt-5 w-full">Подключить</Button>
                         )}
                       </div>
                     );
@@ -241,14 +202,8 @@ function BillingContent() {
 
 export default function BillingPage() {
   return (
-    <Suspense
-      fallback={
-        <AppShell>
-          <div className="text-center text-muted-foreground">Загрузка...</div>
-        </AppShell>
-      }
-    >
+    <Suspense fallback={<AppShell><div className="text-center text-muted-foreground">Загрузка...</div></AppShell>}>
       <BillingContent />
     </Suspense>
   );
-    }
+                }
