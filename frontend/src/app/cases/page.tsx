@@ -1,8 +1,8 @@
-// Файл 5: frontend/src/app/cases/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Briefcase, Plus, AlertTriangle, Search } from 'lucide-react';
 
 import { AppShell } from '@/components/layout/app-shell';
 import { casesApi } from '@/lib/api';
@@ -15,22 +15,10 @@ interface CaseItem {
   id: string;
   title: string;
   description?: string;
-
-  client?: {
-    id: string;
-    fullName: string;
-  };
-
-  caseType?: {
-    id: string;
-    name: string;
-  };
-
-  stage?: {
-    id: string;
-    name: string;
-  };
-
+  client?: { id: string; fullName: string };
+  caseType?: { id: string; name: string };
+  stage?: { id: string; name: string; color?: string };
+  tasks?: { id: string; status: string; dueDate?: string }[];
   createdAt: string;
 }
 
@@ -39,6 +27,7 @@ export default function CasesPage() {
   const [cases, setCases] = useState<CaseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState('');
 
   async function loadCases() {
     try {
@@ -46,101 +35,139 @@ export default function CasesPage() {
       if (!token) return;
       const data = await casesApi.getAll(token);
       setCases(data as CaseItem[]);
-    } catch (err) {
+    } catch {
       // silently fail
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => {
-    loadCases();
-  }, []);
+  useEffect(() => { loadCases(); }, []);
+
+  const filtered = cases.filter(
+    (c) =>
+      !search ||
+      c.title.toLowerCase().includes(search.toLowerCase()) ||
+      c.client?.fullName.toLowerCase().includes(search.toLowerCase()) ||
+      c.caseType?.name.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  function overdueCount(c: CaseItem) {
+    return (
+      c.tasks?.filter(
+        (t) => t.status !== 'completed' && t.dueDate && new Date(t.dueDate) < new Date(),
+      ).length ?? 0
+    );
+  }
 
   return (
     <AppShell>
-      <div className="space-y-6">
+      <div className="space-y-5">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">
-              Дела
-            </h1>
-            <p className="text-muted-foreground">
-              Управление юридическими делами
-            </p>
+            <h1 className="text-2xl font-bold">Дела</h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">Управление юридическими делами</p>
           </div>
-
-          <Button onClick={() => setShowForm(true)}>
-            Новое дело
+          <Button onClick={() => setShowForm(true)} className="h-9 px-3 text-sm">
+            <Plus size={14} /> Новое дело
           </Button>
         </div>
 
-        <Modal
-          open={showForm}
-          onClose={() => setShowForm(false)}
-          title="Новое дело"
-        >
-          <CaseForm
-            onSuccess={() => {
-              setShowForm(false);
-              loadCases();
-            }}
-          />
+        <Modal open={showForm} onClose={() => setShowForm(false)} title="Новое дело">
+          <CaseForm onSuccess={() => { setShowForm(false); loadCases(); }} />
         </Modal>
+
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Поиск по названию, клиенту, типу..."
+            className="w-full rounded-xl border border-border bg-card py-2.5 pl-9 pr-4 text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
+          />
+        </div>
 
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
-                <th className="p-4 text-left">Название</th>
-                <th className="p-4 text-left">Клиент</th>
-                <th className="p-4 text-left">Тип</th>
-                <th className="p-4 text-left">Стадия</th>
-                <th className="p-4 text-left">Создано</th>
+                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Дело</th>
+                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Клиент</th>
+                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Тип</th>
+                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Стадия</th>
+                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Создано</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
+                [1, 2, 3].map((i) => (
+                  <tr key={i} className="border-b border-border last:border-0">
+                    {[1, 2, 3, 4, 5].map((j) => (
+                      <td key={j} className="p-4">
+                        <div className="h-4 animate-pulse rounded bg-muted" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center">
-                    Загрузка...
-                  </td>
-                </tr>
-              ) : cases.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="p-8 text-center">
-                    Дел пока нет
+                  <td colSpan={5} className="py-16 text-center">
+                    <Briefcase size={28} className="mx-auto mb-3 text-muted-foreground/40" />
+                    <p className="text-sm text-muted-foreground">
+                      {search ? 'Ничего не найдено' : 'Дел пока нет — создайте первое'}
+                    </p>
                   </td>
                 </tr>
               ) : (
-                cases.map((item) => (
-                  <tr
-                    key={item.id}
-                    onClick={() => router.push(`/cases/${item.id}`)}
-                    className="border-b border-border last:border-0 hover:bg-accent/50 cursor-pointer transition"
-                  >
-                    <td className="p-4">
-                      <div className="font-medium">{item.title}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {item.description ?? ''}
-                      </div>
-                    </td>
-                    <td className="p-4">{item.client?.fullName ?? '-'}</td>
-                    <td className="p-4">{item.caseType?.name ?? '-'}</td>
-                    <td className="p-4">
-                      <span className="rounded-lg border border-border px-3 py-1 text-xs">
-                        {item.stage?.name ?? '-'}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      {new Date(item.createdAt).toLocaleDateString('ru-RU')}
-                    </td>
-                  </tr>
-                ))
+                filtered.map((item) => {
+                  const overdue = overdueCount(item);
+                  return (
+                    <tr
+                      key={item.id}
+                      onClick={() => router.push(`/cases/${item.id}`)}
+                      className="cursor-pointer border-b border-border last:border-0 transition hover:bg-accent/40"
+                    >
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{item.title}</span>
+                          {overdue > 0 && (
+                            <span className="flex items-center gap-1 text-[11px] font-semibold text-red-500">
+                              <AlertTriangle size={11} /> {overdue}
+                            </span>
+                          )}
+                        </div>
+                        {item.description && (
+                          <div className="mt-0.5 max-w-xs truncate text-xs text-muted-foreground">{item.description}</div>
+                        )}
+                      </td>
+                      <td className="p-4 text-sm">{item.client?.fullName ?? '—'}</td>
+                      <td className="p-4 text-sm text-muted-foreground">{item.caseType?.name ?? '—'}</td>
+                      <td className="p-4">
+                        {item.stage ? (
+                          <span
+                            className="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white"
+                            style={{ backgroundColor: item.stage.color ?? '#6366f1' }}
+                          >
+                            {item.stage.name}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="p-4 text-sm text-muted-foreground">
+                        {new Date(item.createdAt).toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
+
+        {!loading && filtered.length > 0 && (
+          <p className="text-right text-xs text-muted-foreground">{filtered.length} {filtered.length === 1 ? 'дело' : 'дел'}</p>
+        )}
       </div>
     </AppShell>
   );
