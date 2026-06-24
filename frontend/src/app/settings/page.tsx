@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Sun, Moon, Users, CreditCard, Shield, Building2, ExternalLink } from 'lucide-react';
 import { AppShell } from '@/components/layout/app-shell';
 import { authApi } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
@@ -16,13 +17,8 @@ export default function SettingsPage() {
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') as
-      | 'light'
-      | 'dark'
-      | null;
-    if (savedTheme) {
-      setTheme(savedTheme);
-    }
+    const saved = localStorage.getItem('theme') as 'light' | 'dark' | null;
+    if (saved) setTheme(saved);
   }, []);
 
   useEffect(() => {
@@ -30,10 +26,7 @@ export default function SettingsPage() {
       const token = getAccessToken();
       if (!token) return;
       try {
-        const me = (await authApi.me(token)) as {
-          twoFactorEnabled: boolean;
-          isPlatformAdmin: boolean;
-        };
+        const me = (await authApi.me(token)) as { twoFactorEnabled: boolean; isPlatformAdmin: boolean };
         setTwoFactorEnabled(me.twoFactorEnabled);
         setIsPlatformAdmin(me.isPlatformAdmin);
       } catch {
@@ -48,11 +41,8 @@ export default function SettingsPage() {
   function changeTheme(value: 'light' | 'dark') {
     setTheme(value);
     localStorage.setItem('theme', value);
-    if (value === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    if (value === 'dark') document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
   }
 
   async function toggleTwoFactor() {
@@ -78,136 +68,74 @@ export default function SettingsPage() {
 
   return (
     <AppShell>
-      <div className="space-y-8">
+      <div className="space-y-5">
         <div>
-          <h1 className="text-3xl font-bold">Настройки</h1>
-          <p className="text-muted-foreground">
-            Системные настройки и персонализация
-          </p>
+          <h1 className="text-2xl font-bold">Настройки</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">Системные настройки и персонализация</p>
         </div>
 
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <h2 className="mb-4 text-lg font-semibold">Внешний вид</h2>
-          <div className="flex gap-4">
-            <button
-              onClick={() => changeTheme('light')}
-              className={`rounded-xl border px-5 py-3 transition ${
-                theme === 'light' ? 'border-primary' : 'border-border'
-              }`}
-            >
-              Светлая тема
-            </button>
-            <button
-              onClick={() => changeTheme('dark')}
-              className={`rounded-xl border px-5 py-3 transition ${
-                theme === 'dark' ? 'border-primary' : 'border-border'
-              }`}
-            >
-              Тёмная тема
-            </button>
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold"><Sun size={15} /> Внешний вид</h2>
+          <p className="mb-4 text-xs text-muted-foreground">Выберите тему оформления</p>
+          <div className="flex gap-2">
+            <button onClick={() => changeTheme('light')} className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition ${theme === 'light' ? 'border-primary text-primary' : 'border-border text-muted-foreground hover:border-primary/50'}`}><Sun size={14} /> Светлая</button>
+            <button onClick={() => changeTheme('dark')} className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition ${theme === 'dark' ? 'border-primary text-primary' : 'border-border text-muted-foreground hover:border-primary/50'}`}><Moon size={14} /> Тёмная</button>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <h2 className="mb-4 text-lg font-semibold">Команда</h2>
-          <p className="mb-4 text-sm text-muted-foreground">
-            Управляйте сотрудниками организации — приглашайте юристов и
-            ассистентов, назначайте роли.
-          </p>
-          <button
-            onClick={() => router.push('/settings/team')}
-            className="rounded-xl bg-primary px-5 py-3 text-primary-foreground"
-          >
-            Управление командой
-          </button>
-        </div>
-
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <h2 className="mb-4 text-lg font-semibold">Тариф и оплата</h2>
-          <p className="mb-4 text-sm text-muted-foreground">
-            Текущий тариф организации, оформление и управление подпиской.
-          </p>
-          <button
-            onClick={() => router.push('/settings/billing')}
-            className="rounded-xl bg-primary px-5 py-3 text-primary-foreground"
-          >
-            Перейти к тарифам
-          </button>
-        </div>
-
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <h2 className="mb-4 text-lg font-semibold">Безопасность</h2>
-          <div className="space-y-6">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <div className="font-medium">
-                  Двухфакторная аутентификация
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  При входе дополнительно потребуется код, отправленный на
-                  email.
-                </p>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={twoFactorEnabled}
-                disabled={loadingTwoFactor || togglingTwoFactor}
-                onClick={toggleTwoFactor}
-                className={`relative h-7 w-12 shrink-0 rounded-full transition disabled:opacity-50 ${
-                  twoFactorEnabled ? 'bg-primary' : 'bg-muted'
-                }`}
-              >
-                <span
-                  className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-transform ${
-                    twoFactorEnabled ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-            </div>
-
-            <div className="space-y-4 border-t border-border pt-4">
-              <button
-                onClick={() => router.push('/forgot-password')}
-                className="rounded-xl border border-border px-5 py-3"
-              >
-                Сменить пароль
-              </button>
-              <button className="rounded-xl border border-border px-5 py-3">
-                Управление сессиями
-              </button>
-            </div>
+        <div onClick={() => router.push('/settings/team')} className="flex cursor-pointer items-center justify-between rounded-2xl border border-border bg-card p-5 transition hover:border-primary/50">
+          <div>
+            <h2 className="flex items-center gap-2 text-sm font-semibold"><Users size={15} /> Команда</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">Управляйте сотрудниками, приглашайте юристов и ассистентов</p>
           </div>
+          <ExternalLink size={15} className="shrink-0 text-muted-foreground" />
         </div>
 
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <h2 className="mb-4 text-lg font-semibold">Организация</h2>
+        <div onClick={() => router.push('/settings/billing')} className="flex cursor-pointer items-center justify-between rounded-2xl border border-border bg-card p-5 transition hover:border-primary/50">
+          <div>
+            <h2 className="flex items-center gap-2 text-sm font-semibold"><CreditCard size={15} /> Тариф и оплата</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">Текущий тариф, оформление и управление подпиской</p>
+          </div>
+          <ExternalLink size={15} className="shrink-0 text-muted-foreground" />
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold"><Shield size={15} /> Безопасность</h2>
           <div className="space-y-4">
-            <input
-              placeholder="Название организации"
-              className="h-12 w-full rounded-xl border border-border bg-background px-4"
-            />
-            <button className="rounded-xl bg-primary px-5 py-3 text-primary-foreground">
-              Сохранить изменения
-            </button>
+            <div className="flex items-center justify-between gap-4 rounded-xl border border-border/60 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium">Двухфакторная аутентификация</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">При входе потребуется код из email</p>
+              </div>
+              <button type="button" role="switch" aria-checked={twoFactorEnabled} disabled={loadingTwoFactor || togglingTwoFactor} onClick={toggleTwoFactor} className={`relative h-6 w-11 shrink-0 rounded-full transition disabled:opacity-50 ${twoFactorEnabled ? 'bg-primary' : 'bg-muted'}`}>
+                <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${twoFactorEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => router.push('/forgot-password')} className="rounded-xl border border-border px-4 py-2 text-sm text-muted-foreground transition hover:border-primary/50 hover:text-foreground">Сменить пароль</button>
+              <button className="rounded-xl border border-border px-4 py-2 text-sm text-muted-foreground transition hover:border-primary/50 hover:text-foreground">Управление сессиями</button>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold"><Building2 size={15} /> Организация</h2>
+          <div className="flex gap-3">
+            <input placeholder="Название организации" className="h-10 flex-1 rounded-xl border border-border bg-background px-4 text-sm outline-none focus:border-primary" />
+            <button className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90">Сохранить</button>
           </div>
         </div>
 
         {isPlatformAdmin && (
-          <div className="rounded-2xl border border-primary/40 bg-card p-6">
-            <h2 className="mb-4 text-lg font-semibold">Платформенная админка</h2>
-            <p className="mb-4 text-sm text-muted-foreground">
-              Вы — платформенный администратор. Видны все организации сервиса, можно вручную выдавать бесплатный доступ.
-            </p>
-            <button
-              onClick={() => router.push('/admin')}
-              className="rounded-xl border border-primary px-5 py-3 text-primary"
-            >
-              Открыть админ-панель
-            </button>
+          <div onClick={() => router.push('/admin')} className="flex cursor-pointer items-center justify-between rounded-2xl border border-primary/40 bg-primary/5 p-5 transition hover:border-primary">
+            <div>
+              <h2 className="text-sm font-semibold text-primary">Платформенная админка</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">Все организации платформы, ручная выдача доступа</p>
+            </div>
+            <ExternalLink size={15} className="shrink-0 text-primary" />
           </div>
         )}
       </div>
     </AppShell>
   );
-    }
+}
