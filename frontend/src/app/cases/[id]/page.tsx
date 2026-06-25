@@ -192,8 +192,14 @@ export default function CaseDetailPage() {
   async function handleDeleteCase() {
     if (!token || !caseData) return;
     if (!confirm(`Удалить дело «${caseData.title}»? Это действие необратимо.`)) return;
-    try { await casesApi.remove(id, token); toast.success('Дело удалено'); router.push('/cases'); }
-    catch { toast.error('Не удалось удалить дело'); }
+    try {
+      await casesApi.remove(id, token);
+      toast.success('Дело удалено');
+      router.push('/cases');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Не удалось удалить дело';
+      toast.error(message);
+    }
   }
 
   async function handleCompleteTask(taskId: string) {
@@ -455,4 +461,4 @@ export default function CaseDetailPage() {
       </div>
     </AppShell>
   );
-    }
+      }
