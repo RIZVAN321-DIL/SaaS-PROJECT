@@ -17,6 +17,9 @@ export class DocumentsService {
     private readonly storage: S3StorageService,
   ) {}
 
+  // =========================
+  // UPLOAD
+  // =========================
   async uploadFile(data: {
     organizationId: string;
     caseId: string;
@@ -28,7 +31,10 @@ export class DocumentsService {
     const caseItem = await this.prisma.case.findFirst({
       where: { id: data.caseId, organizationId: data.organizationId },
     });
-    if (!caseItem) throw new NotFoundException('Case not found');
+
+    if (!caseItem) {
+      throw new NotFoundException('Дело не найдено');
+    }
 
     const encrypted = this.encryption.encrypt(data.buffer);
     const storageKey = `documents/${data.organizationId}/${data.caseId}/${crypto.randomUUID()}.enc`;
@@ -63,11 +69,19 @@ export class DocumentsService {
     return document;
   }
 
+  // =========================
+  // DOWNLOAD
+  // =========================
   async downloadFile(id: string, organizationId: string) {
     const document = await this.findById(id, organizationId);
-    if (!document.fileUrl) throw new NotFoundException('File not found');
+
+    if (!document.fileUrl) {
+      throw new NotFoundException('Файл не найден в хранилище');
+    }
+
     const encrypted = await this.storage.download(document.fileUrl);
     const decrypted = this.encryption.decrypt(encrypted);
+
     return {
       name: document.name,
       mimeType: document.mimeType || document.type || 'application/octet-stream',
@@ -75,14 +89,30 @@ export class DocumentsService {
     };
   }
 
-  async create(data: { organizationId: string; caseId: string; name: string; fileUrl?: string; type?: string }) {
+  // =========================
+  // CREATE (без загрузки файла)
+  // =========================
+  async create(data: {
+    organizationId: string;
+    caseId: string;
+    name: string;
+    fileUrl?: string;
+    type?: string;
+  }) {
     const caseItem = await this.prisma.case.findFirst({
       where: { id: data.caseId, organizationId: data.organizationId },
     });
-    if (!caseItem) throw new NotFoundException('Case not found');
+
+    if (!caseItem) {
+      throw new NotFoundException('Дело не найдено');
+    }
+
     return this.prisma.document.create({ data });
   }
 
+  // =========================
+  // FIND ALL
+  // =========================
   async findAll(organizationId: string) {
     return this.prisma.document.findMany({
       where: { organizationId },
@@ -91,19 +121,34 @@ export class DocumentsService {
     });
   }
 
+  // =========================
+  // FIND ONE
+  // =========================
   async findById(id: string, organizationId: string) {
     const doc = await this.prisma.document.findFirst({
       where: { id, organizationId },
       include: { case: true },
     });
-    if (!doc) throw new NotFoundException('Document not found');
+
+    if (!doc) {
+      throw new NotFoundException('Документ не найден');
+    }
+
     return doc;
   }
 
+  // =========================
+  // DELETE
+  // =========================
   async remove(id: string, organizationId: string, userId?: string) {
     const document = await this.findById(id, organizationId);
-    if (document.fileUrl) await this.storage.delete(document.fileUrl);
+
+    if (document.fileUrl) {
+      await this.storage.delete(document.fileUrl);
+    }
+
     const removed = await this.prisma.document.delete({ where: { id } });
+
     if (userId) {
       await this.audit.log({
         organizationId,
@@ -114,6 +159,7 @@ export class DocumentsService {
         meta: { name: document.name, caseId: document.caseId },
       });
     }
+
     return removed;
   }
-}
+  }
