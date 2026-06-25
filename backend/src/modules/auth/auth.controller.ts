@@ -52,9 +52,10 @@ export class AuthController {
 
   // =========================
   // LOGIN
-  // Может вернуть либо токены, либо { requiresTwoFactor, challengeId }
+  // Ограничен: 10 попыток в минуту с одного IP — защита от брутфорса.
   // =========================
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(
@@ -132,8 +133,10 @@ export class AuthController {
 
   // =========================
   // FORGOT PASSWORD
+  // Ограничен: 5 запросов в минуту — защита от спама на почту.
   // =========================
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   async forgotPassword(
@@ -169,4 +172,4 @@ export class AuthController {
     await this.authService.logout(user.userId);
     return { success: true };
   }
-}
+                        }
