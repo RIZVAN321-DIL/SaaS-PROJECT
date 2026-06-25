@@ -24,28 +24,30 @@ export class NotificationsController {
   ) {}
 
   // =========================
-  // RBAC USER FILTER
+  // RBAC: кто какие уведомления видит
+  //
+  // LAWYER / ASSISTANT — только свои задачи.
+  // OWNER / ADMIN      — могут смотреть любого пользователя через ?userId=
+  //                      без ?userId= видят свои.
   // =========================
   private resolveTargetUser(
     currentUser: JwtUser,
     requestedUserId?: string,
-  ): string | undefined {
+  ): string {
     const isAdmin =
       currentUser.role === Role.OWNER ||
       currentUser.role === Role.ADMIN;
 
-    // OWNER / ADMIN
     if (isAdmin) {
+      // Если явно запросили конкретного пользователя — показываем его,
+      // иначе показываем задачи самого администратора
       return requestedUserId ?? currentUser.userId;
     }
 
-    // LAWYER / ASSISTANT
-    if (
-      requestedUserId &&
-      requestedUserId !== currentUser.userId
-    ) {
+    // Обычный пользователь не может смотреть чужие уведомления
+    if (requestedUserId && requestedUserId !== currentUser.userId) {
       throw new ForbiddenException(
-        'You can only access your own notifications',
+        'У вас нет доступа к уведомлениям других пользователей',
       );
     }
 
@@ -53,21 +55,15 @@ export class NotificationsController {
   }
 
   // =========================
-  // GET NOTIFICATIONS
+  // GET ALL NOTIFICATIONS
   // =========================
   @Get()
   async getNotifications(
     @Req() req: Request,
     @Query('userId') userId?: string,
   ) {
-    const user =
-      req.user as JwtUser;
-
-    const targetUserId =
-      this.resolveTargetUser(
-        user,
-        userId,
-      );
+    const user = req.user as JwtUser;
+    const targetUserId = this.resolveTargetUser(user, userId);
 
     return this.notificationsService.getNotifications(
       user.organizationId,
@@ -76,21 +72,15 @@ export class NotificationsController {
   }
 
   // =========================
-  // OVERDUE ONLY
+  // OVERDUE TASKS
   // =========================
   @Get('overdue')
   async getOverdue(
     @Req() req: Request,
     @Query('userId') userId?: string,
   ) {
-    const user =
-      req.user as JwtUser;
-
-    const targetUserId =
-      this.resolveTargetUser(
-        user,
-        userId,
-      );
+    const user = req.user as JwtUser;
+    const targetUserId = this.resolveTargetUser(user, userId);
 
     return this.notificationsService.getOverdueTasks(
       user.organizationId,
@@ -99,21 +89,15 @@ export class NotificationsController {
   }
 
   // =========================
-  // UPCOMING ONLY
+  // UPCOMING TASKS
   // =========================
   @Get('upcoming')
   async getUpcoming(
     @Req() req: Request,
     @Query('userId') userId?: string,
   ) {
-    const user =
-      req.user as JwtUser;
-
-    const targetUserId =
-      this.resolveTargetUser(
-        user,
-        userId,
-      );
+    const user = req.user as JwtUser;
+    const targetUserId = this.resolveTargetUser(user, userId);
 
     return this.notificationsService.getUpcomingTasks(
       user.organizationId,
