@@ -3,6 +3,7 @@ import {
   Get,
   Param,
   Post,
+  Delete,
   Body,
   Req,
 } from '@nestjs/common';
@@ -12,6 +13,13 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
 
+interface AuthenticatedUser {
+  userId: string;
+  email: string;
+  organizationId: string;
+  role: Role;
+}
+
 @Controller('users')
 export class UsersController {
   constructor(
@@ -19,13 +27,9 @@ export class UsersController {
   ) {}
 
   @Get()
-  async getAll(
-    @Req() req: Request,
-  ) {
-    const user = req.user as any;
-    return this.usersService.findAll(
-      user.organizationId,
-    );
+  async getAll(@Req() req: Request) {
+    const user = req.user as AuthenticatedUser;
+    return this.usersService.findAll(user.organizationId);
   }
 
   @Get(':id')
@@ -33,30 +37,42 @@ export class UsersController {
     @Param('id') id: string,
     @Req() req: Request,
   ) {
-    const user = req.user as any;
-    return this.usersService.findById(
-      id,
-      user.organizationId,
-    );
+    const user = req.user as AuthenticatedUser;
+    return this.usersService.findById(id, user.organizationId);
   }
 
   // =========================
   // CREATE (приглашение сотрудника) — только владелец/админ
   // =========================
-  @Roles(
-    Role.OWNER,
-    Role.ADMIN,
-  )
+  @Roles(Role.OWNER, Role.ADMIN)
   @Post()
   async create(
     @Body() body: CreateUserDto,
     @Req() req: Request,
   ) {
-    const user = req.user as any;
+    const user = req.user as AuthenticatedUser;
     return this.usersService.create({
       email: body.email,
       role: body.role,
       organizationId: user.organizationId,
     });
+  }
+
+  // =========================
+  // DELETE — только владелец/админ
+  // Нельзя удалить себя и нельзя удалить OWNER
+  // =========================
+  @Roles(Role.OWNER, Role.ADMIN)
+  @Delete(':id')
+  async remove(
+    @Param('id') id: string,
+    @Req() req: Request,
+  ) {
+    const user = req.user as AuthenticatedUser;
+    return this.usersService.remove(
+      id,
+      user.userId,
+      user.organizationId,
+    );
   }
 }
