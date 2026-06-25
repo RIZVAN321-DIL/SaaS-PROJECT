@@ -29,9 +29,22 @@ async function bootstrap() {
 
   // =========================
   // CORS
+  // Разрешаем только конкретный фронтенд, не wildcard.
+  // origin: true зеркалировало любой Origin — уязвимость CSRF.
   // =========================
+  const allowedOrigin =
+    process.env.FRONTEND_URL || 'http://localhost:3000';
+
   app.enableCors({
-    origin: true,
+    origin: (origin, callback) => {
+      // разрешаем запросы без Origin (curl, мобильные клиенты, Postman)
+      // и только наш фронтенд
+      if (!origin || origin === allowedOrigin) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origin ${origin} not allowed`));
+      }
+    },
     credentials: true,
   });
 
