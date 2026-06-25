@@ -32,7 +32,7 @@ export class DocumentsController {
   @UseInterceptors(FileInterceptor('file'))
   async upload(
     @Param('caseId') caseId: string,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: any,
     @Req() req: Request,
   ) {
     const user = req.user as AuthenticatedUser;
