@@ -33,7 +33,7 @@ export class CasesService {
     });
 
     if (!client) {
-      throw new NotFoundException('Client not found');
+      throw new NotFoundException('Клиент не найден');
     }
 
     if (data.caseTypeId) {
@@ -45,7 +45,7 @@ export class CasesService {
       });
 
       if (!caseType) {
-        throw new NotFoundException('Case type not found');
+        throw new NotFoundException('Тип дела не найден');
       }
     }
 
@@ -92,6 +92,8 @@ export class CasesService {
 
   // =========================
   // GET ALL CASES
+  // Включаем минимальные данные задач — нужны для индикатора
+  // просроченных задач в списке дел (overdueCount).
   // =========================
   async findAll(organizationId: string) {
     return this.prisma.case.findMany({
@@ -102,6 +104,13 @@ export class CasesService {
         client: true,
         caseType: true,
         stage: true,
+        tasks: {
+          select: {
+            id: true,
+            status: true,
+            dueDate: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -128,7 +137,7 @@ export class CasesService {
     });
 
     if (!caseItem) {
-      throw new NotFoundException('Case not found');
+      throw new NotFoundException('Дело не найдено');
     }
 
     return caseItem;
@@ -159,7 +168,7 @@ export class CasesService {
       });
 
       if (!caseType) {
-        throw new NotFoundException('Case type not found');
+        throw new NotFoundException('Тип дела не найден');
       }
     }
 
@@ -172,7 +181,7 @@ export class CasesService {
       });
 
       if (!stage) {
-        throw new NotFoundException('Stage not found');
+        throw new NotFoundException('Стадия не найдена');
       }
     }
 
@@ -222,23 +231,17 @@ export class CasesService {
   async remove(id: string, organizationId: string, userId: string) {
     const existingCase = await this.findById(id, organizationId);
 
-    const tasksCount = await this.prisma.task.count({
-      where: {
-        caseId: id,
-        organizationId,
-      },
-    });
-
-    const documentsCount = await this.prisma.document.count({
-      where: {
-        caseId: id,
-        organizationId,
-      },
-    });
+    const [tasksCount, documentsCount] = await Promise.all([
+      this.prisma.task.count({ where: { caseId: id, organizationId } }),
+      this.prisma.document.count({ where: { caseId: id, organizationId } }),
+    ]);
 
     if (tasksCount > 0 || documentsCount > 0) {
+      const parts: string[] = [];
+      if (tasksCount > 0) parts.push(`задач: ${tasksCount}`);
+      if (documentsCount > 0) parts.push(`документов: ${documentsCount}`);
       throw new BadRequestException(
-        'Cannot delete case with related tasks or documents',
+        `Нельзя удалить дело, пока к нему привязаны ${parts.join(' и ')}. Удалите их сначала.`,
       );
     }
 
@@ -305,7 +308,7 @@ export class CasesService {
     });
 
     if (!stage) {
-      throw new NotFoundException('Stage not found');
+      throw new NotFoundException('Стадия не найдена');
     }
 
     const updated = await this.prisma.case.update({
@@ -334,4 +337,4 @@ export class CasesService {
 
     return updated;
   }
-  }
+}
