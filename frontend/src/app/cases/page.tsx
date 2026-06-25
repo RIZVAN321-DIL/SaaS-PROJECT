@@ -11,6 +11,12 @@ import { CaseForm } from '@/components/forms/case-form';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 
+interface TaskShort {
+  id: string;
+  status: string;
+  dueDate?: string;
+}
+
 interface CaseItem {
   id: string;
   title: string;
@@ -18,8 +24,18 @@ interface CaseItem {
   client?: { id: string; fullName: string };
   caseType?: { id: string; name: string };
   stage?: { id: string; name: string; color?: string };
-  tasks?: { id: string; status: string; dueDate?: string }[];
+  tasks?: TaskShort[];
   createdAt: string;
+}
+
+// Правильное русское склонение для числительных
+function pluralDela(n: number): string {
+  const mod100 = n % 100;
+  const mod10 = n % 10;
+  if (mod100 >= 11 && mod100 <= 19) return 'дел';
+  if (mod10 === 1) return 'дело';
+  if (mod10 >= 2 && mod10 <= 4) return 'дела';
+  return 'дел';
 }
 
 export default function CasesPage() {
@@ -52,10 +68,13 @@ export default function CasesPage() {
       c.caseType?.name.toLowerCase().includes(search.toLowerCase()),
   );
 
-  function overdueCount(c: CaseItem) {
+  function overdueCount(c: CaseItem): number {
     return (
       c.tasks?.filter(
-        (t) => t.status !== 'completed' && t.dueDate && new Date(t.dueDate) < new Date(),
+        (t) =>
+          t.status !== 'completed' &&
+          t.dueDate &&
+          new Date(t.dueDate) < new Date(),
       ).length ?? 0
     );
   }
@@ -66,7 +85,9 @@ export default function CasesPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Дела</h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">Управление юридическими делами</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Управление юридическими делами
+            </p>
           </div>
           <Button onClick={() => setShowForm(true)} className="h-9 px-3 text-sm">
             <Plus size={14} /> Новое дело
@@ -78,7 +99,10 @@ export default function CasesPage() {
         </Modal>
 
         <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Search
+            size={14}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -91,11 +115,21 @@ export default function CasesPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
-                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Дело</th>
-                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Клиент</th>
-                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Тип</th>
-                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Стадия</th>
-                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Создано</th>
+                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Дело
+                </th>
+                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Клиент
+                </th>
+                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Тип
+                </th>
+                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Стадия
+                </th>
+                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Создано
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -112,7 +146,10 @@ export default function CasesPage() {
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-16 text-center">
-                    <Briefcase size={28} className="mx-auto mb-3 text-muted-foreground/40" />
+                    <Briefcase
+                      size={28}
+                      className="mx-auto mb-3 text-muted-foreground/40"
+                    />
                     <p className="text-sm text-muted-foreground">
                       {search ? 'Ничего не найдено' : 'Дел пока нет — создайте первое'}
                     </p>
@@ -131,22 +168,33 @@ export default function CasesPage() {
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{item.title}</span>
                           {overdue > 0 && (
-                            <span className="flex items-center gap-1 text-[11px] font-semibold text-red-500">
+                            <span
+                              className="flex items-center gap-1 text-[11px] font-semibold text-red-500"
+                              title={`${overdue} просроченных задач`}
+                            >
                               <AlertTriangle size={11} /> {overdue}
                             </span>
                           )}
                         </div>
                         {item.description && (
-                          <div className="mt-0.5 max-w-xs truncate text-xs text-muted-foreground">{item.description}</div>
+                          <div className="mt-0.5 max-w-xs truncate text-xs text-muted-foreground">
+                            {item.description}
+                          </div>
                         )}
                       </td>
-                      <td className="p-4 text-sm">{item.client?.fullName ?? '—'}</td>
-                      <td className="p-4 text-sm text-muted-foreground">{item.caseType?.name ?? '—'}</td>
+                      <td className="p-4 text-sm">
+                        {item.client?.fullName ?? '—'}
+                      </td>
+                      <td className="p-4 text-sm text-muted-foreground">
+                        {item.caseType?.name ?? '—'}
+                      </td>
                       <td className="p-4">
                         {item.stage ? (
                           <span
                             className="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white"
-                            style={{ backgroundColor: item.stage.color ?? '#6366f1' }}
+                            style={{
+                              backgroundColor: item.stage.color ?? '#6366f1',
+                            }}
                           >
                             {item.stage.name}
                           </span>
@@ -155,7 +203,11 @@ export default function CasesPage() {
                         )}
                       </td>
                       <td className="p-4 text-sm text-muted-foreground">
-                        {new Date(item.createdAt).toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        {new Date(item.createdAt).toLocaleDateString('ru-RU', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
                       </td>
                     </tr>
                   );
@@ -166,9 +218,11 @@ export default function CasesPage() {
         </div>
 
         {!loading && filtered.length > 0 && (
-          <p className="text-right text-xs text-muted-foreground">{filtered.length} {filtered.length === 1 ? 'дело' : 'дел'}</p>
+          <p className="text-right text-xs text-muted-foreground">
+            {filtered.length} {pluralDela(filtered.length)}
+          </p>
         )}
       </div>
     </AppShell>
   );
-}
+                }
