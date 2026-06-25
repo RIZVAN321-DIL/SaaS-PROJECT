@@ -3,6 +3,7 @@ import {
   ConflictException,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
@@ -15,13 +16,9 @@ export class UsersService {
     private readonly prisma: PrismaService,
   ) {}
 
-  async findAll(
-    organizationId: string,
-  ) {
+  async findAll(organizationId: string) {
     return this.prisma.user.findMany({
-      where: {
-        organizationId,
-      },
+      where: { organizationId },
       select: {
         id: true,
         email: true,
@@ -29,21 +26,13 @@ export class UsersService {
         organizationId: true,
         createdAt: true,
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
-  async findById(
-    id: string,
-    organizationId: string,
-  ) {
+  async findById(id: string, organizationId: string) {
     const user = await this.prisma.user.findFirst({
-      where: {
-        id,
-        organizationId,
-      },
+      where: { id, organizationId },
       select: {
         id: true,
         email: true,
@@ -54,9 +43,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new NotFoundException(
-        'User not found',
-      );
+      throw new NotFoundException('Пользователь не найден');
     }
 
     return user;
@@ -81,10 +68,7 @@ export class UsersService {
     }
 
     const existing = await this.prisma.user.findFirst({
-      where: {
-        email,
-        organizationId: data.organizationId,
-      },
+      where: { email, organizationId: data.organizationId },
     });
 
     if (existing) {
@@ -93,14 +77,8 @@ export class UsersService {
       );
     }
 
-    const temporaryPassword = crypto
-      .randomBytes(9)
-      .toString('base64url');
-
-    const hashedPassword = await bcrypt.hash(
-      temporaryPassword,
-      10,
-    );
+    const temporaryPassword = crypto.randomBytes(9).toString('base64url');
+    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
 
     const user = await this.prisma.user.create({
       data: {
@@ -118,9 +96,51 @@ export class UsersService {
       },
     });
 
-    return {
-      ...user,
-      temporaryPassword,
-    };
+    return { ...user, temporaryPassword };
+  }
+
+  // =========================
+  // REMOVE (удаление сотрудника)
+  // Нельзя удалить себя и нельзя удалить OWNER.
+  // Доступно только OWNER и ADMIN.
+  // =========================
+  async remove(
+    targetId: string,
+    requesterId: string,
+    organizationId: string,
+  ) {
+    if (targetId === requesterId) {
+      throw new BadRequestException(
+        'Нельзя удалить собственный аккаунт',
+      );
+    }
+
+    const target = await this.prisma.user.findFirst({
+      where: { id: targetId, organizationId },
+    });
+
+    if (!target) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+
+    if (target.role === Role.OWNER) {
+      throw new ForbiddenException(
+        'Нельзя удалить владельца организации',
+      );
+    }
+
+    // Обнуляем внешние ключи вместо каскадного удаления,
+    // чтобы не потерять задачи и документы организации
+    await this.prisma.$transaction([
+      this.prisma.task.updateMany({
+        where: { assignedToId: targetId, organizationId },
+        data: { assignedToId: null },
+      }),
+      this.prisma.user.delete({
+        where: { id: targetId },
+      }),
+    ]);
+
+    return { success: true, id: targetId };
   }
 }
