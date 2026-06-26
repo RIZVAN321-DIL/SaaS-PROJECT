@@ -7,138 +7,92 @@ export class SearchService {
     private readonly prisma: PrismaService,
   ) {}
 
-  // =========================
-  // GLOBAL SEARCH
-  // =========================
-  async search(
-    organizationId: string,
-    query: string,
-  ) {
-    const normalizedQuery =
-      query?.trim();
+  async search(organizationId: string, query: string) {
+    const q = query?.trim();
 
-    if (
-      !normalizedQuery ||
-      normalizedQuery.length < 2
-    ) {
+    if (!q || q.length < 2) {
       return {
-        query: normalizedQuery,
+        query: q,
         clients: [],
         cases: [],
-        total: {
-          clients: 0,
-          cases: 0,
-        },
+        tasks: [],
+        total: { clients: 0, cases: 0, tasks: 0 },
       };
     }
 
-    const [clients, cases] =
-      await Promise.all([
-        this.prisma.client.findMany({
-          where: {
-            organizationId,
-            OR: [
-              {
-                fullName: {
-                  contains:
-                    normalizedQuery,
-                  mode: 'insensitive',
-                },
-              },
-              {
-                email: {
-                  contains:
-                    normalizedQuery,
-                  mode: 'insensitive',
-                },
-              },
-              {
-                phone: {
-                  contains:
-                    normalizedQuery,
-                  mode: 'insensitive',
-                },
-              },
-            ],
-          },
+    const [clients, cases, tasks] = await Promise.all([
+      // =========================
+      // КЛИЕНТЫ
+      // =========================
+      this.prisma.client.findMany({
+        where: {
+          organizationId,
+          OR: [
+            { fullName: { contains: q, mode: 'insensitive' } },
+            { email: { contains: q, mode: 'insensitive' } },
+            { phone: { contains: q, mode: 'insensitive' } },
+          ],
+        },
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          phone: true,
+          createdAt: true,
+        },
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+      }),
 
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
-            phone: true,
-            createdAt: true,
-          },
+      // =========================
+      // ДЕЛА
+      // =========================
+      this.prisma.case.findMany({
+        where: {
+          organizationId,
+          OR: [
+            { title: { contains: q, mode: 'insensitive' } },
+            { description: { contains: q, mode: 'insensitive' } },
+          ],
+        },
+        include: {
+          client: { select: { id: true, fullName: true } },
+          caseType: { select: { id: true, name: true } },
+          stage: { select: { id: true, name: true, color: true } },
+        },
+        take: 10,
+        orderBy: { updatedAt: 'desc' },
+      }),
 
-          take: 20,
-
-          orderBy: {
-            createdAt: 'desc',
-          },
-        }),
-
-        this.prisma.case.findMany({
-          where: {
-            organizationId,
-            OR: [
-              {
-                title: {
-                  contains:
-                    normalizedQuery,
-                  mode: 'insensitive',
-                },
-              },
-              {
-                description: {
-                  contains:
-                    normalizedQuery,
-                  mode: 'insensitive',
-                },
-              },
-            ],
-          },
-
-          include: {
-            client: {
-              select: {
-                id: true,
-                fullName: true,
-              },
-            },
-
-            caseType: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-
-            stage: {
-              select: {
-                id: true,
-                name: true,
-                color: true,
-              },
-            },
-          },
-
-          take: 20,
-
-          orderBy: {
-            updatedAt: 'desc',
-          },
-        }),
-      ]);
+      // =========================
+      // ЗАДАЧИ (UX-8: добавлены)
+      // =========================
+      this.prisma.task.findMany({
+        where: {
+          organizationId,
+          OR: [
+            { title: { contains: q, mode: 'insensitive' } },
+            { description: { contains: q, mode: 'insensitive' } },
+          ],
+        },
+        include: {
+          case: { select: { id: true, title: true } },
+          assignedTo: { select: { id: true, email: true } },
+        },
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
 
     return {
-      query: normalizedQuery,
-
+      query: q,
       clients,
       cases,
-
+      tasks,
       total: {
         clients: clients.length,
         cases: cases.length,
+        tasks: tasks.length,
       },
     };
   }
