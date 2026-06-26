@@ -26,27 +26,21 @@ import { toast } from '@/lib/toast';
 
 export const navigation = [
   { label: 'Панель управления', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Дела', href: '/cases', icon: Briefcase },
-  { label: 'Клиенты', href: '/clients', icon: Users },
-  { label: 'Типы дел', href: '/case-types', icon: ClipboardList },
-  { label: 'Стадии', href: '/stages', icon: Layers },
-  { label: 'Воронка дел', href: '/pipeline', icon: Kanban },
-  { label: 'Задачи', href: '/tasks', icon: ListChecks },
-  { label: 'Документы', href: '/documents', icon: FileText },
-  { label: 'Календарь', href: '/calendar', icon: CalendarDays },
-  { label: 'Журнал аудита', href: '/audit', icon: ScrollText },
+  { label: 'Дела',             href: '/cases',     icon: Briefcase },
+  { label: 'Клиенты',          href: '/clients',   icon: Users },
+  { label: 'Типы дел',         href: '/case-types',icon: ClipboardList },
+  { label: 'Стадии',           href: '/stages',    icon: Layers },
+  { label: 'Воронка дел',      href: '/pipeline',  icon: Kanban },
+  { label: 'Задачи',           href: '/tasks',     icon: ListChecks },
+  { label: 'Документы',        href: '/documents', icon: FileText },
+  { label: 'Календарь',        href: '/calendar',  icon: CalendarDays },
+  { label: 'Журнал аудита',    href: '/audit',     icon: ScrollText },
 ];
 
 const MAX_SIDEBAR_CASES = 8;
 
-interface CaseSummary {
-  id: string;
-  title: string;
-}
-
-interface NotificationTask {
-  case?: { id: string; title: string };
-}
+interface CaseSummary { id: string; title: string; }
+interface NotificationTask { case?: { id: string; title: string }; }
 
 interface SidebarProps {
   mobileOpen?: boolean;
@@ -63,9 +57,8 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const [cases, setCases] = useState<CaseSummary[]>([]);
-  const [urgency, setUrgency] = useState<
-    Record<string, 'overdue' | 'soon' | 'ok'>
-  >({});
+  const [urgency, setUrgency] = useState<Record<string, 'overdue' | 'soon' | 'ok'>>({});
+  const [overdueTaskCount, setOverdueTaskCount] = useState(0);
   const [loadingCases, setLoadingCases] = useState(true);
   const [showCaseForm, setShowCaseForm] = useState(false);
 
@@ -77,18 +70,24 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
         casesApi.getAll(token),
         notificationsApi.getAll(token),
       ]);
+
       const caseList = casesData as CaseSummary[];
       setCases(caseList);
 
-      const notifications = notificationsData as {
+      const notif = notificationsData as {
         overdue: NotificationTask[];
         upcoming: NotificationTask[];
       };
+
+      // Счётчик просроченных задач для бейджа (п.UX-7)
+      setOverdueTaskCount(notif.overdue?.length ?? 0);
+
+      // Цветные точки у дел в сайдбаре
       const map: Record<string, 'overdue' | 'soon' | 'ok'> = {};
-      notifications.upcoming.forEach((task) => {
+      notif.upcoming?.forEach((task) => {
         if (task.case) map[task.case.id] = 'soon';
       });
-      notifications.overdue.forEach((task) => {
+      notif.overdue?.forEach((task) => {
         if (task.case) map[task.case.id] = 'overdue';
       });
       setUrgency(map);
@@ -101,6 +100,9 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
 
   useEffect(() => {
     loadCases();
+    // Polling раз в 5 минут (UX-10)
+    const interval = setInterval(loadCases, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   const visibleCases = cases.slice(0, MAX_SIDEBAR_CASES);
@@ -119,6 +121,10 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
               const active =
                 pathname === item.href ||
                 pathname.startsWith(`${item.href}/`);
+              // Бейдж просроченных задач на пункте «Задачи» (п.UX-7)
+              const isTasksItem = item.href === '/tasks';
+              const showBadge = isTasksItem && overdueTaskCount > 0;
+
               return (
                 <Link
                   key={item.href}
@@ -131,7 +137,15 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
                   }`}
                 >
                   <Icon size={16} className="shrink-0" />
-                  {item.label}
+                  <span className="flex-1">{item.label}</span>
+                  {showBadge && (
+                    <span
+                      className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white"
+                      title={`${overdueTaskCount} просроченных задач`}
+                    >
+                      {overdueTaskCount > 99 ? '99+' : overdueTaskCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -146,16 +160,11 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
             {loadingCases ? (
               <div className="space-y-2 px-2 py-1">
                 {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="h-6 animate-pulse rounded-lg bg-muted"
-                  />
+                  <div key={i} className="h-6 animate-pulse rounded-lg bg-muted" />
                 ))}
               </div>
             ) : visibleCases.length === 0 ? (
-              <p className="px-3 py-1 text-xs text-muted-foreground">
-                Дел пока нет
-              </p>
+              <p className="px-3 py-1 text-xs text-muted-foreground">Дел пока нет</p>
             ) : (
               visibleCases.map((c) => {
                 const active = pathname === `/cases/${c.id}`;
@@ -171,9 +180,7 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
                         : 'text-foreground/80 hover:bg-accent'
                     }`}
                   >
-                    <span
-                      className={`h-[7px] w-[7px] shrink-0 rounded-full ${dotColor(state)}`}
-                    />
+                    <span className={`h-[7px] w-[7px] shrink-0 rounded-full ${dotColor(state)}`} />
                     <span className="truncate">{c.title}</span>
                   </Link>
                 );
@@ -182,10 +189,7 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
             {hasMoreCases && (
               <button
                 type="button"
-                onClick={() => {
-                  onItemClick?.();
-                  router.push('/cases');
-                }}
+                onClick={() => { onItemClick?.(); router.push('/cases'); }}
                 className="w-full px-3 py-1.5 text-left text-xs text-primary hover:underline"
               >
                 Все дела →
@@ -221,11 +225,7 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
         </div>
       </nav>
 
-      <Modal
-        open={showCaseForm}
-        onClose={() => setShowCaseForm(false)}
-        title="Новое дело"
-      >
+      <Modal open={showCaseForm} onClose={() => setShowCaseForm(false)} title="Новое дело">
         <CaseForm
           onSuccess={() => {
             setShowCaseForm(false);
@@ -238,10 +238,7 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
   );
 }
 
-export function Sidebar({
-  mobileOpen = false,
-  onMobileClose,
-}: SidebarProps) {
+export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   return (
     <>
       <aside className="hidden md:flex md:w-72 md:flex-col border-r border-border bg-card">
@@ -250,10 +247,7 @@ export function Sidebar({
 
       {mobileOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={onMobileClose}
-          />
+          <div className="absolute inset-0 bg-black/50" onClick={onMobileClose} />
           <aside className="absolute left-0 top-0 flex h-full w-72 flex-col bg-card shadow-xl">
             <div className="flex h-16 items-center justify-between border-b border-border px-4">
               <Link
@@ -281,4 +275,4 @@ export function Sidebar({
       )}
     </>
   );
-                  }
+}
