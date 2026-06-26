@@ -5,6 +5,9 @@ import {
 
 import { PrismaService } from '../../database/prisma.service';
 
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 200;
+
 @Injectable()
 export class ClientsService {
   constructor(
@@ -12,7 +15,7 @@ export class ClientsService {
   ) {}
 
   // =========================
-  // CREATE CLIENT
+  // CREATE
   // =========================
   async create(data: {
     organizationId: string;
@@ -23,85 +26,85 @@ export class ClientsService {
   }) {
     return this.prisma.client.create({
       data: {
-        organizationId:
-          data.organizationId,
+        organizationId: data.organizationId,
         fullName: data.fullName.trim(),
-        phone: data.phone?.trim(),
-        email: data.email
-          ?.trim()
-          .toLowerCase(),
+        phone: data.phone?.trim() || null,
+        email: data.email?.trim().toLowerCase() || null,
         notes: data.notes,
       },
     });
   }
 
   // =========================
-  // GET ALL CLIENTS
+  // GET ALL (с пагинацией)
   // =========================
   async findAll(
     organizationId: string,
+    page = 1,
+    limit = DEFAULT_LIMIT,
   ) {
-    return this.prisma.client.findMany({
-      where: {
-        organizationId,
-      },
-      include: {
-        cases: {
-          select: {
-            id: true,
-            title: true,
-            stageId: true,
-            createdAt: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-  }
+    const safeLimit = Math.min(limit, MAX_LIMIT);
+    const skip = (Math.max(page, 1) - 1) * safeLimit;
 
-  // =========================
-  // GET ONE CLIENT
-  // TENANT SAFE
-  // =========================
-  async findById(
-    id: string,
-    organizationId: string,
-  ) {
-    const client =
-      await this.prisma.client.findFirst({
-        where: {
-          id,
-          organizationId,
-        },
+    const [items, total] = await Promise.all([
+      this.prisma.client.findMany({
+        where: { organizationId },
         include: {
           cases: {
             select: {
               id: true,
               title: true,
-              description: true,
               stageId: true,
-              caseTypeId: true,
               createdAt: true,
-              updatedAt: true,
             },
           },
         },
-      });
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: safeLimit,
+      }),
+      this.prisma.client.count({ where: { organizationId } }),
+    ]);
+
+    return {
+      items,
+      total,
+      page: Math.max(page, 1),
+      limit: safeLimit,
+      totalPages: Math.ceil(total / safeLimit),
+    };
+  }
+
+  // =========================
+  // GET ONE
+  // =========================
+  async findById(id: string, organizationId: string) {
+    const client = await this.prisma.client.findFirst({
+      where: { id, organizationId },
+      include: {
+        cases: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            stageId: true,
+            caseTypeId: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+      },
+    });
 
     if (!client) {
-      throw new NotFoundException(
-        'Client not found',
-      );
+      throw new NotFoundException('Клиент не найден');
     }
 
     return client;
   }
 
   // =========================
-  // UPDATE CLIENT
-  // TENANT SAFE
+  // UPDATE
   // =========================
   async update(
     id: string,
@@ -113,34 +116,20 @@ export class ClientsService {
       notes?: string;
     },
   ) {
-    await this.findById(
-      id,
-      organizationId,
-    );
+    await this.findById(id, organizationId);
 
     return this.prisma.client.update({
-      where: {
-        id,
-      },
+      where: { id },
       data: {
         ...(data.fullName !== undefined && {
-          fullName:
-            data.fullName.trim(),
+          fullName: data.fullName.trim(),
         }),
-
         ...(data.phone !== undefined && {
-          phone:
-            data.phone?.trim() ||
-            null,
+          phone: data.phone?.trim() || null,
         }),
-
         ...(data.email !== undefined && {
-          email:
-            data.email
-              ?.trim()
-              .toLowerCase() || null,
+          email: data.email?.trim().toLowerCase() || null,
         }),
-
         ...(data.notes !== undefined && {
           notes: data.notes,
         }),
@@ -149,22 +138,10 @@ export class ClientsService {
   }
 
   // =========================
-  // DELETE CLIENT
-  // TENANT SAFE
+  // DELETE
   // =========================
-  async remove(
-    id: string,
-    organizationId: string,
-  ) {
-    await this.findById(
-      id,
-      organizationId,
-    );
-
-    return this.prisma.client.delete({
-      where: {
-        id,
-      },
-    });
+  async remove(id: string, organizationId: string) {
+    await this.findById(id, organizationId);
+    return this.prisma.client.delete({ where: { id } });
   }
 }
