@@ -1,0 +1,59 @@
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsEmail,
+  MaxLength,
+  Matches,
+} from 'class-validator';
+
+export class CreateClientDto {
+  @IsString({ message: 'ФИО должно быть строкой' })
+  @IsNotEmpty({ message: 'ФИО обязательно' })
+  @MaxLength(255, { message: 'ФИО не должно превышать 255 символов' })
+  fullName: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[\d\s\+\-\(\)]+$/, {
+    message: 'Некорректный формат номера телефона',
+  })
+  @MaxLength(30, { message: 'Номер телефона слишком длинный' })
+  phone?: string;
+
+  @IsOptional()
+  @IsEmail({}, { message: 'Некорректный формат email' })
+  @MaxLength(255)
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000, { message: 'Примечания не должны превышать 5000 символов' })
+  notes?: string;
+}
+
+export class UpdateClientDto {
+  @IsOptional()
+  @IsString({ message: 'ФИО должно быть строкой' })
+  @IsNotEmpty({ message: 'ФИО не может быть пустым' })
+  @MaxLength(255)
+  fullName?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[\d\s\+\-\(\)]+$/, {
+    message: 'Некорректный формат номера телефона',
+  })
+  @MaxLength(30)
+  phone?: string;
+
+  @IsOptional()
+  @IsEmail({}, { message: 'Некорректный формат email' })
+  @MaxLength(255)
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  notes?: string;
+}
