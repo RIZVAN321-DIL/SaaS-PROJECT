@@ -7,11 +7,12 @@ import {
   Body,
   Param,
   Req,
+  Query,
 } from '@nestjs/common';
 
 import { Request } from 'express';
-
 import { ClientsService } from './clients.service';
+import { CreateClientDto, UpdateClientDto } from './dto/create-client.dto';
 
 interface AuthenticatedUser {
   userId: string;
@@ -26,92 +27,57 @@ export class ClientsController {
     private readonly clientsService: ClientsService,
   ) {}
 
-  // =========================
-  // CREATE CLIENT
-  // =========================
   @Post()
   create(
-    @Body() body: any,
+    @Body() body: CreateClientDto,
     @Req() req: Request,
   ) {
-    const user =
-      req.user as AuthenticatedUser;
-
+    const user = req.user as AuthenticatedUser;
     return this.clientsService.create({
       ...body,
-      organizationId:
-        user.organizationId,
+      organizationId: user.organizationId,
     });
   }
 
-  // =========================
-  // GET ALL CLIENTS
-  // =========================
   @Get()
   findAll(
     @Req() req: Request,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
-    const user =
-      req.user as AuthenticatedUser;
-
+    const user = req.user as AuthenticatedUser;
     return this.clientsService.findAll(
       user.organizationId,
+      page ? Number(page) : undefined,
+      limit ? Number(limit) : undefined,
     );
   }
 
-  // =========================
-  // GET ONE CLIENT
-  // TENANT SAFE
-  // =========================
   @Get(':id')
   findOne(
     @Param('id') id: string,
     @Req() req: Request,
   ) {
-    const user =
-      req.user as AuthenticatedUser;
-
-    return this.clientsService.findById(
-      id,
-      user.organizationId,
-    );
+    const user = req.user as AuthenticatedUser;
+    return this.clientsService.findById(id, user.organizationId);
   }
 
-  // =========================
-  // UPDATE CLIENT
-  // TENANT SAFE
-  // =========================
   @Put(':id')
   update(
     @Param('id') id: string,
-    @Body() body: any,
+    @Body() body: UpdateClientDto,
     @Req() req: Request,
   ) {
-    const user =
-      req.user as AuthenticatedUser;
-
-    return this.clientsService.update(
-      id,
-      user.organizationId,
-      body,
-    );
+    const user = req.user as AuthenticatedUser;
+    return this.clientsService.update(id, user.organizationId, body);
   }
 
-  // =========================
-  // DELETE CLIENT
-  // TENANT SAFE
-  // =========================
   @Delete(':id')
   remove(
     @Param('id') id: string,
     @Req() req: Request,
   ) {
-    const user =
-      req.user as AuthenticatedUser;
-
-    return this.clientsService.remove(
-      id,
-      user.organizationId,
-    );
+    const user = req.user as AuthenticatedUser;
+    return this.clientsService.remove(id, user.organizationId);
   }
 }
