@@ -1,8 +1,32 @@
 'use client';
 
 import { useState } from 'react';
-import { authApi } from '@/lib/api';
+import Image from 'next/image';
 import { Mail, CheckCircle2 } from 'lucide-react';
+import { authApi } from '@/lib/api';
+
+function AuthLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <main className="flex min-h-screen flex-col items-center bg-background px-4 py-10">
+      <div className="mb-8 flex flex-col items-center gap-3">
+        <Image
+          src="/logo-banner.svg"
+          alt="CaseFlow"
+          width={220}
+          height={72}
+          priority
+          className="h-auto w-[180px] sm:w-[220px]"
+        />
+        <p className="text-sm text-muted-foreground">
+          Юридическая CRM нового поколения
+        </p>
+      </div>
+      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
+        {children}
+      </div>
+    </main>
+  );
+}
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -24,41 +48,75 @@ export default function ForgotPasswordPage() {
     }
   }
 
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-6">
-      <div className="w-full max-w-md">
-        {sent ? (
-          <div className="rounded-2xl border border-border bg-card p-8 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10">
-              <CheckCircle2 size={28} className="text-emerald-500" />
-            </div>
-            <h1 className="text-xl font-bold">Проверьте почту</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Если аккаунт с адресом <strong>{email}</strong> существует, на него отправлена ссылка для сброса пароля.
-            </p>
-            <a href="/login" className="mt-6 inline-block text-sm font-medium text-primary hover:underline">← Вернуться ко входу</a>
+  if (sent) {
+    return (
+      <AuthLayout>
+        <div className="py-4 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10">
+            <CheckCircle2 size={28} className="text-emerald-500" />
           </div>
-        ) : (
-          <div className="rounded-2xl border border-border bg-card p-8">
-            <div className="mb-8">
-              <h1 className="text-2xl font-bold">Восстановление пароля</h1>
-              <p className="mt-1.5 text-sm text-muted-foreground">Укажите email — мы отправим ссылку для сброса пароля</p>
-            </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="mb-2 block text-sm font-medium">Email</label>
-                <div className="relative">
-                  <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus className="h-12 w-full rounded-xl border border-border bg-background pl-10 pr-4 text-sm outline-none focus:border-primary" placeholder="you@firma.ru" />
-                </div>
-              </div>
-              {error && <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-500">{error}</div>}
-              <button type="submit" disabled={loading} className="h-12 w-full rounded-xl bg-primary font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50">{loading ? 'Отправляем...' : 'Отправить ссылку'}</button>
-            </form>
-            <p className="mt-6 text-center text-sm text-muted-foreground">Вспомнили пароль? <a href="/login" className="font-medium text-primary hover:underline">Войти</a></p>
+          <h1 className="text-xl font-bold">Проверьте почту</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Если аккаунт с адресом <strong>{email}</strong> существует,
+            на него отправлена ссылка для сброса пароля.
+          </p>
+          <a
+            href="/login"
+            className="mt-6 inline-block text-sm font-medium text-primary hover:underline"
+          >
+            ← Вернуться ко входу
+          </a>
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  return (
+    <AuthLayout>
+      <div className="mb-6">
+        <h1 className="text-xl font-bold">Восстановление пароля</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Укажите email — мы отправим ссылку для сброса пароля
+        </p>
+      </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="mb-2 block text-sm font-medium">Email</label>
+          <div className="relative">
+            <Mail
+              size={15}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoFocus
+              className="h-11 w-full rounded-xl border border-border bg-background pl-10 pr-4 text-sm outline-none focus:border-primary"
+              placeholder="you@firma.ru"
+            />
+          </div>
+        </div>
+        {error && (
+          <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-500">
+            {error}
           </div>
         )}
-      </div>
-    </main>
+        <button
+          type="submit"
+          disabled={loading}
+          className="h-11 w-full rounded-xl bg-primary font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+        >
+          {loading ? 'Отправляем...' : 'Отправить ссылку'}
+        </button>
+      </form>
+      <p className="mt-6 text-center text-sm text-muted-foreground">
+        Вспомнили пароль?{' '}
+        <a href="/login" className="font-medium text-primary hover:underline">
+          Войти
+        </a>
+      </p>
+    </AuthLayout>
   );
 }
