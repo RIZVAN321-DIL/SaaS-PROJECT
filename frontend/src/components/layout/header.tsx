@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Menu, LogOut, Search, Plus } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme/theme-toggle';
-import { getUser, getAccessToken, clearAuth } from '@/lib/auth';
+import { getUser, getAccessToken, clearAuth, type AuthUser } from '@/lib/auth';
 import { authApi } from '@/lib/api';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 
@@ -20,9 +20,19 @@ export function Header({
   onSearchClick,
   onQuickCreateClick,
 }: HeaderProps) {
-  const user = getUser();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
+
+  // =========================
+  // FIX: Hydration Error #425
+  // getUser() читает localStorage — недоступен на сервере.
+  // Нужно читать только на клиенте, после монтирования.
+  // =========================
+  const [user, setUser] = useState<AuthUser | null>(null);
+  useEffect(() => {
+    setUser(getUser());
+  }, []);
+
   const initial = (user?.email ?? '?').charAt(0).toUpperCase();
 
   async function handleLogout() {
