@@ -1,27 +1,15 @@
 'use client';
 
-import {
-  ThemeProvider as NextThemesProvider,
-} from 'next-themes';
+import { ThemeProvider as NextThemesProvider } from 'next-themes';
+import { ReactNode } from 'react';
 
-import {
-  ReactNode,
-} from 'react';
-
-interface Props {
-  children: ReactNode;
-}
-
-export function ThemeProvider({
-  children,
-}: Props) {
+export function ThemeProvider({ children }: { children: ReactNode }) {
   return (
     <NextThemesProvider
       attribute="class"
-      defaultTheme="system"
-      enableSystem
+      defaultTheme="dark"
+      enableSystem={false}
       disableTransitionOnChange
-      storageKey="crm-theme"
     >
       {children}
     </NextThemesProvider>
