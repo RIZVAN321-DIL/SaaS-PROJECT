@@ -10,6 +10,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       defaultTheme="dark"
       enableSystem={false}
       disableTransitionOnChange
+      storageKey="caseflow-theme"
     >
       {children}
     </NextThemesProvider>
