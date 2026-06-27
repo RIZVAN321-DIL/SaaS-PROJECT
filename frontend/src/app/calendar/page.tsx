@@ -41,10 +41,9 @@ export default function CalendarPage() {
 
   // =========================
   // FIX: Hydration Error #425
-  // new Date() на сервере и клиенте может вернуть разные значения —
-  // React видит расхождение и крашится с ошибкой #425.
-  // Решение: инициализировать cursor и selectedDay как null,
-  // выставлять в useEffect (только на клиенте, после монтирования).
+  // new Date() на сервере и клиенте возвращает разные значения.
+  // cursor/selectedDay инициализируем как null, выставляем только в useEffect.
+  // До монтирования рендерим идентичный скелет — SSR и клиент совпадают.
   // =========================
   const [cursor, setCursor] = useState<Date | null>(null);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
@@ -74,13 +73,29 @@ export default function CalendarPage() {
     loadEvents();
   }, []);
 
-  const year = cursor?.getFullYear() ?? new Date().getFullYear();
-  const month = cursor?.getMonth() ?? new Date().getMonth();
-  const monthLabel = cursor
-    ? cursor.toLocaleString('ru-RU', { month: 'long', year: 'numeric' })
-    : '';
+  // Пока не смонтировались — показываем скелет чтобы SSR и клиент совпадали.
+  // Все вычисления с new Date() ниже этой точки — только на клиенте.
+  if (!mounted) {
+    return (
+      <AppShell>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold">Календарь</h1>
+            <p className="text-muted-foreground">Дедлайны, заседания и встречи</p>
+          </div>
+          <div className="h-96 animate-pulse rounded-2xl border border-border bg-card" />
+        </div>
+      </AppShell>
+    );
+  }
 
-  const days = useMemo(() => {
+  // Все вычисления с new Date() — только здесь, после !mounted guard
+  const year = cursor!.getFullYear();
+  const month = cursor!.getMonth();
+  const monthLabel = cursor!.toLocaleString('ru-RU', { month: 'long', year: 'numeric' });
+  const today = new Date();
+
+  const days = (() => {
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const offset = firstDay === 0 ? 6 : firstDay - 1;
@@ -88,15 +103,12 @@ export default function CalendarPage() {
     for (let i = 0; i < offset; i++) result.push(null);
     for (let day = 1; day <= daysInMonth; day++) result.push(day);
     return result;
-  }, [year, month]);
+  })();
 
   function eventsOnDay(day: number) {
     const target = new Date(year, month, day);
     return events.filter((e) => sameDay(new Date(e.date), target));
   }
-
-  // today вычисляем только на клиенте — не используем при SSR
-  const today = mounted ? new Date() : null;
 
   const selectedDayEvents = selectedDay
     ? events
@@ -109,13 +121,11 @@ export default function CalendarPage() {
     return d.getFullYear() === year && d.getMonth() === month;
   });
 
-  const next7Days = today
-    ? events.filter((e) => {
-        const d = new Date(e.date);
-        const in7 = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-        return d >= today && d <= in7;
-      })
-    : [];
+  const next7Days = events.filter((e) => {
+    const d = new Date(e.date);
+    const in7 = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+    return d >= today && d <= in7;
+  });
 
   const withoutCase = events.filter((e) => !e.caseId);
 
@@ -133,7 +143,6 @@ export default function CalendarPage() {
   }
 
   function goToMonth(delta: number) {
-    if (!cursor) return;
     setCursor(new Date(year, month + delta, 1));
   }
 
@@ -141,21 +150,6 @@ export default function CalendarPage() {
     const now = new Date();
     setCursor(now);
     setSelectedDay(now);
-  }
-
-  // Пока не смонтировались — показываем скелет чтобы SSR и клиент совпадали
-  if (!mounted) {
-    return (
-      <AppShell>
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold">Календарь</h1>
-            <p className="text-muted-foreground">Дедлайны, заседания и встречи</p>
-          </div>
-          <div className="h-96 animate-pulse rounded-2xl border border-border bg-card" />
-        </div>
-      </AppShell>
-    );
   }
 
   return (
@@ -225,7 +219,7 @@ export default function CalendarPage() {
               if (day === null) return <div key={index} className="h-20 md:h-28" />;
               const dayEvents = eventsOnDay(day);
               const dayDate = new Date(year, month, day);
-              const isToday = today ? sameDay(dayDate, today) : false;
+              const isToday = sameDay(dayDate, today);
               const isSelected = selectedDay ? sameDay(dayDate, selectedDay) : false;
               return (
                 <button
@@ -334,4 +328,4 @@ export default function CalendarPage() {
       </div>
     </AppShell>
   );
-            }
+                          }
