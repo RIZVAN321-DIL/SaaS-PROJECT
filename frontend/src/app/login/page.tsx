@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { authApi } from '@/lib/api';
 import { saveLogin } from '@/lib/auth';
 
@@ -13,29 +12,19 @@ interface LoginResponse {
   challengeId?: string;
 }
 
-// =========================
-// ЕДИНЫЙ LAYOUT ДЛЯ AUTH-СТРАНИЦ
-// Логотип крупный, по центру сверху — на всех размерах экрана
-// =========================
 function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <main className="flex min-h-screen flex-col items-center bg-background px-4 py-10">
-      {/* ЛОГОТИП — крупный, по центру сверху */}
       <div className="mb-8 flex flex-col items-center gap-3">
-        <Image
+        <img
           src="/logo-banner.svg"
           alt="CaseFlow"
-          width={220}
-          height={72}
-          priority
-          className="h-auto w-[180px] sm:w-[220px]"
+          className="h-auto w-[200px] sm:w-[260px]"
         />
         <p className="text-sm text-muted-foreground">
           Юридическая CRM нового поколения
         </p>
       </div>
-
-      {/* ФОРМА */}
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
         {children}
       </div>
@@ -120,7 +109,7 @@ export default function LoginPage() {
             disabled={loading || code.length !== 6}
             className="h-11 w-full rounded-xl bg-primary font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
           >
-            {loading ? 'Проверяем...' : 'Подтвердить'}
+            {loading ? 'Загрузка...' : 'Подтвердить'}
           </button>
           <button
             type="button"
@@ -179,7 +168,7 @@ export default function LoginPage() {
           disabled={loading}
           className="h-11 w-full rounded-xl bg-primary font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
         >
-          {loading ? 'Входим...' : 'Войти'}
+          {loading ? 'Загрузка...' : 'Войти'}
         </button>
       </form>
       <p className="mt-6 text-center text-sm text-muted-foreground">
