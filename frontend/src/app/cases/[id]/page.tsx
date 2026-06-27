@@ -124,6 +124,7 @@ const ACTION_ICONS: Record<string, typeof Plus> = {
 
 const CARD_ITEM_LIMIT = 6;
 
+// now передаётся снаружи — не вызываем new Date() внутри при рендере
 function dueClass(dueDate?: string, status?: string, now?: Date): string {
   if (!dueDate || status === 'completed' || !now) return 'text-muted-foreground';
   const due = new Date(dueDate);
@@ -143,6 +144,7 @@ export default function CaseDetailPage() {
   const [events, setEvents] = useState<CalendarEventItem[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
   const [loading, setLoading] = useState(true);
+  // FIX #425: new Date() только на клиенте после монтирования
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
@@ -263,6 +265,8 @@ export default function CaseDetailPage() {
     );
   }
 
+  // FIX #425: now только на клиенте — на сервере loading=true и мы не доходим сюда,
+  // но mounted даёт дополнительную защиту для dueClass и overdueTasks
   const now = mounted ? new Date() : null;
 
   const pendingTasks = caseData.tasks.filter((t) => t.status !== 'completed');
@@ -415,11 +419,7 @@ export default function CaseDetailPage() {
               <div className="space-y-0.5">
                 {caseData.documents.slice(0, CARD_ITEM_LIMIT).map((doc) => (
                   <div key={doc.id} className="flex items-center gap-2 border-b border-border/60 py-2 text-sm last:border-0">
-                    {doc.type ? (
-                      <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">{doc.type}</span>
-                    ) : (
-                      <FileText size={13} className="shrink-0 text-muted-foreground" />
-                    )}
+                    <FileText size={13} className="shrink-0 text-muted-foreground" />
                     <span className="min-w-0 flex-1 truncate">{doc.name}</span>
                     <button type="button" onClick={() => handleOpenDoc(doc.id)} disabled={openingDoc === doc.id} className="shrink-0 text-xs text-primary hover:underline disabled:opacity-50">{openingDoc === doc.id ? '...' : 'Открыть'}</button>
                     <button type="button" onClick={() => handleDeleteDoc(doc.id)} disabled={deletingDoc === doc.id} className="shrink-0 text-muted-foreground hover:text-red-500" aria-label="Удалить"><Trash2 size={12} /></button>
@@ -444,7 +444,7 @@ export default function CaseDetailPage() {
                     <button type="button" onClick={() => handleDeleteEvent(event.id)} className="shrink-0 text-muted-foreground hover:text-red-500" aria-label="Удалить"><Trash2 size={12} /></button>
                   </div>
                 ))}
-                {events.length > CARD_ITEM_LIMIT && <p className="pt-2 text-center text-xs text-muted-foreground">и ещё {events.length - CARD_ITEM_LIMIT}</p>}
+                {events.length > CARD_ITEM_LIMIT && <p className="pt-2 text-center text-xs text-muted-foreunder">и ещё {events.length - CARD_ITEM_LIMIT}</p>}
               </div>
             )}
           </div>
@@ -471,4 +471,4 @@ export default function CaseDetailPage() {
       </div>
     </AppShell>
   );
-      }
+}
