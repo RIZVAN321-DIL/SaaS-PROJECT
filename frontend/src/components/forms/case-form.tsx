@@ -1,4 +1,3 @@
-// Файл 2: frontend/src/components/forms/case-form.tsx
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
@@ -50,10 +49,7 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
   useEffect(() => {
     async function loadData() {
       const token = getAccessToken();
-
-      if (!token) {
-        return;
-      }
+      if (!token) return;
 
       try {
         const [clientsData, caseTypesData] = await Promise.all([
@@ -61,7 +57,10 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
           caseTypesApi.getAll(token),
         ]);
 
-        setClients(clientsData as Client[]);
+        const list = Array.isArray(clientsData)
+          ? (clientsData as Client[])
+          : ((clientsData as { items?: Client[] }).items ?? []);
+        setClients(list);
         setCaseTypes(caseTypesData as CaseType[]);
       } catch {
         setError('Не удалось загрузить данные');
@@ -75,7 +74,6 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
     e.preventDefault();
 
     const token = getAccessToken();
-
     if (!token) {
       setError('Требуется авторизация');
       return;
@@ -126,7 +124,6 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
       {!lockClient && (
         <div>
           <label className="mb-2 block text-sm font-medium">Клиент</label>
-
           <select
             required
             value={selectedClientId}
@@ -134,7 +131,6 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
             className="h-12 w-full rounded-xl border border-border bg-background px-4 outline-none"
           >
             <option value="">Выберите клиента</option>
-
             {clients.map((client) => (
               <option key={client.id} value={client.id}>
                 {client.fullName}
@@ -146,14 +142,12 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
 
       <div>
         <label className="mb-2 block text-sm font-medium">Тип дела</label>
-
         <select
           value={caseTypeId}
           onChange={(e) => setCaseTypeId(e.target.value)}
           className="h-12 w-full rounded-xl border border-border bg-background px-4 outline-none"
         >
           <option value="">Выберите тип</option>
-
           {caseTypes.map((type) => (
             <option key={type.id} value={type.id}>
               {type.name}
@@ -164,7 +158,6 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
 
       <div>
         <label className="mb-2 block text-sm font-medium">Описание</label>
-
         <textarea
           rows={5}
           value={description}
