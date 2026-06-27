@@ -13,14 +13,9 @@ type RequestOptions = {
   method?: string;
   token?: string;
   body?: unknown;
-  /** Внутренний флаг — пометить запрос как повторный после refresh, чтобы не зациклиться */
   _isRetry?: boolean;
 };
 
-// =========================
-// TOKEN REFRESH
-// Один промис на все параллельные запросы — не допускаем race condition.
-// =========================
 let refreshPromise: Promise<string | null> | null = null;
 
 async function tryRefreshToken(): Promise<string | null> {
@@ -56,9 +51,6 @@ async function tryRefreshToken(): Promise<string | null> {
   return refreshPromise;
 }
 
-// =========================
-// CORE REQUEST
-// =========================
 async function request<T>(
   endpoint: string,
   options: RequestOptions = {},
@@ -81,11 +73,6 @@ async function request<T>(
           : undefined,
   });
 
-  // =========================
-  // AUTO-REFRESH при 401
-  // Пробуем обновить токен один раз, затем повторяем запрос.
-  // Если refresh тоже не удался — разлогиниваем.
-  // =========================
   if (response.status === 401 && !options._isRetry) {
     const newToken = await tryRefreshToken();
     if (newToken) {
@@ -95,7 +82,6 @@ async function request<T>(
         _isRetry: true,
       });
     }
-    // Refresh не помог — сессия истекла
     clearAuth();
     toast.error('Сессия истекла. Войдите снова.');
     if (typeof window !== 'undefined') {
@@ -125,9 +111,6 @@ async function request<T>(
   return response.json() as Promise<T>;
 }
 
-// =========================
-// DOWNLOAD BLOB (файлы)
-// =========================
 async function downloadBlob(endpoint: string, token: string): Promise<Blob> {
   const response = await fetch(`${API_URL}${endpoint}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -147,9 +130,6 @@ async function downloadBlob(endpoint: string, token: string): Promise<Blob> {
   return response.blob();
 }
 
-// =========================
-// AUTH
-// =========================
 export const authApi = {
   register: (data: {
     email: string;
@@ -192,18 +172,12 @@ export const authApi = {
     request('/auth/logout', { method: 'POST', token }),
 };
 
-// =========================
-// DASHBOARD
-// =========================
 export const dashboardApi = {
   getDashboard: (token: string) => request('/dashboard', { token }),
 };
 
-// =========================
-// CLIENTS
-// =========================
 export const clientsApi = {
-  getAll: (token: string) => request('/clients', { token }),
+  getAll: (token: string) => request('/clients?limit=200', { token }),
   getById: (id: string, token: string) => request(`/clients/${id}`, { token }),
   create: (data: unknown, token: string) =>
     request('/clients', { method: 'POST', token, body: data }),
@@ -213,9 +187,6 @@ export const clientsApi = {
     request(`/clients/${id}`, { method: 'DELETE', token }),
 };
 
-// =========================
-// CASES
-// =========================
 export const casesApi = {
   getAll: (token: string) => request('/cases', { token }),
   getById: (id: string, token: string) => request(`/cases/${id}`, { token }),
@@ -230,9 +201,6 @@ export const casesApi = {
     request(`/cases/move/${caseId}/${stageId}`, { method: 'PUT', token }),
 };
 
-// =========================
-// TASKS
-// =========================
 export const tasksApi = {
   getAll: (token: string) => request('/tasks', { token }),
   getById: (id: string, token: string) => request(`/tasks/${id}`, { token }),
@@ -246,9 +214,6 @@ export const tasksApi = {
     request(`/tasks/${id}`, { method: 'DELETE', token }),
 };
 
-// =========================
-// DOCUMENTS
-// =========================
 export const documentsApi = {
   getAll: (token: string) => request('/documents', { token }),
   download: (id: string, token: string) =>
@@ -268,9 +233,6 @@ export const documentsApi = {
   },
 };
 
-// =========================
-// USERS
-// =========================
 export const usersApi = {
   getAll: (token: string) => request('/users', { token }),
   create: (data: { email: string; role?: string }, token: string) =>
@@ -279,9 +241,6 @@ export const usersApi = {
     request(`/users/${id}`, { method: 'DELETE', token }),
 };
 
-// =========================
-// CASE TYPES
-// =========================
 export const caseTypesApi = {
   getAll: (token: string) => request('/case-types', { token }),
   create: (data: unknown, token: string) =>
@@ -292,38 +251,23 @@ export const caseTypesApi = {
     request(`/case-types/${id}`, { method: 'DELETE', token }),
 };
 
-// =========================
-// AUDIT
-// =========================
 export const auditApi = {
   getAll: (token: string) => request('/audit', { token }),
 };
 
-// =========================
-// CASE STAGES
-// =========================
 export const caseStagesApi = {
   getAll: (token: string) => request('/case-stages', { token }),
 };
 
-// =========================
-// SEARCH
-// =========================
 export const searchApi = {
   search: (query: string, token: string) =>
     request(`/search?query=${encodeURIComponent(query)}`, { token }),
 };
 
-// =========================
-// NOTIFICATIONS
-// =========================
 export const notificationsApi = {
   getAll: (token: string) => request('/notifications', { token }),
 };
 
-// =========================
-// BILLING
-// =========================
 export const billingApi = {
   getPlans: () => request('/billing/plans'),
   getSubscription: (token: string) =>
@@ -334,9 +278,6 @@ export const billingApi = {
     request('/billing/portal', { method: 'POST', token }),
 };
 
-// =========================
-// ADMIN
-// =========================
 export const adminApi = {
   getOrganizations: (token: string) =>
     request('/admin/organizations', { token }),
@@ -357,9 +298,6 @@ export const adminApi = {
     }),
 };
 
-// =========================
-// CALENDAR
-// =========================
 export const calendarApi = {
   getAll: (token: string) => request('/calendar', { token }),
   getById: (id: string, token: string) => request(`/calendar/${id}`, { token }),
