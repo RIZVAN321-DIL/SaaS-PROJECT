@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { authApi } from '@/lib/api';
 import { saveLogin } from '@/lib/auth';
 
@@ -10,13 +9,10 @@ function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <main className="flex min-h-screen flex-col items-center bg-background px-4 py-10">
       <div className="mb-8 flex flex-col items-center gap-3">
-        <Image
+        <img
           src="/logo-banner.svg"
           alt="CaseFlow"
-          width={220}
-          height={72}
-          priority
-          className="h-auto w-[180px] sm:w-[220px]"
+          className="h-auto w-[200px] sm:w-[260px]"
         />
         <p className="text-sm text-muted-foreground">
           Юридическая CRM нового поколения
@@ -37,7 +33,6 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Простой индикатор надёжности пароля
   function passwordStrength(p: string): { label: string; color: string; width: string } {
     if (p.length === 0) return { label: '', color: '', width: '0%' };
     let score = 0;
@@ -146,7 +141,7 @@ export default function RegisterPage() {
           disabled={loading}
           className="h-11 w-full rounded-xl bg-primary font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
         >
-          {loading ? 'Создаём аккаунт...' : 'Зарегистрироваться'}
+          {loading ? 'Загрузка...' : 'Зарегистрироваться'}
         </button>
       </form>
       <p className="mt-6 text-center text-sm text-muted-foreground">
@@ -157,4 +152,4 @@ export default function RegisterPage() {
       </p>
     </AuthLayout>
   );
-        }
+}
