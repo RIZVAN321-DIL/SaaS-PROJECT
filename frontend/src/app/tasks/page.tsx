@@ -42,8 +42,9 @@ const FILTER_LABELS: Record<Filter, string> = {
   completed: 'Завершено',
 };
 
-function isOverdue(task: Task) {
-  return task.status !== 'completed' && !!task.dueDate && new Date(task.dueDate) < new Date();
+function isOverdue(task: Task, now: Date | null) {
+  if (!now) return false;
+  return task.status !== 'completed' && !!task.dueDate && new Date(task.dueDate) < now;
 }
 
 function dueLabel(task: Task) {
@@ -59,6 +60,9 @@ export default function TasksPage() {
   const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   async function loadTasks() {
     const token = getAccessToken();
@@ -100,8 +104,10 @@ export default function TasksPage() {
     }
   }
 
+  const now = mounted ? new Date() : null;
+
   const pending = tasks.filter((t) => t.status !== 'completed');
-  const overdue = tasks.filter(isOverdue);
+  const overdue = tasks.filter((t) => isOverdue(t, now));
   const completed = tasks.filter((t) => t.status === 'completed');
 
   const counts: Record<Filter, number> = {
@@ -127,8 +133,8 @@ export default function TasksPage() {
   const sorted = [...filtered].sort((a, b) => {
     if (a.status === 'completed' && b.status !== 'completed') return 1;
     if (a.status !== 'completed' && b.status === 'completed') return -1;
-    const aOver = isOverdue(a) ? -1 : 0;
-    const bOver = isOverdue(b) ? -1 : 0;
+    const aOver = isOverdue(a, now) ? -1 : 0;
+    const bOver = isOverdue(b, now) ? -1 : 0;
     if (aOver !== bOver) return aOver - bOver;
     if (!a.dueDate && !b.dueDate) return 0;
     if (!a.dueDate) return 1;
@@ -246,7 +252,7 @@ export default function TasksPage() {
               </thead>
               <tbody>
                 {sorted.map((task) => {
-                  const over = isOverdue(task);
+                  const over = isOverdue(task, now);
                   const done = task.status === 'completed';
                   return (
                     <tr key={task.id} className="border-b border-border last:border-0">
@@ -309,4 +315,4 @@ export default function TasksPage() {
       </div>
     </AppShell>
   );
-}
+                    }
