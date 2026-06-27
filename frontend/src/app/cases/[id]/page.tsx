@@ -124,10 +124,10 @@ const ACTION_ICONS: Record<string, typeof Plus> = {
 
 const CARD_ITEM_LIMIT = 6;
 
-function dueClass(dueDate?: string, status?: string) {
-  if (!dueDate || status === 'completed') return 'text-muted-foreground';
+// now передаётся снаружи — не вызываем new Date() внутри при рендере
+function dueClass(dueDate?: string, status?: string, now?: Date): string {
+  if (!dueDate || status === 'completed' || !now) return 'text-muted-foreground';
   const due = new Date(dueDate);
-  const now = new Date();
   const soon = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
   if (due < now) return 'text-red-500 font-semibold';
   if (due < soon) return 'text-amber-500 font-semibold';
@@ -144,6 +144,10 @@ export default function CaseDetailPage() {
   const [events, setEvents] = useState<CalendarEventItem[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
   const [loading, setLoading] = useState(true);
+  // FIX #425: new Date() только на клиенте после монтирования
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   const [showEditCase, setShowEditCase] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
@@ -261,8 +265,14 @@ export default function CaseDetailPage() {
     );
   }
 
+  // FIX #425: now только на клиенте — на сервере loading=true и мы не доходим сюда,
+  // но mounted даёт дополнительную защиту для dueClass и overdueTasks
+  const now = mounted ? new Date() : null;
+
   const pendingTasks = caseData.tasks.filter((t) => t.status !== 'completed');
-  const overdueTasks = pendingTasks.filter((t) => t.dueDate && new Date(t.dueDate) < new Date());
+  const overdueTasks = now
+    ? pendingTasks.filter((t) => t.dueDate && new Date(t.dueDate) < now)
+    : [];
 
   const sortedTasks = [...caseData.tasks].sort((a, b) => {
     if (a.status !== b.status) return a.status === 'completed' ? 1 : -1;
@@ -275,7 +285,7 @@ export default function CaseDetailPage() {
     .filter((t) => t.dueDate)
     .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime())[0];
 
-  const nextTaskOverdue = nextTask?.dueDate && new Date(nextTask.dueDate) < new Date();
+  const nextTaskOverdue = now && nextTask?.dueDate && new Date(nextTask.dueDate) < now;
 
   const rightPanel = (
     <div className="space-y-4">
@@ -390,7 +400,7 @@ export default function CaseDetailPage() {
                   <div key={task.id} className="flex items-center gap-2 border-b border-border/60 py-2 text-sm last:border-0">
                     <input type="checkbox" checked={task.status === 'completed'} onChange={() => task.status !== 'completed' && handleCompleteTask(task.id)} className="shrink-0 accent-primary" />
                     <span className={`min-w-0 flex-1 truncate ${task.status === 'completed' ? 'text-muted-foreground line-through' : ''}`}>{task.title}</span>
-                    {task.dueDate && <span className={`shrink-0 text-[11px] ${dueClass(task.dueDate, task.status)}`}>{new Date(task.dueDate).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}</span>}
+                    {task.dueDate && <span className={`shrink-0 text-[11px] ${dueClass(task.dueDate, task.status, now ?? undefined)}`}>{new Date(task.dueDate).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}</span>}
                     <button type="button" onClick={() => { setTaskToEdit(task); setShowAddTask(true); }} className="shrink-0 text-muted-foreground hover:text-foreground" aria-label="Изменить"><Pencil size={12} /></button>
                     <button type="button" onClick={() => handleDeleteTask(task.id)} className="shrink-0 text-muted-foreground hover:text-red-500" aria-label="Удалить"><Trash2 size={12} /></button>
                   </div>
@@ -434,7 +444,7 @@ export default function CaseDetailPage() {
                     <button type="button" onClick={() => handleDeleteEvent(event.id)} className="shrink-0 text-muted-foreground hover:text-red-500" aria-label="Удалить"><Trash2 size={12} /></button>
                   </div>
                 ))}
-                {events.length > CARD_ITEM_LIMIT && <p className="pt-2 text-center text-xs text-muted-foreground">и ещё {events.length - CARD_ITEM_LIMIT}</p>}
+                {events.length > CARD_ITEM_LIMIT && <p className="pt-2 text-center text-xs text-muted-foreunder">и ещё {events.length - CARD_ITEM_LIMIT}</p>}
               </div>
             )}
           </div>
@@ -461,4 +471,4 @@ export default function CaseDetailPage() {
       </div>
     </AppShell>
   );
-      }
+                                                                 }
