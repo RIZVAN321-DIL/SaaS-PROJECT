@@ -28,7 +28,6 @@ interface CaseItem {
   createdAt: string;
 }
 
-// Правильное русское склонение для числительных
 function pluralDela(n: number): string {
   const mod100 = n % 100;
   const mod10 = n % 10;
@@ -44,6 +43,9 @@ export default function CasesPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   async function loadCases() {
     try {
@@ -68,13 +70,16 @@ export default function CasesPage() {
       c.caseType?.name.toLowerCase().includes(search.toLowerCase()),
   );
 
+  const now = mounted ? new Date() : null;
+
   function overdueCount(c: CaseItem): number {
+    if (!now) return 0;
     return (
       c.tasks?.filter(
         (t) =>
           t.status !== 'completed' &&
           t.dueDate &&
-          new Date(t.dueDate) < new Date(),
+          new Date(t.dueDate) < now,
       ).length ?? 0
     );
   }
@@ -225,4 +230,4 @@ export default function CasesPage() {
       </div>
     </AppShell>
   );
-                }
+}
