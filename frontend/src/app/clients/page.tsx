@@ -33,7 +33,8 @@ export default function ClientsPage() {
       const token = getAccessToken();
       if (!token) return;
       const data = await clientsApi.getAll(token);
-      setClients(data as Client[]);
+      const list = Array.isArray(data) ? (data as Client[]) : ((data as { items?: Client[] }).items ?? []);
+      setClients(list);
     } catch {
       // silently fail
     } finally {
