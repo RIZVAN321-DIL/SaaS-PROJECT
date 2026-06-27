@@ -58,7 +58,6 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
   const router = useRouter();
   const [cases, setCases] = useState<CaseSummary[]>([]);
   const [urgency, setUrgency] = useState<Record<string, 'overdue' | 'soon' | 'ok'>>({});
-  const [overdueTaskCount, setOverdueTaskCount] = useState(0);
   const [loadingCases, setLoadingCases] = useState(true);
   const [showCaseForm, setShowCaseForm] = useState(false);
 
@@ -79,10 +78,6 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
         upcoming: NotificationTask[];
       };
 
-      // Счётчик просроченных задач для бейджа (п.UX-7)
-      setOverdueTaskCount(notif.overdue?.length ?? 0);
-
-      // Цветные точки у дел в сайдбаре
       const map: Record<string, 'overdue' | 'soon' | 'ok'> = {};
       notif.upcoming?.forEach((task) => {
         if (task.case) map[task.case.id] = 'soon';
@@ -92,7 +87,7 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
       });
       setUrgency(map);
     } catch {
-      // тихо игнорируем
+      // silently fail
     } finally {
       setLoadingCases(false);
     }
@@ -100,9 +95,6 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
 
   useEffect(() => {
     loadCases();
-    // Polling раз в 5 минут (UX-10)
-    const interval = setInterval(loadCases, 5 * 60 * 1000);
-    return () => clearInterval(interval);
   }, []);
 
   const visibleCases = cases.slice(0, MAX_SIDEBAR_CASES);
@@ -121,10 +113,6 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
               const active =
                 pathname === item.href ||
                 pathname.startsWith(`${item.href}/`);
-              // Бейдж просроченных задач на пункте «Задачи» (п.UX-7)
-              const isTasksItem = item.href === '/tasks';
-              const showBadge = isTasksItem && overdueTaskCount > 0;
-
               return (
                 <Link
                   key={item.href}
@@ -137,15 +125,7 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
                   }`}
                 >
                   <Icon size={16} className="shrink-0" />
-                  <span className="flex-1">{item.label}</span>
-                  {showBadge && (
-                    <span
-                      className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white"
-                      title={`${overdueTaskCount} просроченных задач`}
-                    >
-                      {overdueTaskCount > 99 ? '99+' : overdueTaskCount}
-                    </span>
-                  )}
+                  {item.label}
                 </Link>
               );
             })}
@@ -275,4 +255,4 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
       )}
     </>
   );
-}
+          }
