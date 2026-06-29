@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
-
+import { Plus } from 'lucide-react';
 import { casesApi, clientsApi, caseTypesApi } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
 import { Input } from '@/components/ui/input';
@@ -46,6 +46,13 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
   const [caseTypeId, setCaseTypeId] = useState(caseToEdit?.caseTypeId ?? '');
   const [error, setError] = useState('');
 
+  // Новый клиент на лету
+  const [showNewClient, setShowNewClient] = useState(false);
+  const [newClientName, setNewClientName] = useState('');
+  const [newClientPhone, setNewClientPhone] = useState('');
+  const [newClientEmail, setNewClientEmail] = useState('');
+  const [creatingClient, setCreatingClient] = useState(false);
+
   useEffect(() => {
     async function loadData() {
       const token = getAccessToken();
@@ -70,12 +77,44 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
     loadData();
   }, []);
 
+  async function handleCreateClient() {
+    const token = getAccessToken();
+    if (!token || !newClientName.trim()) return;
+
+    setCreatingClient(true);
+    try {
+      const payload: Record<string, string> = { fullName: newClientName.trim() };
+      if (newClientPhone.trim()) payload.phone = newClientPhone.trim();
+      if (newClientEmail.trim()) payload.email = newClientEmail.trim();
+
+      const created = await clientsApi.create(payload, token) as { id: string; fullName: string };
+      
+      setClients((prev) => [{ id: created.id, fullName: created.fullName }, ...prev]);
+      setSelectedClientId(created.id);
+      
+      // Сброс формы нового клиента
+      setShowNewClient(false);
+      setNewClientName('');
+      setNewClientPhone('');
+      setNewClientEmail('');
+    } catch {
+      setError('Не удалось создать клиента');
+    } finally {
+      setCreatingClient(false);
+    }
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
     const token = getAccessToken();
     if (!token) {
       setError('Требуется авторизация');
+      return;
+    }
+
+    if (!selectedClientId) {
+      setError('Выберите клиента');
       return;
     }
 
@@ -123,7 +162,64 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
 
       {!lockClient && (
         <div>
-          <label className="mb-2 block text-sm font-medium">Клиент</label>
+          <div className="mb-2 flex items-center justify-between">
+            <label className="text-sm font-medium">Клиент</label>
+            {!showNewClient && (
+              <button
+                type="button"
+                onClick={() => setShowNewClient(true)}
+                className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              >
+                <Plus size={12} /> Новый клиент
+              </button>
+            )}
+          </div>
+
+          {/* Inline-форма создания клиента */}
+          {showNewClient && (
+            <div className="mb-3 rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+              <Input
+                label="ФИО"
+                required
+                value={newClientName}
+                onChange={(e) => setNewClientName(e.target.value)}
+                placeholder="Иванов Иван Иванович"
+              />
+              <Input
+                label="Телефон"
+                value={newClientPhone}
+                onChange={(e) => setNewClientPhone(e.target.value)}
+                placeholder="+7 ..."
+              />
+              <Input
+                label="Email"
+                type="email"
+                value={newClientEmail}
+                onChange={(e) => setNewClientEmail(e.target.value)}
+                placeholder="client@email.com"
+              />
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  onClick={handleCreateClient}
+                  loading={creatingClient}
+                  disabled={!newClientName.trim()}
+                  className="flex-1 h-9 text-sm"
+                >
+                  Создать клиента
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setShowNewClient(false)}
+                  className="h-9 text-sm"
+                >
+                  Отмена
+                </Button>
+              </div>
+            </div>
+          )}
+
           <select
             required
             value={selectedClientId}
