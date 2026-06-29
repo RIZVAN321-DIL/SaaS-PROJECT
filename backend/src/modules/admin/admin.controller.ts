@@ -7,6 +7,8 @@ import {
   Body,
   Req,
   UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { AdminService } from './admin.service';
@@ -37,5 +39,16 @@ export class AdminController {
   @Delete('organizations/:id/override')
   async revokeOverride(@Param('id') id: string) {
     return this.adminService.revokeOverride(id);
+  }
+
+  // =========================
+  // DELETE ORGANIZATION
+  // Удаляет организацию вместе со всеми данными.
+  // Доступно только платформенному администратору.
+  // =========================
+  @Delete('organizations/:id')
+  @HttpCode(HttpStatus.OK)
+  async deleteOrganization(@Param('id') id: string) {
+    return this.adminService.deleteOrganization(id);
   }
 }
