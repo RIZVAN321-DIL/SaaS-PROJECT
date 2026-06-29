@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   ConflictException,
   NotFoundException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -144,6 +145,32 @@ export class AuthService {
 
     if (!valid) {
       throw new UnauthorizedException('Неверный email или пароль');
+    }
+
+    // =========================
+    // ПРОВЕРКА ПОДПИСКИ
+    // Платформенные администраторы обходят проверку подписки.
+    // =========================
+    if (!user.isPlatformAdmin) {
+      const subscription = await this.prisma.subscription.findUnique({
+        where: { organizationId: user.organizationId },
+      });
+
+      const isActiveSubscription =
+        subscription?.status === 'active' ||
+        subscription?.status === 'trialing';
+
+      // manualOverride: проверяем срок действия, если задан
+      const overrideValid =
+        subscription?.manualOverride &&
+        (subscription.overrideExpiresAt === null ||
+          subscription.overrideExpiresAt > new Date());
+
+      if (!isActiveSubscription && !overrideValid) {
+        throw new ForbiddenException(
+          'Требуется активная подписка. Обратитесь к администратору или оформите подписку.',
+        );
+      }
     }
 
     if (user.twoFactorEnabled) {
@@ -408,4 +435,4 @@ export class AuthService {
 
     return { access_token: accessToken, refresh_token: refreshToken };
   }
-                               }
+}
