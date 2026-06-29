@@ -43,18 +43,14 @@ export class AdminService {
         organizationId,
         manualOverride: true,
         overrideReason: data.reason,
-        overrideExpiresAt: data.expiresAt
-          ? new Date(data.expiresAt)
-          : null,
+        overrideExpiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
         overrideGrantedBy: adminUserId,
         overrideGrantedAt: new Date(),
       },
       update: {
         manualOverride: true,
         overrideReason: data.reason,
-        overrideExpiresAt: data.expiresAt
-          ? new Date(data.expiresAt)
-          : null,
+        overrideExpiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
         overrideGrantedBy: adminUserId,
         overrideGrantedAt: new Date(),
       },
@@ -80,4 +76,64 @@ export class AdminService {
       },
     });
   }
-}
+
+  // =========================
+  // DELETE ORGANIZATION
+  // Удаляем в правильном порядке: сначала зависимые записи без каскада,
+  // затем пользователей и саму организацию.
+  // =========================
+  async deleteOrganization(organizationId: string) {
+    const org = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+    });
+    if (!org) {
+      throw new NotFoundException('Организация не найдена');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      // 1. Audit logs
+      await tx.auditLog.deleteMany({ where: { organizationId } });
+
+      // 2. Calendar events
+      await tx.calendarEvent.deleteMany({ where: { organizationId } });
+
+      // 3. Documents
+      await tx.document.deleteMany({ where: { organizationId } });
+
+      // 4. Tasks
+      await tx.task.deleteMany({ where: { organizationId } });
+
+      // 5. Cases
+      await tx.case.deleteMany({ where: { organizationId } });
+
+      // 6. Clients
+      await tx.client.deleteMany({ where: { organizationId } });
+
+      // 7. Case stages и types
+      await tx.caseStage.deleteMany({ where: { organizationId } });
+      await tx.caseType.deleteMany({ where: { organizationId } });
+
+      // 8. Пользователи: сначала чистим токены и OTP
+      const users = await tx.user.findMany({
+        where: { organizationId },
+        select: { id: true },
+      });
+      const userIds = users.map((u) => u.id);
+
+      if (userIds.length > 0) {
+        await tx.loginOtp.deleteMany({ where: { userId: { in: userIds } } });
+        await tx.passwordResetToken.deleteMany({ where: { userId: { in: userIds } } });
+      }
+
+      await tx.user.deleteMany({ where: { organizationId } });
+
+      // 9. Подписка
+      await tx.subscription.deleteMany({ where: { organizationId } });
+
+      // 10. Организация
+      await tx.organization.delete({ where: { id: organizationId } });
+    });
+
+    return { success: true, deletedOrganizationId: organizationId };
+  }
+        }
