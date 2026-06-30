@@ -30,6 +30,7 @@ export default function RegisterPage() {
   const [orgName, setOrgName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [referralCode, setReferralCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -61,6 +62,7 @@ export default function RegisterPage() {
         organizationName: orgName,
         email,
         password,
+        referralCode: referralCode.trim().toUpperCase() || undefined,
       });
       saveLogin(response as { access_token: string; refresh_token: string });
       router.push('/onboarding');
@@ -131,6 +133,26 @@ export default function RegisterPage() {
             </div>
           )}
         </div>
+
+        {/* Реферальный код */}
+        <div>
+          <label className="mb-2 block text-sm font-medium">
+            Реферальный код{' '}
+            <span className="font-normal text-muted-foreground">(необязательно)</span>
+          </label>
+          <input
+            type="text"
+            value={referralCode}
+            onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+            maxLength={12}
+            className="h-11 w-full rounded-xl border border-border bg-background px-4 font-mono text-sm uppercase tracking-widest outline-none focus:border-primary"
+            placeholder="A1B2C3D4"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Если вас пригласила другая организация — введите её код и получите первый месяц бесплатно
+          </p>
+        </div>
+
         {error && (
           <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-500">
             {error}
@@ -152,4 +174,4 @@ export default function RegisterPage() {
       </p>
     </AuthLayout>
   );
-}
+                }
