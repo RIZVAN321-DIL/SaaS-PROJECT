@@ -9,7 +9,7 @@ export class AdminService {
     const organizations = await this.prisma.organization.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
-        subscription: { include: { plan: true } },
+        subscription: true,
         _count: { select: { users: true, cases: true, clients: true } },
       },
     });
@@ -18,10 +18,14 @@ export class AdminService {
       id: org.id,
       name: org.name,
       createdAt: org.createdAt,
+      referralCode: org.referralCode,
       usersCount: org._count.users,
       casesCount: org._count.cases,
       clientsCount: org._count.clients,
       subscription: org.subscription,
+      monthlyTotal: org.subscription
+        ? org.subscription.pricePerSeat * org.subscription.quantity
+        : 0,
     }));
   }
 
@@ -136,4 +140,4 @@ export class AdminService {
 
     return { success: true, deletedOrganizationId: organizationId };
   }
-        }
+                                  }
