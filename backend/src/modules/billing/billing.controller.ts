@@ -2,14 +2,12 @@ import {
   Controller,
   Get,
   Post,
-  Body,
   Req,
   BadRequestException,
   RawBodyRequest,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { BillingService } from './billing.service';
-import { CreateCheckoutDto } from './dto/create-checkout.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
@@ -21,10 +19,14 @@ export class BillingController {
     private readonly billingService: BillingService,
   ) {}
 
+  // =========================
+  // ИНФОРМАЦИЯ О ЦЕНЕ (per-seat)
+  // ₽990 за пользователя в месяц — единая схема, без тарифов
+  // =========================
   @Public()
-  @Get('plans')
-  async getPlans() {
-    return this.billingService.getPlans();
+  @Get('pricing')
+  async getPricing() {
+    return { pricePerSeat: 99000, currency: 'rub' };
   }
 
   @Get('subscription')
@@ -35,14 +37,10 @@ export class BillingController {
 
   @Roles(Role.OWNER, Role.ADMIN)
   @Post('checkout')
-  async createCheckout(
-    @Body() body: CreateCheckoutDto,
-    @Req() req: Request,
-  ) {
+  async createCheckout(@Req() req: Request) {
     const user = req.user as JwtUser;
     return this.billingService.createCheckoutSession(
       user.organizationId,
-      body.planId,
       user.email,
     );
   }
