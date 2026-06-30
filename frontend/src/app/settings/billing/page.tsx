@@ -2,34 +2,27 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Check, CreditCard, ChevronLeft, Zap } from 'lucide-react';
+import { CreditCard, ChevronLeft, Zap, Users, Gift } from 'lucide-react';
 import { AppShell } from '@/components/layout/app-shell';
 import { billingApi } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
 import { toast } from '@/lib/toast';
 import { Button } from '@/components/ui/button';
 
-interface Plan {
-  id: string;
-  key: string;
-  name: string;
-  description?: string;
-  priceMonthly: number;
-  currency: string;
-  maxUsers?: number | null;
-}
-
 interface Subscription {
   id: string;
-  planId?: string | null;
-  plan?: Plan | null;
   status: string;
   stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
   currentPeriodEnd?: string | null;
   cancelAtPeriodEnd: boolean;
   manualOverride: boolean;
   overrideReason?: string | null;
   overrideExpiresAt?: string | null;
+  pricePerSeat: number;
+  quantity: number;
+  freeMonthsCredit: number;
+  monthlyTotal: number;
   isActive: boolean;
 }
 
@@ -41,29 +34,23 @@ const STATUS_LABELS: Record<string, string> = {
   incomplete: 'Не завершена',
 };
 
-function formatPrice(plan: Plan) {
-  const amount = (plan.priceMonthly / 100).toFixed(0);
-  return `${amount} ${plan.currency.toUpperCase()}`;
+function formatRub(kopecks: number) {
+  return `${(kopecks / 100).toLocaleString('ru-RU')} ₽`;
 }
 
 function BillingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [plans, setPlans] = useState<Plan[]>([]);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
-  const [checkingOutPlanId, setCheckingOutPlanId] = useState<string | null>(null);
+  const [checkingOut, setCheckingOut] = useState(false);
   const [openingPortal, setOpeningPortal] = useState(false);
 
   async function loadData() {
     const token = getAccessToken();
     if (!token) return;
     try {
-      const [plansData, subscriptionData] = await Promise.all([
-        billingApi.getPlans(),
-        billingApi.getSubscription(token),
-      ]);
-      setPlans(plansData as Plan[]);
+      const subscriptionData = await billingApi.getSubscription(token);
       setSubscription(subscriptionData as Subscription);
     } catch {
       // silently fail
@@ -78,16 +65,16 @@ function BillingContent() {
     else if (searchParams.get('canceled') === 'true') toast.info('Оформление подписки отменено');
   }, []);
 
-  async function handleCheckout(planId: string) {
+  async function handleCheckout() {
     const token = getAccessToken();
     if (!token) return;
-    setCheckingOutPlanId(planId);
+    setCheckingOut(true);
     try {
-      const result = (await billingApi.createCheckout(planId, token)) as { url: string };
+      const result = (await billingApi.createCheckout(token)) as { url: string };
       window.location.href = result.url;
     } catch {
       toast.error('Не удалось перейти к оплате');
-      setCheckingOutPlanId(null);
+      setCheckingOut(false);
     }
   }
 
@@ -113,15 +100,13 @@ function BillingContent() {
 
         <div>
           <h1 className="text-2xl font-bold">Тариф и оплата</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">Управление подпиской организации</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">Простая схема: платите только за активных сотрудников</p>
         </div>
 
         {loading ? (
           <div className="space-y-3">
             <div className="h-28 animate-pulse rounded-2xl border border-border bg-card" />
-            <div className="grid gap-4 md:grid-cols-3">
-              {[1, 2, 3].map((i) => <div key={i} className="h-56 animate-pulse rounded-2xl border border-border bg-card" />)}
-            </div>
+            <div className="h-56 animate-pulse rounded-2xl border border-border bg-card" />
           </div>
         ) : (
           <>
@@ -144,12 +129,16 @@ function BillingContent() {
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold ${subscription?.isActive ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-500'}`}>
                     {subscription ? STATUS_LABELS[subscription.status] ?? subscription.status : 'Нет подписки'}
                   </span>
-                  {subscription?.plan && <span className="text-sm text-muted-foreground">Тариф: <strong>{subscription.plan.name}</strong></span>}
                   {subscription?.currentPeriodEnd && (
                     <span className="text-sm text-muted-foreground">
                       {subscription.cancelAtPeriodEnd ? 'Действует до' : 'Продление'} {new Date(subscription.currentPeriodEnd).toLocaleDateString('ru-RU')}
                     </span>
                   )}
+                </div>
+              )}
+              {!!subscription?.freeMonthsCredit && (
+                <div className="mt-3 flex items-center gap-1.5 text-sm text-emerald-600">
+                  <Gift size={14} /> У вас {subscription.freeMonthsCredit} бесплатный месяц по реферальной программе — будет применён при оформлении подписки
                 </div>
               )}
               {subscription?.stripeCustomerId && (
@@ -159,38 +148,40 @@ function BillingContent() {
               )}
             </div>
 
-            <div>
-              <h2 className="mb-3 text-sm font-semibold">Доступные тарифы</h2>
-              {plans.length === 0 ? (
-                <div className="rounded-2xl border border-border bg-card py-12 text-center text-sm text-muted-foreground">Тарифы пока не настроены</div>
-              ) : (
-                <div className="grid gap-4 md:grid-cols-3">
-                  {plans.map((plan) => {
-                    const isCurrent = subscription?.planId === plan.id;
-                    return (
-                      <div key={plan.id} className={`flex flex-col rounded-2xl border bg-card p-5 ${isCurrent ? 'border-primary ring-1 ring-primary/20' : 'border-border'}`}>
-                        <div className="flex items-start justify-between">
-                          <h3 className="font-semibold">{plan.name}</h3>
-                          {isCurrent && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">Текущий</span>}
-                        </div>
-                        <div className="mt-3">
-                          <span className="text-3xl font-bold">{formatPrice(plan)}</span>
-                          <span className="ml-1 text-xs text-muted-foreground">/ мес</span>
-                        </div>
-                        {plan.description && <p className="mt-2 text-xs text-muted-foreground">{plan.description}</p>}
-                        <p className="mt-1 text-xs text-muted-foreground">{plan.maxUsers ? `До ${plan.maxUsers} пользователей` : 'Без ограничений'}</p>
-                        <div className="flex-1" />
-                        {isCurrent ? (
-                          <div className="mt-5 flex items-center justify-center gap-2 rounded-xl border border-primary py-2.5 text-sm font-medium text-primary">
-                            <Check size={14} /> Текущий тариф
-                          </div>
-                        ) : (
-                          <Button onClick={() => handleCheckout(plan.id)} loading={checkingOutPlanId === plan.id} className="mt-5 w-full">Подключить</Button>
-                        )}
-                      </div>
-                    );
-                  })}
+            <div className="rounded-2xl border border-border bg-card p-6">
+              <h2 className="mb-1 text-sm font-semibold">Тариф</h2>
+              <p className="mb-5 text-xs text-muted-foreground">Без скрытых платежей и ограничений по функциям</p>
+
+              <div className="flex items-end gap-2">
+                <span className="text-4xl font-bold">990 ₽</span>
+                <span className="pb-1 text-sm text-muted-foreground">за пользователя / месяц</span>
+              </div>
+
+              <div className="mt-5 flex items-center gap-2 rounded-xl border border-border/60 bg-background px-4 py-3 text-sm">
+                <Users size={15} className="text-muted-foreground" />
+                <span>
+                  Сейчас в организации <strong>{subscription?.quantity ?? 1}</strong>{' '}
+                  {subscription?.quantity === 1 ? 'пользователь' : 'пользователей'}
+                </span>
+              </div>
+
+              <div className="mt-2 flex items-center justify-between rounded-xl bg-primary/5 px-4 py-3 text-sm">
+                <span className="text-muted-foreground">Итого в месяц</span>
+                <span className="text-lg font-bold">{formatRub(subscription?.monthlyTotal ?? 99000)}</span>
+              </div>
+
+              <p className="mt-3 text-xs text-muted-foreground">
+                Стоимость автоматически пересчитывается при добавлении или удалении сотрудников.
+              </p>
+
+              {subscription?.stripeSubscriptionId ? (
+                <div className="mt-5 flex items-center justify-center gap-2 rounded-xl border border-primary py-2.5 text-sm font-medium text-primary">
+                  Подписка активна
                 </div>
+              ) : (
+                <Button onClick={handleCheckout} loading={checkingOut} className="mt-5 w-full">
+                  Оформить подписку
+                </Button>
               )}
             </div>
           </>
@@ -206,4 +197,4 @@ export default function BillingPage() {
       <BillingContent />
     </Suspense>
   );
-                }
+}
