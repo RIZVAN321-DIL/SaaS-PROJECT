@@ -174,4 +174,4 @@ export default function RegisterPage() {
       </p>
     </AuthLayout>
   );
-                }
+}
