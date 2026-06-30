@@ -162,6 +162,7 @@ export const authApi = {
     organizationName: string;
     email: string;
     password: string;
+    referralCode?: string;
   }) =>
     request('/auth/register-organization', { method: 'POST', body: data }),
 
@@ -280,6 +281,14 @@ export const usersApi = {
 };
 
 // =========================
+// ORGANIZATIONS / REFERRAL
+// =========================
+export const organizationsApi = {
+  getReferral: (token: string) =>
+    request('/organizations/me/referral', { token }),
+};
+
+// =========================
 // CASE TYPES
 // =========================
 export const caseTypesApi = {
@@ -325,11 +334,11 @@ export const notificationsApi = {
 // BILLING
 // =========================
 export const billingApi = {
-  getPlans: () => request('/billing/plans'),
+  getPricing: () => request('/billing/pricing'),
   getSubscription: (token: string) =>
     request('/billing/subscription', { token }),
-  createCheckout: (planId: string, token: string) =>
-    request('/billing/checkout', { method: 'POST', token, body: { planId } }),
+  createCheckout: (token: string) =>
+    request('/billing/checkout', { method: 'POST', token }),
   createPortal: (token: string) =>
     request('/billing/portal', { method: 'POST', token }),
 };
