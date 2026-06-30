@@ -1,14 +1,21 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import helmet from 'helmet';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+const execAsync = promisify(exec);
 import { AppModule } from './app.module';
 
+// =========================
+// ВАЛИДАЦИЯ СЕКРЕТОВ ПРИ СТАРТЕ
+// Если в продакшене остались дефолтные значения — не стартуем.
+// =========================
 function validateEnv(logger: Logger) {
   const INSECURE_MARKERS = ['change-me', 'secret', 'example', 'placeholder'];
   const REQUIRED_SECRETS = ['JWT_SECRET', 'DOCUMENT_ENCRYPTION_KEY'];
 
   const isProd = process.env.NODE_ENV === 'production';
-  if (!isProd) return;
+  if (!isProd) return; // в dev/test разрешаем любые значения
 
   let hasError = false;
 
@@ -38,15 +45,34 @@ function validateEnv(logger: Logger) {
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
 
+  // Проверяем секреты до создания приложения
   validateEnv(logger);
 
-  // Миграции временно отключены
-  logger.log('⚠️  Миграции отключены — запуск без prisma migrate deploy');
+  // =========================
+  // МИГРАЦИЯ БД
+  // Если миграция упала — приложение НЕ стартует.
+  // Это безопаснее, чем работать со старой схемой.
+  // =========================
+  try {
+    logger.log('Запуск миграции БД...');
+    await execAsync('prisma migrate deploy');
+    logger.log('Миграция завершена успешно');
+  } catch (err) {
+    logger.error('Миграция завершилась с ошибкой — приложение остановлено');
+    logger.error(String(err));
+    process.exit(1);
+  }
 
   const app = await NestFactory.create(AppModule, { rawBody: true });
 
+  // =========================
+  // SECURITY
+  // =========================
   app.use(helmet());
 
+  // =========================
+  // CORS — только конкретный фронтенд, не wildcard
+  // =========================
   const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
   app.enableCors({
     origin: (origin, callback) => {
@@ -59,8 +85,14 @@ async function bootstrap() {
     credentials: true,
   });
 
+  // =========================
+  // API PREFIX
+  // =========================
   app.setGlobalPrefix('api');
 
+  // =========================
+  // GLOBAL VALIDATION PIPE
+  // =========================
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -70,8 +102,14 @@ async function bootstrap() {
     }),
   );
 
+  // =========================
+  // PROXY SUPPORT (для Render/Heroku/etc.)
+  // =========================
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
+  // =========================
+  // GRACEFUL SHUTDOWN
+  // =========================
   app.enableShutdownHooks();
 
   const port = Number(process.env.PORT) || 3000;
