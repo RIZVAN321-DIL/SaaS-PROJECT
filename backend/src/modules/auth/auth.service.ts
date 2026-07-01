@@ -13,7 +13,6 @@ import { Role } from '../../common/enums/role.enum';
 import { Resend } from 'resend';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import { generateUniqueReferralCode } from '../../common/utils/referral-code.util';
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 час
 const OTP_TTL_MS = 10 * 60 * 1000;         // 10 минут
@@ -76,15 +75,11 @@ export class AuthService {
 
   // =========================
   // REGISTER ORGANIZATION (новая организация + владелец)
-  // Поддерживает необязательный реферальный код: если он принадлежит
-  // существующей организации — новая организация получает 1 бесплатный
-  // месяц, а пригласившая организация — ещё 1 бесплатный месяц.
   // =========================
   async registerWithOrganization(data: {
     organizationName: string;
     email: string;
     password: string;
-    referralCode?: string;
   }) {
     const email = data.email.trim().toLowerCase();
     const organizationName = data.organizationName.trim();
@@ -99,24 +94,11 @@ export class AuthService {
       );
     }
 
-    let referrer: { id: string } | null = null;
-    if (data.referralCode) {
-      referrer = await this.prisma.organization.findUnique({
-        where: { referralCode: data.referralCode.trim().toUpperCase() },
-        select: { id: true },
-      });
-    }
-
     const hashedPassword = await bcrypt.hash(data.password, 10);
-    const newReferralCode = await generateUniqueReferralCode(this.prisma);
 
     const { user } = await this.prisma.$transaction(async (tx) => {
       const organization = await tx.organization.create({
-        data: {
-          name: organizationName,
-          referralCode: newReferralCode,
-          referredBy: referrer?.id ?? null,
-        },
+        data: { name: organizationName },
       });
 
       const createdUser = await tx.user.create({
@@ -137,24 +119,6 @@ export class AuthService {
           { name: 'Завершено',       order: 4, color: '#22C55E', organizationId: organization.id },
         ],
       });
-
-      // Новая организация: подписка с 1 бесплатным месяцем по умолчанию
-      await tx.subscription.create({
-        data: {
-          organizationId: organization.id,
-          quantity: 1,
-          freeMonthsCredit: referrer ? 1 : 0,
-        },
-      });
-
-      // Пригласившая организация: +1 бесплатный месяц
-      if (referrer) {
-        await tx.subscription.upsert({
-          where: { organizationId: referrer.id },
-          create: { organizationId: referrer.id, freeMonthsCredit: 1 },
-          update: { freeMonthsCredit: { increment: 1 } },
-        });
-      }
 
       return { organization, user: createdUser };
     });
@@ -471,4 +435,4 @@ export class AuthService {
 
     return { access_token: accessToken, refresh_token: refreshToken };
   }
-}
+        }
