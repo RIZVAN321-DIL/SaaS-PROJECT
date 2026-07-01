@@ -19,9 +19,6 @@ interface Stage {
   createdAt: string;
 }
 
-// =========================
-// Форма создания / редактирования стадии
-// =========================
 interface StageFormProps {
   initial?: { name: string; color: string; order?: number };
   mode: 'create' | 'edit';
@@ -56,16 +53,20 @@ function StageForm({ initial, mode, onSubmit, loading, error }: StageFormProps) 
       />
 
       {mode === 'create' && (
-        <Input
-          label="Порядковый номер"
-          required
-          type="number"
-          min={1}
-          value={order}
-          onChange={(e) => setOrder(e.target.value)}
-          placeholder="1"
-          helperText="Если номер занят — остальные стадии сдвинутся автоматически"
-        />
+        <div>
+          <Input
+            label="Порядковый номер"
+            required
+            type="number"
+            min={1}
+            value={order}
+            onChange={(e) => setOrder(e.target.value)}
+            placeholder="1"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Если номер занят — остальные стадии сдвинутся автоматически
+          </p>
+        </div>
       )}
 
       <div>
@@ -106,19 +107,14 @@ function StageForm({ initial, mode, onSubmit, loading, error }: StageFormProps) 
   );
 }
 
-// =========================
-// PAGE
-// =========================
 export default function StagesPage() {
   const [stages, setStages] = useState<Stage[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // модальные состояния
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Stage | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Stage | null>(null);
 
-  // состояние форм
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -142,7 +138,6 @@ export default function StagesPage() {
 
   useEffect(() => { loadStages(); }, []);
 
-  // ── Создать ──────────────────────────────────────────────────
   async function handleCreate(data: { name: string; color: string; order?: number }) {
     const token = getAccessToken();
     if (!token) return;
@@ -171,7 +166,6 @@ export default function StagesPage() {
     }
   }
 
-  // ── Редактировать ────────────────────────────────────────────
   async function handleEdit(data: { name: string; color: string }) {
     const token = getAccessToken();
     if (!token || !editTarget) return;
@@ -200,7 +194,6 @@ export default function StagesPage() {
     }
   }
 
-  // ── Удалить ──────────────────────────────────────────────────
   async function handleDelete() {
     const token = getAccessToken();
     if (!token || !deleteTarget) return;
@@ -237,8 +230,6 @@ export default function StagesPage() {
   return (
     <AppShell>
       <div className="space-y-5">
-
-        {/* Заголовок */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="flex items-center gap-2 text-2xl font-bold">
@@ -253,7 +244,6 @@ export default function StagesPage() {
           </Button>
         </div>
 
-        {/* ── Модальное окно: Создать ── */}
         <Modal
           open={createOpen}
           onClose={() => { setCreateOpen(false); setFormError(''); }}
@@ -267,7 +257,6 @@ export default function StagesPage() {
           />
         </Modal>
 
-        {/* ── Модальное окно: Редактировать ── */}
         <Modal
           open={Boolean(editTarget)}
           onClose={() => { setEditTarget(null); setFormError(''); }}
@@ -284,7 +273,6 @@ export default function StagesPage() {
           )}
         </Modal>
 
-        {/* ── Модальное окно: Подтверждение удаления ── */}
         <Modal
           open={Boolean(deleteTarget)}
           onClose={() => setDeleteTarget(null)}
@@ -318,7 +306,6 @@ export default function StagesPage() {
           )}
         </Modal>
 
-        {/* ── Таблица стадий ── */}
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
           {loading ? (
             <div className="space-y-0 divide-y divide-border">
@@ -360,22 +347,17 @@ export default function StagesPage() {
               <tbody className="divide-y divide-border">
                 {stages.map((stage) => (
                   <tr key={stage.id} className="group transition hover:bg-muted/30">
-                    {/* drag handle (визуальный, без drag-and-drop логики) */}
                     <td className="w-10 p-4">
                       <GripVertical
                         size={15}
                         className="text-muted-foreground/30 group-hover:text-muted-foreground/60"
                       />
                     </td>
-
-                    {/* order */}
                     <td className="w-10 p-4">
                       <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border text-xs font-semibold text-muted-foreground">
                         {stage.order}
                       </span>
                     </td>
-
-                    {/* name */}
                     <td className="p-4">
                       <div className="flex items-center gap-2.5">
                         <div
@@ -385,8 +367,6 @@ export default function StagesPage() {
                         <span className="font-medium">{stage.name}</span>
                       </div>
                     </td>
-
-                    {/* color */}
                     <td className="p-4">
                       <div className="flex items-center gap-2">
                         <div
@@ -398,8 +378,6 @@ export default function StagesPage() {
                         </span>
                       </div>
                     </td>
-
-                    {/* actions */}
                     <td className="p-4">
                       <div className="flex items-center justify-end gap-1">
                         <button
@@ -427,7 +405,6 @@ export default function StagesPage() {
           )}
         </div>
 
-        {/* Подсказка */}
         {stages.length > 0 && (
           <p className="text-xs text-muted-foreground">
             При добавлении стадии с существующим номером — последующие стадии сдвинутся автоматически. При удалении дела не теряются, только снимается привязка к стадии.
