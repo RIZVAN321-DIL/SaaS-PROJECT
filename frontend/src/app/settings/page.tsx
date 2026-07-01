@@ -11,12 +11,9 @@ import {
   Building2,
   ExternalLink,
   KeyRound,
-  Gift,
-  Copy,
-  Check,
 } from 'lucide-react';
 import { AppShell } from '@/components/layout/app-shell';
-import { authApi, organizationsApi } from '@/lib/api';
+import { authApi } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
 import { toast } from '@/lib/toast';
 
@@ -27,9 +24,6 @@ export default function SettingsPage() {
   const [loadingTwoFactor, setLoadingTwoFactor] = useState(true);
   const [togglingTwoFactor, setTogglingTwoFactor] = useState(false);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
-  const [referralCode, setReferralCode] = useState<string | null>(null);
-  const [referralCount, setReferralCount] = useState(0);
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('theme') as 'light' | 'dark' | null;
@@ -55,32 +49,6 @@ export default function SettingsPage() {
     }
     loadMe();
   }, []);
-
-  useEffect(() => {
-    async function loadReferral() {
-      const token = getAccessToken();
-      if (!token) return;
-      try {
-        const data = (await organizationsApi.getReferral(token)) as {
-          referralCode: string;
-          referralCount: number;
-        };
-        setReferralCode(data.referralCode);
-        setReferralCount(data.referralCount);
-      } catch {
-        // silently fail
-      }
-    }
-    loadReferral();
-  }, []);
-
-  function copyReferralCode() {
-    if (!referralCode) return;
-    navigator.clipboard.writeText(referralCode).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }
 
   function changeTheme(value: 'light' | 'dark') {
     setTheme(value);
@@ -214,7 +182,7 @@ export default function SettingsPage() {
               </button>
             </div>
 
-            {/* п.27: Смена пароля — отдельная страница для авторизованного пользователя */}
+            {/* Смена пароля */}
             <div
               onClick={() => router.push('/settings/change-password')}
               className="flex cursor-pointer items-center justify-between rounded-xl border border-border/60 px-4 py-3 transition hover:border-primary/50"
@@ -246,53 +214,6 @@ export default function SettingsPage() {
               Сохранить
             </button>
           </div>
-        </div>
-
-        {/* Реферальная программа */}
-        <div className="rounded-2xl border border-border bg-card p-5">
-          <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold">
-            <Gift size={15} /> Реферальная программа
-          </h2>
-          <p className="mb-4 text-xs text-muted-foreground">
-            Пригласите коллег и получайте бесплатные месяцы для всей команды
-          </p>
-
-          {referralCode ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-11 flex-1 items-center rounded-xl border border-border bg-background px-4 font-mono text-sm tracking-widest">
-                  {referralCode}
-                </div>
-                <button
-                  type="button"
-                  onClick={copyReferralCode}
-                  className="flex h-11 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-medium transition hover:border-primary/50"
-                >
-                  {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
-                  {copied ? 'Скопировано' : 'Копировать'}
-                </button>
-              </div>
-
-              <div className="rounded-xl bg-muted/40 px-4 py-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Организаций приглашено</span>
-                  <span className="font-semibold">{referralCount}</span>
-                </div>
-                {referralCount > 0 && (
-                  <div className="mt-0.5 flex items-center justify-between">
-                    <span className="text-muted-foreground">Заработано бесплатных месяцев</span>
-                    <span className="font-semibold text-emerald-600">{referralCount}</span>
-                  </div>
-                )}
-              </div>
-
-              <p className="text-xs text-muted-foreground">
-                За каждую новую организацию, зарегистрировавшуюся с вашим кодом, вы получаете +1 бесплатный месяц. Новая организация также получает 1 месяц бесплатно.
-              </p>
-            </div>
-          ) : (
-            <div className="h-20 animate-pulse rounded-xl bg-muted/40" />
-          )}
         </div>
 
         {/* Платформенная админка */}
