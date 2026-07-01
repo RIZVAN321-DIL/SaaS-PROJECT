@@ -5,7 +5,6 @@ import {
 } from '@nestjs/common';
 
 import { PrismaService } from '../../database/prisma.service';
-import { generateUniqueReferralCode } from '../../common/utils/referral-code.util';
 
 @Injectable()
 export class OrganizationsService {
@@ -27,12 +26,9 @@ export class OrganizationsService {
       );
     }
 
-    const referralCode = await generateUniqueReferralCode(this.prisma);
-
     return this.prisma.organization.create({
       data: {
         name,
-        referralCode,
       },
     });
   }
@@ -157,29 +153,5 @@ export class OrganizationsService {
         createdAt: 'desc',
       },
     });
-  }
-
-  // =========================
-  // РЕФЕРАЛЬНАЯ ИНФОРМАЦИЯ
-  // Код организации и количество приглашённых организаций
-  // =========================
-  async getReferralInfo(organizationId: string) {
-    const organization = await this.prisma.organization.findUnique({
-      where: { id: organizationId },
-      select: { referralCode: true },
-    });
-
-    if (!organization) {
-      throw new NotFoundException('Organization not found');
-    }
-
-    const referralCount = await this.prisma.organization.count({
-      where: { referredBy: organizationId },
-    });
-
-    return {
-      referralCode: organization.referralCode,
-      referralCount,
-    };
   }
 }
