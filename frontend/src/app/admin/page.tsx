@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
-import { Shield, Building2, Users, Briefcase, Zap, X, Trash2, CreditCard } from 'lucide-react';
+import { Shield, Building2, Users, Briefcase, Zap, X, Trash2 } from 'lucide-react';
 import { AppShell } from '@/components/layout/app-shell';
 import { adminApi, authApi } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
@@ -15,8 +15,7 @@ interface OrgSubscription {
   manualOverride: boolean;
   overrideReason?: string | null;
   overrideExpiresAt?: string | null;
-  pricePerSeat: number;
-  quantity: number;
+  plan?: { name: string } | null;
 }
 
 interface OrganizationRow {
@@ -27,7 +26,6 @@ interface OrganizationRow {
   casesCount: number;
   clientsCount: number;
   subscription?: OrgSubscription | null;
-  monthlyTotal: number;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -37,10 +35,6 @@ const STATUS_LABELS: Record<string, string> = {
   canceled: 'Отменена',
   incomplete: 'Не завершена',
 };
-
-function formatRub(kopecks: number) {
-  return `${(kopecks / 100).toLocaleString('ru-RU')} ₽`;
-}
 
 export default function AdminPage() {
   const [checkingAccess, setCheckingAccess] = useState(true);
@@ -134,7 +128,6 @@ export default function AdminPage() {
     const token = getAccessToken();
     if (!token) return;
 
-    // Двойное подтверждение — необратимая операция
     if (
       !confirm(
         `Удалить организацию «${org.name}»?\n\nВместе с ней будут удалены все пользователи, дела, задачи, документы и подписка.\n\nЭто действие необратимо.`,
@@ -215,7 +208,7 @@ export default function AdminPage() {
         </Modal>
 
         {!loading && (
-          <div className="grid gap-3 sm:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-2xl border border-border bg-card p-4">
               <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 <Building2 size={12} /> Организаций
@@ -228,14 +221,6 @@ export default function AdminPage() {
               </div>
               <div className="mt-1 text-2xl font-bold">
                 {organizations.reduce((s, o) => s + o.usersCount, 0)}
-              </div>
-            </div>
-            <div className="rounded-2xl border border-border bg-card p-4">
-              <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                <CreditCard size={12} /> Выручка / мес
-              </div>
-              <div className="mt-1 text-2xl font-bold">
-                {formatRub(organizations.reduce((s, o) => s + o.monthlyTotal, 0))}
               </div>
             </div>
             <div className="rounded-2xl border border-border bg-card p-4">
@@ -263,9 +248,6 @@ export default function AdminPage() {
                   Дел / Клиентов
                 </th>
                 <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Стоимость / мес
-                </th>
-                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Статус
                 </th>
                 <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -277,7 +259,7 @@ export default function AdminPage() {
               {loading ? (
                 [1, 2, 3].map((i) => (
                   <tr key={i} className="border-b border-border last:border-0">
-                    {[1, 2, 3, 4, 5, 6].map((j) => (
+                    {[1, 2, 3, 4, 5].map((j) => (
                       <td key={j} className="p-4">
                         <div className="h-4 animate-pulse rounded bg-muted" />
                       </td>
@@ -286,7 +268,7 @@ export default function AdminPage() {
                 ))
               ) : organizations.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-16 text-center">
+                  <td colSpan={5} className="py-16 text-center">
                     <Building2 size={28} className="mx-auto mb-3 text-muted-foreground/40" />
                     <p className="text-sm text-muted-foreground">Организаций пока нет</p>
                   </td>
@@ -315,12 +297,6 @@ export default function AdminPage() {
                       </span>
                       <span className="text-xs text-muted-foreground">{org.clientsCount} клиентов</span>
                     </td>
-                    <td className="p-4 text-sm">
-                      <div className="font-medium">{formatRub(org.monthlyTotal)}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {org.usersCount} × {formatRub(org.subscription?.pricePerSeat ?? 99000)}
-                      </div>
-                    </td>
                     <td className="p-4">
                       {org.subscription?.manualOverride ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
@@ -332,6 +308,11 @@ export default function AdminPage() {
                             ? STATUS_LABELS[org.subscription.status] ?? org.subscription.status
                             : 'Нет подписки'}
                         </span>
+                      )}
+                      {org.subscription?.plan && (
+                        <div className="mt-0.5 text-[11px] text-muted-foreground">
+                          {org.subscription.plan.name}
+                        </div>
                       )}
                     </td>
                     <td className="p-4">
@@ -354,7 +335,6 @@ export default function AdminPage() {
                           </button>
                         )}
 
-                        {/* ── Удаление организации ── */}
                         <button
                           type="button"
                           onClick={() => handleDeleteOrganization(org)}
@@ -376,4 +356,4 @@ export default function AdminPage() {
       </div>
     </AppShell>
   );
-                            }
+}
