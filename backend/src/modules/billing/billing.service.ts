@@ -1,6 +1,7 @@
 import {
   Injectable,
   Logger,
+  NotFoundException,
   BadRequestException,
   InternalServerErrorException,
 } from '@nestjs/common';
@@ -8,9 +9,6 @@ import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 import { PrismaService } from '../../database/prisma.service';
 import { StripeService } from './stripe.service';
-
-// Цена за одно место (seat) в минимальных единицах валюты — ₽990
-const PRICE_PER_SEAT = 99000;
 
 @Injectable()
 export class BillingService {
@@ -32,29 +30,25 @@ export class BillingService {
     );
   }
 
-  private get stripeSeatPriceId(): string | undefined {
-    return this.config.get<string>('STRIPE_SEAT_PRICE_ID');
-  }
-
   async ensureSubscription(organizationId: string) {
     let subscription = await this.prisma.subscription.findUnique({
       where: { organizationId },
+      include: { plan: true },
     });
     if (!subscription) {
       subscription = await this.prisma.subscription.create({
-        data: {
-          organizationId,
-          pricePerSeat: PRICE_PER_SEAT,
-          quantity: await this.countUsers(organizationId),
-        },
+        data: { organizationId },
+        include: { plan: true },
       });
     }
     return subscription;
   }
 
-  private async countUsers(organizationId: string): Promise<number> {
-    const count = await this.prisma.user.count({ where: { organizationId } });
-    return Math.max(count, 1);
+  async getPlans() {
+    return this.prisma.plan.findMany({
+      where: { isActive: true },
+      orderBy: { priceMonthly: 'asc' },
+    });
   }
 
   async getSubscription(organizationId: string) {
@@ -62,7 +56,6 @@ export class BillingService {
     return {
       ...subscription,
       isActive: this.computeIsActive(subscription),
-      monthlyTotal: subscription.pricePerSeat * subscription.quantity,
     };
   }
 
@@ -81,62 +74,24 @@ export class BillingService {
     );
   }
 
-  // =========================
-  // СИНХРОНИЗАЦИЯ КОЛИЧЕСТВА МЕСТ (seats)
-  // Вызывается при добавлении/удалении сотрудника организации.
-  // Обновляет quantity локально и, если оформлена реальная Stripe-подписка,
-  // синхронизирует quantity в Stripe (это меняет сумму следующего списания).
-  // =========================
-  async syncSeats(organizationId: string) {
-    const subscription = await this.ensureSubscription(organizationId);
-    const quantity = await this.countUsers(organizationId);
-
-    const updated = await this.prisma.subscription.update({
-      where: { organizationId },
-      data: { quantity },
+  async createCheckoutSession(
+    organizationId: string,
+    planId: string,
+    userEmail: string,
+  ) {
+    const plan = await this.prisma.plan.findUnique({
+      where: { id: planId },
     });
-
-    if (subscription.stripeSubscriptionId) {
-      try {
-        const stripeSubscription = await this.stripe.subscriptions.retrieve(
-          subscription.stripeSubscriptionId,
-        );
-        const item = stripeSubscription.items.data[0];
-        if (item) {
-          await this.stripe.subscriptions.update(
-            subscription.stripeSubscriptionId,
-            {
-              items: [{ id: item.id, quantity }],
-              proration_behavior: 'create_prorations',
-            },
-          );
-        }
-      } catch (err) {
-        this.logger.error(
-          `Не удалось синхронизировать quantity в Stripe для org ${organizationId}`,
-          err as Error,
-        );
-      }
+    if (!plan || !plan.isActive) {
+      throw new NotFoundException('Тариф не найден');
     }
-
-    return updated;
-  }
-
-  // =========================
-  // CHECKOUT — per-seat подписка
-  // quantity = текущее число сотрудников организации,
-  // price = фиксированная цена за место (pricePerSeat)
-  // =========================
-  async createCheckoutSession(organizationId: string, userEmail: string) {
-    if (!this.stripeSeatPriceId) {
+    if (!plan.stripePriceId) {
       throw new BadRequestException(
-        'Оплата ещё не настроена. Установите STRIPE_SEAT_PRICE_ID.',
+        'Для этого тарифа не настроена оплата в Stripe',
       );
     }
 
     const subscription = await this.ensureSubscription(organizationId);
-    const quantity = await this.countUsers(organizationId);
-
     let customerId = subscription.stripeCustomerId;
     if (!customerId) {
       const customer = await this.stripe.customers.create({
@@ -150,26 +105,16 @@ export class BillingService {
       });
     }
 
-    // Если у организации есть накопленные бесплатные месяцы (реферальная
-    // программа) и она ещё не оформляла реальную Stripe-подписку — даём trial.
-    const trialDays =
-      !subscription.stripeSubscriptionId && subscription.freeMonthsCredit > 0
-        ? subscription.freeMonthsCredit * 30
-        : undefined;
-
     const session = await this.stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
-      line_items: [
-        { price: this.stripeSeatPriceId, quantity },
-      ],
+      line_items: [{ price: plan.stripePriceId, quantity: 1 }],
       success_url: `${this.frontendUrl}/settings/billing?success=true`,
       cancel_url: `${this.frontendUrl}/settings/billing?canceled=true`,
       client_reference_id: organizationId,
-      metadata: { organizationId },
+      metadata: { organizationId, planId: plan.id },
       subscription_data: {
-        metadata: { organizationId },
-        ...(trialDays ? { trial_period_days: trialDays } : {}),
+        metadata: { organizationId, planId: plan.id },
       },
     });
 
@@ -179,27 +124,7 @@ export class BillingService {
       );
     }
 
-    if (trialDays) {
-      await this.prisma.subscription.update({
-        where: { organizationId },
-        data: { freeMonthsCredit: 0 },
-      });
-    }
-
     return { url: session.url };
-  }
-
-  // =========================
-  // РЕФЕРАЛЬНАЯ ПРОГРАММА: начислить бесплатные месяцы
-  // Начисляется в виде кредита, который применяется как Stripe trial
-  // при следующем оформлении подписки (см. createCheckoutSession).
-  // =========================
-  async addFreeMonths(organizationId: string, months: number) {
-    await this.ensureSubscription(organizationId);
-    return this.prisma.subscription.update({
-      where: { organizationId },
-      data: { freeMonthsCredit: { increment: months } },
-    });
   }
 
   async createPortalSession(organizationId: string) {
@@ -298,8 +223,12 @@ export class BillingService {
       return;
     }
 
-    const item = stripeSubscription.items.data[0];
-    const quantity = item?.quantity ?? undefined;
+    const priceId = stripeSubscription.items.data[0]?.price.id;
+    const plan = priceId
+      ? await this.prisma.plan.findFirst({
+          where: { stripePriceId: priceId },
+        })
+      : null;
 
     const customerId =
       typeof stripeSubscription.customer === 'string'
@@ -310,6 +239,7 @@ export class BillingService {
       where: { organizationId },
       create: {
         organizationId,
+        planId: plan?.id,
         status: stripeSubscription.status,
         stripeCustomerId: customerId,
         stripeSubscriptionId: stripeSubscription.id,
@@ -317,17 +247,15 @@ export class BillingService {
           stripeSubscription.current_period_end * 1000,
         ),
         cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
-        pricePerSeat: PRICE_PER_SEAT,
-        quantity: quantity ?? 1,
       },
       update: {
+        planId: plan?.id,
         status: stripeSubscription.status,
         stripeSubscriptionId: stripeSubscription.id,
         currentPeriodEnd: new Date(
           stripeSubscription.current_period_end * 1000,
         ),
         cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
-        ...(quantity ? { quantity } : {}),
       },
     });
   }
