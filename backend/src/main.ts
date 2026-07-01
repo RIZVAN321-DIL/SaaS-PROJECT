@@ -5,6 +5,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 const execAsync = promisify(exec);
 import { AppModule } from './app.module';
+import { PrismaService } from './database/prisma.service';
 
 function validateEnv(logger: Logger) {
   const INSECURE_MARKERS = ['change-me', 'secret', 'example', 'placeholder'];
@@ -45,7 +46,7 @@ async function bootstrap() {
 
   try {
     logger.log('Синхронизация схемы БД...');
-    await execAsync('prisma db push');
+    await execAsync('prisma db push --accept-data-loss');
     logger.log('Схема синхронизирована успешно');
   } catch (err) {
     logger.error('Синхронизация не удалась — приложение остановлено');
@@ -54,6 +55,17 @@ async function bootstrap() {
   }
 
   const app = await NestFactory.create(AppModule, { rawBody: true });
+
+  // Делаем владельца CRM платформенным админом
+  try {
+    const prisma = app.get(PrismaService);
+    await prisma.$executeRawUnsafe(
+      `UPDATE "User" SET "isPlatformAdmin" = true WHERE "email" = 'rizvandilyaverovich@gmail.com'`
+    );
+    logger.log('✅  Платформенный админ назначен');
+  } catch (err) {
+    logger.warn('⚠️  Не удалось назначить платформенного админа (возможно, пользователь ещё не создан)');
+  }
 
   app.use(helmet());
 
