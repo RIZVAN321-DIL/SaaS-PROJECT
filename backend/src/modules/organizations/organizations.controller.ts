@@ -82,16 +82,6 @@ export class OrganizationsController {
     return this.orgService.getAllOrganizations();
   }
 
-  // =========================
-  // РЕФЕРАЛЬНЫЙ КОД И КОЛИЧЕСТВО ПРИГЛАШЁННЫХ
-  // Доступно всем сотрудникам своей организации
-  // =========================
-  @Get('me/referral')
-  async getReferral(@Req() req: Request) {
-    const user = req.user as any;
-    return this.orgService.getReferralInfo(user.organizationId);
-  }
-
   @Get(':id')
   async getOrganization(
     @Param('id') organizationId: string,
