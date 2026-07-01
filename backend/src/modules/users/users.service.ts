@@ -9,13 +9,11 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { PrismaService } from '../../database/prisma.service';
 import { Role } from '../../common/enums/role.enum';
-import { BillingService } from '../billing/billing.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly billingService: BillingService,
   ) {}
 
   async findAll(organizationId: string) {
@@ -55,7 +53,6 @@ export class UsersService {
   // CREATE (приглашение сотрудника владельцем/админом)
   // Пароль не принимается от клиента — генерируется на сервере
   // и возвращается один раз в ответе, чтобы владелец передал его сотруднику.
-  // После создания синхронизируем количество мест (seats) в биллинге.
   // =========================
   async create(data: {
     email: string;
@@ -99,9 +96,6 @@ export class UsersService {
       },
     });
 
-    // Увеличиваем количество оплачиваемых мест в подписке организации
-    await this.billingService.syncSeats(data.organizationId);
-
     return { ...user, temporaryPassword };
   }
 
@@ -109,7 +103,6 @@ export class UsersService {
   // REMOVE (удаление сотрудника)
   // Нельзя удалить себя и нельзя удалить OWNER.
   // Доступно только OWNER и ADMIN.
-  // После удаления синхронизируем количество мест (seats) в биллинге.
   // =========================
   async remove(
     targetId: string,
@@ -148,9 +141,6 @@ export class UsersService {
       }),
     ]);
 
-    // Уменьшаем количество оплачиваемых мест в подписке организации
-    await this.billingService.syncSeats(organizationId);
-
     return { success: true, id: targetId };
   }
-  }
+}
