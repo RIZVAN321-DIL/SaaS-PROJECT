@@ -56,6 +56,8 @@ interface CaseDetail {
   createdAt: string;
   clientId: string;
   caseTypeId?: string;
+  assignedLawyerId?: string;
+  assignedLawyer?: { id: string; email: string };
   client?: { id: string; fullName: string; phone?: string; email?: string };
   caseType?: { id: string; name: string };
   stage?: Stage;
@@ -305,6 +307,7 @@ export default function CaseDetailPage() {
         <div className="space-y-1.5 text-sm">
           <p>Тип: <span className="font-medium text-primary">{caseData.caseType?.name ?? '—'}</span></p>
           <p className="text-muted-foreground">Стадия: {caseData.stage?.name ?? '—'}</p>
+          <p className="text-muted-foreground">Ответственный юрист: {caseData.assignedLawyer?.email ?? 'не назначен'}</p>
           <p className="text-muted-foreground">Создано: {new Date(caseData.createdAt).toLocaleDateString('ru-RU')}</p>
         </div>
       </div>
@@ -323,7 +326,7 @@ export default function CaseDetailPage() {
   return (
     <AppShell rightPanel={rightPanel}>
       <Modal open={showEditCase} onClose={() => setShowEditCase(false)} title="Редактировать дело">
-        <CaseForm caseToEdit={{ id: caseData.id, title: caseData.title, description: caseData.description, clientId: caseData.clientId, caseTypeId: caseData.caseTypeId }} onSuccess={() => { setShowEditCase(false); toast.success('Дело обновлено'); load(); }} />
+        <CaseForm caseToEdit={{ id: caseData.id, title: caseData.title, description: caseData.description, clientId: caseData.clientId, caseTypeId: caseData.caseTypeId, assignedLawyerId: caseData.assignedLawyerId }} onSuccess={() => { setShowEditCase(false); toast.success('Дело обновлено'); load(); }} />
       </Modal>
 
       <Modal open={showAddTask} onClose={() => { setShowAddTask(false); setTaskToEdit(null); }} title={taskToEdit ? 'Редактировать задачу' : 'Новая задача'}>
@@ -471,4 +474,4 @@ export default function CaseDetailPage() {
       </div>
     </AppShell>
   );
-}
+        }
