@@ -42,7 +42,10 @@ export class TasksController {
   @Get()
   findAll(@Req() req: Request) {
     const user = req.user as AuthenticatedUser;
-    return this.tasksService.findAll(user.organizationId);
+    return this.tasksService.findAll(user.organizationId, {
+      userId: user.userId,
+      role: user.role,
+    });
   }
 
   @Get(':id')
@@ -51,7 +54,10 @@ export class TasksController {
     @Req() req: Request,
   ) {
     const user = req.user as AuthenticatedUser;
-    return this.tasksService.findById(id, user.organizationId);
+    return this.tasksService.findById(id, user.organizationId, {
+      userId: user.userId,
+      role: user.role,
+    });
   }
 
   @Put(':id')
