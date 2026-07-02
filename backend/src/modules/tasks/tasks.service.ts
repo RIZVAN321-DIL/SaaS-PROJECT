@@ -5,13 +5,21 @@ import {
 
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { PermissionsService } from '../permissions/permissions.service';
+import { Role } from '../../common/enums/role.enum';
 import { TaskStatus } from './dto/create-task.dto';
+
+interface Requester {
+  userId: string;
+  role: Role | string;
+}
 
 @Injectable()
 export class TasksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly permissions: PermissionsService,
   ) {}
 
   // =========================
@@ -74,10 +82,26 @@ export class TasksService {
 
   // =========================
   // GET ALL
+  // Если у организации включена настройка "Помощники видят только
+  // свои задачи" и запрашивает роль ASSISTANT — показываем задачи,
+  // назначенные на этого помощника, плюс ещё не назначенные никому.
+  // OWNER и ADMIN всегда видят все задачи.
   // =========================
-  async findAll(organizationId: string) {
+  async findAll(organizationId: string, requester?: Requester) {
+    const where: Record<string, unknown> = { organizationId };
+
+    if (requester) {
+      const settings = await this.permissions.getForOrganization(organizationId);
+      if (this.permissions.shouldFilterTasksByAssistant(requester.role, settings)) {
+        where.OR = [
+          { assignedToId: requester.userId },
+          { assignedToId: null },
+        ];
+      }
+    }
+
     return this.prisma.task.findMany({
-      where: { organizationId },
+      where,
       include: {
         case: true,
         assignedTo: {
@@ -95,7 +119,7 @@ export class TasksService {
   // =========================
   // GET ONE
   // =========================
-  async findById(id: string, organizationId: string) {
+  async findById(id: string, organizationId: string, requester?: Requester) {
     const task = await this.prisma.task.findFirst({
       where: { id, organizationId },
       include: {
@@ -112,6 +136,18 @@ export class TasksService {
 
     if (!task) {
       throw new NotFoundException('Задача не найдена');
+    }
+
+    if (requester) {
+      const settings = await this.permissions.getForOrganization(organizationId);
+      const isFiltered = this.permissions.shouldFilterTasksByAssistant(requester.role, settings);
+      const isForeignTask =
+        task.assignedToId !== null &&
+        task.assignedToId !== requester.userId;
+
+      if (isFiltered && isForeignTask) {
+        throw new NotFoundException('Задача не найдена');
+      }
     }
 
     return task;
