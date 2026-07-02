@@ -87,9 +87,21 @@ export default function PermissionsSettingsPage() {
     if (!token || !currentUser) return;
     setSaving(true);
     try {
+      // Отправляем только поля, которые ожидает UpdatePermissionsDto —
+      // объект settings приходит из GET и содержит служебные поля
+      // Prisma (id, organizationId, createdAt, updatedAt), которые
+      // backend отклонит из-за forbidNonWhitelisted: true.
+      const payload = {
+        lawyersSeeOnlyOwnCases: settings.lawyersSeeOnlyOwnCases,
+        assistantsSeeOnlyOwnTasks: settings.assistantsSeeOnlyOwnTasks,
+        hideAdminSectionsFromLawyers: settings.hideAdminSectionsFromLawyers,
+        whoCanDeleteCases: settings.whoCanDeleteCases,
+        whoCanDeleteDocuments: settings.whoCanDeleteDocuments,
+      };
+
       const updated = await organizationsApi.updatePermissions(
         currentUser.organizationId,
-        settings,
+        payload,
         token,
       );
       setSettings(updated);
@@ -228,4 +240,4 @@ export default function PermissionsSettingsPage() {
       </div>
     </AppShell>
   );
-                  }
+}
