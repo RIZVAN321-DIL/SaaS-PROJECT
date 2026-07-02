@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Put,
   Body,
   Param,
   Get,
@@ -10,6 +11,8 @@ import {
 import { Request } from 'express';
 
 import { OrganizationsService } from './organizations.service';
+import { PermissionsService } from '../permissions/permissions.service';
+import { UpdatePermissionsDto } from '../permissions/dto/update-permissions.dto';
 
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
@@ -19,6 +22,7 @@ import { Public } from '../../common/decorators/public.decorator';
 export class OrganizationsController {
   constructor(
     private readonly orgService: OrganizationsService,
+    private readonly permissionsService: PermissionsService,
   ) {}
 
   @Public()
@@ -97,6 +101,56 @@ export class OrganizationsController {
 
     return this.orgService.getOrganizationById(
       organizationId,
+    );
+  }
+
+  // =========================
+  // НАСТРОЙКИ ПРАВ ДОСТУПА
+  // Смотреть может любой сотрудник организации (нужно фронту,
+  // чтобы правильно скрывать разделы), менять — только OWNER.
+  // =========================
+  @Roles(
+    Role.OWNER,
+    Role.ADMIN,
+    Role.LAWYER,
+    Role.ASSISTANT,
+  )
+  @Get(':id/permissions')
+  async getPermissions(
+    @Param('id') organizationId: string,
+    @Req() req: Request,
+  ) {
+    const user = req.user as any;
+
+    if (user.organizationId !== organizationId) {
+      throw new Error(
+        'Access denied to another organization',
+      );
+    }
+
+    return this.permissionsService.getForOrganization(
+      organizationId,
+    );
+  }
+
+  @Roles(Role.OWNER)
+  @Put(':id/permissions')
+  async updatePermissions(
+    @Param('id') organizationId: string,
+    @Body() body: UpdatePermissionsDto,
+    @Req() req: Request,
+  ) {
+    const user = req.user as any;
+
+    if (user.organizationId !== organizationId) {
+      throw new Error(
+        'Access denied to another organization',
+      );
+    }
+
+    return this.permissionsService.update(
+      organizationId,
+      body,
     );
   }
 }
