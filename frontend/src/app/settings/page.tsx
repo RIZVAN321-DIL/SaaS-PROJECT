@@ -11,19 +11,36 @@ import {
   Building2,
   ExternalLink,
   KeyRound,
+  Lock,
 } from 'lucide-react';
 import { AppShell } from '@/components/layout/app-shell';
-import { authApi } from '@/lib/api';
-import { getAccessToken } from '@/lib/auth';
+import { authApi, organizationsApi } from '@/lib/api';
+import { getAccessToken, getUser } from '@/lib/auth';
 import { toast } from '@/lib/toast';
 
 export default function SettingsPage() {
   const router = useRouter();
+  const currentUser = getUser();
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [loadingTwoFactor, setLoadingTwoFactor] = useState(true);
   const [togglingTwoFactor, setTogglingTwoFactor] = useState(false);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+  const [hideAdminSections, setHideAdminSections] = useState(false);
+
+  useEffect(() => {
+    async function loadPermissions() {
+      const token = getAccessToken();
+      if (!token || !currentUser || currentUser.role !== 'LAWYER') return;
+      try {
+        const settings = await organizationsApi.getPermissions(currentUser.organizationId, token);
+        setHideAdminSections(Boolean(settings.hideAdminSectionsFromLawyers));
+      } catch {
+        // тихо игнорируем — по умолчанию разделы остаются видимыми
+      }
+    }
+    loadPermissions();
+  }, []);
 
   useEffect(() => {
     const saved = localStorage.getItem('theme') as 'light' | 'dark' | null;
@@ -119,20 +136,40 @@ export default function SettingsPage() {
         </div>
 
         {/* Команда */}
-        <div
-          onClick={() => router.push('/settings/team')}
-          className="flex cursor-pointer items-center justify-between rounded-2xl border border-border bg-card p-5 transition hover:border-primary/50"
-        >
-          <div>
-            <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <Users size={15} /> Команда
-            </h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Управляйте сотрудниками, приглашайте юристов и ассистентов
-            </p>
+        {!hideAdminSections && (
+          <div
+            onClick={() => router.push('/settings/team')}
+            className="flex cursor-pointer items-center justify-between rounded-2xl border border-border bg-card p-5 transition hover:border-primary/50"
+          >
+            <div>
+              <h2 className="flex items-center gap-2 text-sm font-semibold">
+                <Users size={15} /> Команда
+              </h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Управляйте сотрудниками, приглашайте юристов и ассистентов
+              </p>
+            </div>
+            <ExternalLink size={15} className="shrink-0 text-muted-foreground" />
           </div>
-          <ExternalLink size={15} className="shrink-0 text-muted-foreground" />
-        </div>
+        )}
+
+        {/* Права доступа */}
+        {!hideAdminSections && (
+          <div
+            onClick={() => router.push('/settings/permissions')}
+            className="flex cursor-pointer items-center justify-between rounded-2xl border border-border bg-card p-5 transition hover:border-primary/50"
+          >
+            <div>
+              <h2 className="flex items-center gap-2 text-sm font-semibold">
+                <Lock size={15} /> Права доступа
+              </h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Кто и что видит и может удалять в организации
+              </p>
+            </div>
+            <ExternalLink size={15} className="shrink-0 text-muted-foreground" />
+          </div>
+        )}
 
         {/* Тариф */}
         <div
@@ -234,4 +271,4 @@ export default function SettingsPage() {
       </div>
     </AppShell>
   );
-}
+            }
