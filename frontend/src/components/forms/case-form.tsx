@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { casesApi, clientsApi, caseTypesApi } from '@/lib/api';
+import { casesApi, clientsApi, caseTypesApi, usersApi } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -17,12 +17,19 @@ interface CaseType {
   name: string;
 }
 
+interface OrgMember {
+  id: string;
+  email: string;
+  role: string;
+}
+
 interface CaseToEdit {
   id: string;
   title: string;
   description?: string;
   clientId: string;
   caseTypeId?: string;
+  assignedLawyerId?: string;
 }
 
 interface CaseFormProps {
@@ -38,12 +45,16 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [caseTypes, setCaseTypes] = useState<CaseType[]>([]);
+  const [lawyers, setLawyers] = useState<OrgMember[]>([]);
   const [title, setTitle] = useState(caseToEdit?.title ?? '');
   const [description, setDescription] = useState(caseToEdit?.description ?? '');
   const [selectedClientId, setSelectedClientId] = useState(
     caseToEdit?.clientId ?? clientId ?? '',
   );
   const [caseTypeId, setCaseTypeId] = useState(caseToEdit?.caseTypeId ?? '');
+  const [assignedLawyerId, setAssignedLawyerId] = useState(
+    caseToEdit?.assignedLawyerId ?? '',
+  );
   const [error, setError] = useState('');
 
   // Новый клиент на лету
@@ -59,9 +70,10 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
       if (!token) return;
 
       try {
-        const [clientsData, caseTypesData] = await Promise.all([
+        const [clientsData, caseTypesData, usersData] = await Promise.all([
           clientsApi.getAll(token),
           caseTypesApi.getAll(token),
+          usersApi.getAll(token),
         ]);
 
         const list = Array.isArray(clientsData)
@@ -69,6 +81,9 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
           : ((clientsData as { items?: Client[] }).items ?? []);
         setClients(list);
         setCaseTypes(caseTypesData as CaseType[]);
+
+        const members = usersData as OrgMember[];
+        setLawyers(members.filter((m) => m.role === 'LAWYER' || m.role === 'ADMIN' || m.role === 'OWNER'));
       } catch {
         setError('Не удалось загрузить данные');
       }
@@ -127,6 +142,7 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
         description: description.trim() || undefined,
         clientId: selectedClientId,
         caseTypeId: caseTypeId || undefined,
+        assignedLawyerId: isEditing ? (assignedLawyerId || '') : (assignedLawyerId || undefined),
       };
 
       if (isEditing && caseToEdit) {
@@ -138,6 +154,7 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
         setDescription('');
         if (!clientId) setSelectedClientId('');
         setCaseTypeId('');
+        setAssignedLawyerId('');
       }
 
       onSuccess?.();
@@ -253,6 +270,22 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
       </div>
 
       <div>
+        <label className="mb-2 block text-sm font-medium">Ответственный юрист</label>
+        <select
+          value={assignedLawyerId}
+          onChange={(e) => setAssignedLawyerId(e.target.value)}
+          className="h-12 w-full rounded-xl border border-border bg-background px-4 outline-none"
+        >
+          <option value="">Не назначен</option>
+          {lawyers.map((lawyer) => (
+            <option key={lawyer.id} value={lawyer.id}>
+              {lawyer.email}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
         <label className="mb-2 block text-sm font-medium">Описание</label>
         <textarea
           rows={5}
@@ -274,4 +307,4 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
       </Button>
     </form>
   );
-}
+        }
