@@ -2,60 +2,50 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
-
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { PermissionsService } from '../permissions/permissions.service';
+import { Role } from '../../common/enums/role.enum';
+
+interface Requester {
+  userId: string;
+  role: Role | string;
+}
 
 @Injectable()
 export class CasesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly permissions: PermissionsService,
   ) {}
 
-  // =========================
-  // CREATE CASE
-  // =========================
   async create(data: {
     clientId: string;
     organizationId: string;
     title: string;
     description?: string;
     caseTypeId?: string;
+    assignedLawyerId?: string;
     userId: string;
   }) {
     const client = await this.prisma.client.findFirst({
-      where: {
-        id: data.clientId,
-        organizationId: data.organizationId,
-      },
+      where: { id: data.clientId, organizationId: data.organizationId },
     });
-
-    if (!client) {
-      throw new NotFoundException('Клиент не найден');
-    }
+    if (!client) throw new NotFoundException('Клиент не найден');
 
     if (data.caseTypeId) {
       const caseType = await this.prisma.caseType.findFirst({
-        where: {
-          id: data.caseTypeId,
-          organizationId: data.organizationId,
-        },
+        where: { id: data.caseTypeId, organizationId: data.organizationId },
       });
-
-      if (!caseType) {
-        throw new NotFoundException('Тип дела не найден');
-      }
+      if (!caseType) throw new NotFoundException('Тип дела не найден');
     }
 
     const firstStage = await this.prisma.caseStage.findFirst({
-      where: {
-        organizationId: data.organizationId,
-      },
-      orderBy: {
-        order: 'asc',
-      },
+      where: { organizationId: data.organizationId },
+      orderBy: { order: 'asc' },
     });
 
     const newCase = await this.prisma.case.create({
@@ -66,12 +56,9 @@ export class CasesService {
         description: data.description?.trim(),
         caseTypeId: data.caseTypeId,
         stageId: firstStage?.id ?? null,
+        assignedLawyerId: data.assignedLawyerId || null,
       },
-      include: {
-        client: true,
-        caseType: true,
-        stage: true,
-      },
+      include: { client: true, caseType: true, stage: true },
     });
 
     await this.audit.log({
@@ -80,124 +67,97 @@ export class CasesService {
       action: 'CASE_CREATED',
       entity: 'Case',
       entityId: newCase.id,
-      meta: {
-        title: newCase.title,
-        clientId: data.clientId,
-        caseTypeId: data.caseTypeId,
-      },
+      meta: { title: newCase.title, clientId: data.clientId, caseTypeId: data.caseTypeId },
     });
 
     return newCase;
   }
 
-  // =========================
-  // GET ALL CASES
-  // Включаем минимальные данные задач — нужны для индикатора
-  // просроченных задач в списке дел (overdueCount).
-  // =========================
-  async findAll(organizationId: string) {
+  async findAll(organizationId: string, requester?: Requester) {
+    const where: Record<string, unknown> = { organizationId };
+
+    if (requester) {
+      const settings = await this.permissions.getForOrganization(organizationId);
+      if (
+        settings?.lawyersSeeOnlyOwnCases &&
+        requester.role === Role.LAWYER
+      ) {
+        where.OR = [
+          { assignedLawyerId: requester.userId },
+          { assignedLawyerId: null },
+        ];
+      }
+    }
+
     return this.prisma.case.findMany({
-      where: {
-        organizationId,
-      },
+      where,
       include: {
         client: true,
         caseType: true,
         stage: true,
-        tasks: {
-          select: {
-            id: true,
-            status: true,
-            dueDate: true,
-          },
-        },
+        tasks: { select: { id: true, status: true, dueDate: true } },
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
-  // =========================
-  // GET ONE CASE
-  // =========================
-  async findById(id: string, organizationId: string) {
+  async findById(id: string, organizationId: string, requester?: Requester) {
     const caseItem = await this.prisma.case.findFirst({
-      where: {
-        id,
-        organizationId,
-      },
+      where: { id, organizationId },
       include: {
         client: true,
         caseType: true,
         stage: true,
         tasks: true,
         documents: true,
+        assignedLawyer: { select: { id: true, email: true } },
       },
     });
 
-    if (!caseItem) {
-      throw new NotFoundException('Дело не найдено');
-    }
-
+    if (!caseItem) throw new NotFoundException('Дело не найдено');
     return caseItem;
   }
 
-  // =========================
-  // UPDATE CASE
-  // =========================
-  async update(
-    id: string,
-    data: {
-      title?: string;
-      description?: string;
-      caseTypeId?: string;
-      stageId?: string;
-      organizationId: string;
-      userId: string;
-    },
-  ) {
+  async update(id: string, data: {
+    title?: string;
+    description?: string;
+    caseTypeId?: string;
+    stageId?: string;
+    assignedLawyerId?: string | null;
+    organizationId: string;
+    userId: string;
+  }) {
     const existingCase = await this.findById(id, data.organizationId);
 
     if (data.caseTypeId) {
       const caseType = await this.prisma.caseType.findFirst({
-        where: {
-          id: data.caseTypeId,
-          organizationId: data.organizationId,
-        },
+        where: { id: data.caseTypeId, organizationId: data.organizationId },
       });
-
-      if (!caseType) {
-        throw new NotFoundException('Тип дела не найден');
-      }
+      if (!caseType) throw new NotFoundException('Тип дела не найден');
     }
 
     if (data.stageId) {
       const stage = await this.prisma.caseStage.findFirst({
-        where: {
-          id: data.stageId,
-          organizationId: data.organizationId,
-        },
+        where: { id: data.stageId, organizationId: data.organizationId },
       });
+      if (!stage) throw new NotFoundException('Стадия не найдена');
+    }
 
-      if (!stage) {
-        throw new NotFoundException('Стадия не найдена');
-      }
+    const updateData: Record<string, unknown> = {
+      title: data.title?.trim(),
+      description: data.description?.trim(),
+      caseTypeId: data.caseTypeId,
+      stageId: data.stageId,
+    };
+
+    if (data.assignedLawyerId !== undefined) {
+      updateData.assignedLawyerId = data.assignedLawyerId || null;
     }
 
     const updated = await this.prisma.case.update({
       where: { id },
-      data: {
-        title: data.title?.trim(),
-        description: data.description?.trim(),
-        caseTypeId: data.caseTypeId,
-        stageId: data.stageId,
-      },
-      include: {
-        client: true,
-        caseType: true,
-        stage: true,
-      },
+      data: updateData,
+      include: { client: true, caseType: true, stage: true },
     });
 
     await this.audit.log({
@@ -225,10 +185,17 @@ export class CasesService {
     return updated;
   }
 
-  // =========================
-  // DELETE CASE
-  // =========================
-  async remove(id: string, organizationId: string, userId: string) {
+  async remove(id: string, organizationId: string, userId: string, requesterRole?: Role | string) {
+    if (requesterRole) {
+      const settings = await this.permissions.getForOrganization(organizationId);
+      if (
+        settings?.whoCanDeleteCases === 'OWNER' &&
+        requesterRole !== Role.OWNER
+      ) {
+        throw new ForbiddenException('Только владелец организации может удалять дела');
+      }
+    }
+
     const existingCase = await this.findById(id, organizationId);
 
     const [tasksCount, documentsCount] = await Promise.all([
@@ -245,9 +212,7 @@ export class CasesService {
       );
     }
 
-    const deleted = await this.prisma.case.delete({
-      where: { id },
-    });
+    const deleted = await this.prisma.case.delete({ where: { id } });
 
     await this.audit.log({
       organizationId,
@@ -255,72 +220,53 @@ export class CasesService {
       action: 'CASE_DELETED',
       entity: 'Case',
       entityId: id,
-      meta: {
-        title: existingCase.title,
-      },
+      meta: { title: existingCase.title },
     });
 
     return deleted;
   }
 
-  // =========================
-  // KANBAN BOARD
-  // =========================
-  async getBoard(organizationId: string) {
+  async getBoard(organizationId: string, requester?: Requester) {
+    const where: Record<string, unknown> = { organizationId };
+
+    if (requester) {
+      const settings = await this.permissions.getForOrganization(organizationId);
+      if (
+        settings?.lawyersSeeOnlyOwnCases &&
+        requester.role === Role.LAWYER
+      ) {
+        where.OR = [
+          { assignedLawyerId: requester.userId },
+          { assignedLawyerId: null },
+        ];
+      }
+    }
+
     return this.prisma.caseStage.findMany({
-      where: {
-        organizationId,
-      },
-      orderBy: {
-        order: 'asc',
-      },
+      where: { organizationId },
+      orderBy: { order: 'asc' },
       include: {
         cases: {
-          include: {
-            client: true,
-            caseType: true,
-            stage: true,
-          },
-          orderBy: {
-            createdAt: 'desc',
-          },
+          where,
+          include: { client: true, caseType: true, stage: true },
+          orderBy: { createdAt: 'desc' },
         },
       },
     });
   }
 
-  // =========================
-  // MOVE CASE
-  // =========================
-  async moveCase(
-    caseId: string,
-    stageId: string,
-    organizationId: string,
-    userId: string,
-  ) {
+  async moveCase(caseId: string, stageId: string, organizationId: string, userId: string) {
     const existingCase = await this.findById(caseId, organizationId);
 
     const stage = await this.prisma.caseStage.findFirst({
-      where: {
-        id: stageId,
-        organizationId,
-      },
+      where: { id: stageId, organizationId },
     });
-
-    if (!stage) {
-      throw new NotFoundException('Стадия не найдена');
-    }
+    if (!stage) throw new NotFoundException('Стадия не найдена');
 
     const updated = await this.prisma.case.update({
       where: { id: caseId },
-      data: {
-        stageId,
-      },
-      include: {
-        client: true,
-        caseType: true,
-        stage: true,
-      },
+      data: { stageId },
+      include: { client: true, caseType: true, stage: true },
     });
 
     await this.audit.log({
@@ -329,12 +275,9 @@ export class CasesService {
       action: 'CASE_MOVED_STAGE',
       entity: 'Case',
       entityId: caseId,
-      meta: {
-        fromStageId: existingCase.stageId,
-        toStageId: stageId,
-      },
+      meta: { fromStageId: existingCase.stageId, toStageId: stageId },
     });
 
     return updated;
   }
-}
+  }
