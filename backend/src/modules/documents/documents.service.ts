@@ -1,10 +1,13 @@
 import {
   Injectable,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { PermissionsService } from '../permissions/permissions.service';
+import { Role } from '../../common/enums/role.enum';
 import { DocumentEncryptionService } from './document-encryption.service';
 import { S3StorageService } from './s3-storage.service';
 
@@ -15,6 +18,7 @@ export class DocumentsService {
     private readonly audit: AuditService,
     private readonly encryption: DocumentEncryptionService,
     private readonly storage: S3StorageService,
+    private readonly permissions: PermissionsService,
   ) {}
 
   // =========================
@@ -139,8 +143,22 @@ export class DocumentsService {
 
   // =========================
   // DELETE
+  // Право на удаление зависит от настройки whoCanDeleteDocuments
+  // (OWNER всегда может; ALL — все роли; ADMIN — владелец + админ).
   // =========================
-  async remove(id: string, organizationId: string, userId?: string) {
+  async remove(
+    id: string,
+    organizationId: string,
+    userId?: string,
+    requesterRole?: Role | string,
+  ) {
+    if (requesterRole) {
+      const settings = await this.permissions.getForOrganization(organizationId);
+      if (!this.permissions.canDeleteDocument(requesterRole, settings)) {
+        throw new ForbiddenException('Недостаточно прав для удаления документа');
+      }
+    }
+
     const document = await this.findById(id, organizationId);
 
     if (document.fileUrl) {
@@ -162,4 +180,4 @@ export class DocumentsService {
 
     return removed;
   }
-  }
+        }
