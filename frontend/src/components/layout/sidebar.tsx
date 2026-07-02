@@ -18,8 +18,8 @@ import {
   Settings,
   Plus,
 } from 'lucide-react';
-import { casesApi, notificationsApi } from '@/lib/api';
-import { getAccessToken } from '@/lib/auth';
+import { casesApi, notificationsApi, organizationsApi } from '@/lib/api';
+import { getAccessToken, getUser } from '@/lib/auth';
 import { Modal } from '@/components/ui/modal';
 import { CaseForm } from '@/components/forms/case-form';
 import { toast } from '@/lib/toast';
@@ -61,6 +61,28 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
   const [overdueTaskCount, setOverdueTaskCount] = useState(0);
   const [loadingCases, setLoadingCases] = useState(true);
   const [showCaseForm, setShowCaseForm] = useState(false);
+  const [hideAdminSections, setHideAdminSections] = useState(false);
+
+  // Скрываем «Журнал аудита» от юристов, если в организации
+  // включена настройка «Скрыть админские разделы от юристов».
+  useEffect(() => {
+    async function loadPermissions() {
+      const token = getAccessToken();
+      const user = getUser();
+      if (!token || !user || user.role !== 'LAWYER') return;
+      try {
+        const settings = await organizationsApi.getPermissions(user.organizationId, token);
+        setHideAdminSections(Boolean(settings.hideAdminSectionsFromLawyers));
+      } catch {
+        // тихо игнорируем — по умолчанию раздел остаётся видимым
+      }
+    }
+    loadPermissions();
+  }, []);
+
+  const visibleNavigation = hideAdminSections
+    ? navigation.filter((item) => item.href !== '/audit')
+    : navigation;
 
   async function loadCases() {
     const token = getAccessToken();
@@ -116,7 +138,7 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
             Навигация
           </div>
           <div className="space-y-1">
-            {navigation.map((item) => {
+            {visibleNavigation.map((item) => {
               const Icon = item.icon;
               const active =
                 pathname === item.href ||
@@ -275,4 +297,4 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
       )}
     </>
   );
-                  }
+}
