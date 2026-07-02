@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 import { PrismaModule } from '../../database/prisma.module';
 import { AuditModule } from '../audit/audit.module';
+import { PermissionsModule } from '../permissions/permissions.module';
 import { DocumentsController } from './documents.controller';
 import { DocumentsService } from './documents.service';
 import { DocumentEncryptionService } from './document-encryption.service';
@@ -40,6 +41,7 @@ const ALLOWED_MIME_TYPES = new Set([
   imports: [
     PrismaModule,
     AuditModule,
+    PermissionsModule,
     MulterModule.register({
       limits: {
         fileSize: 50 * 1024 * 1024, // 50 МБ
