@@ -21,6 +21,27 @@ model Organization {
   stages       CaseStage[]
   auditLogs    AuditLog[]
   subscription Subscription?
+  permissions  OrganizationPermissions?
+}
+
+model OrganizationPermissions {
+  id                            String       @id @default(uuid())
+  organizationId                String       @unique
+  organization                  Organization @relation(fields: [organizationId], references: [id])
+
+  // Юристы видят только дела, назначенные на них (неназначенные дела видят все)
+  lawyersSeeOnlyOwnCases        Boolean      @default(true)
+  // Помощники видят только задачи, назначенные на них (неназначенные задачи видят все)
+  assistantsSeeOnlyOwnTasks     Boolean      @default(true)
+  // Скрывать раздел "Журнал аудита" и настройки команды от роли LAWYER на фронте
+  hideAdminSectionsFromLawyers  Boolean      @default(true)
+  // Кто может удалять дела: OWNER (только владелец) | ADMIN (владелец + админ)
+  whoCanDeleteCases             String       @default("ADMIN")
+  // Кто может удалять документы: OWNER | ADMIN | ALL (все роли)
+  whoCanDeleteDocuments         String       @default("ADMIN")
+
+  createdAt                     DateTime     @default(now())
+  updatedAt                     DateTime     @updatedAt
 }
 
 model User {
@@ -32,6 +53,7 @@ model User {
   organization        Organization         @relation(fields: [organizationId], references: [id])
   role                String               @default("LAWYER")
   tasks               Task[]
+  assignedCases       Case[]               @relation("CaseAssignedLawyer")
   auditLogs           AuditLog[]
   uploadedDocuments   Document[]            @relation("DocumentUploader")
   passwordResetTokens PasswordResetToken[]
@@ -111,6 +133,8 @@ model Case {
   caseType        CaseType?       @relation(fields: [caseTypeId], references: [id])
   stageId         String?
   stage           CaseStage?      @relation(fields: [stageId], references: [id])
+  assignedLawyerId String?
+  assignedLawyer  User?           @relation("CaseAssignedLawyer", fields: [assignedLawyerId], references: [id])
   tasks           Task[]
   documents       Document[]
   auditLogs       AuditLog[]
