@@ -46,14 +46,20 @@ export class CasesController {
   @Get()
   findAll(@Req() req: Request) {
     const user = req.user as AuthenticatedUser;
-    return this.casesService.findAll(user.organizationId);
+    return this.casesService.findAll(user.organizationId, {
+      userId: user.userId,
+      role: user.role,
+    });
   }
 
   // ВАЖНО: /board и /move/:caseId/:stageId — выше :id
   @Get('board')
   getBoard(@Req() req: Request) {
     const user = req.user as AuthenticatedUser;
-    return this.casesService.getBoard(user.organizationId);
+    return this.casesService.getBoard(user.organizationId, {
+      userId: user.userId,
+      role: user.role,
+    });
   }
 
   @Put('move/:caseId/:stageId')
@@ -77,7 +83,10 @@ export class CasesController {
     @Req() req: Request,
   ) {
     const user = req.user as AuthenticatedUser;
-    return this.casesService.findById(id, user.organizationId);
+    return this.casesService.findById(id, user.organizationId, {
+      userId: user.userId,
+      role: user.role,
+    });
   }
 
   @Put(':id')
@@ -94,13 +103,14 @@ export class CasesController {
     });
   }
 
-  @Roles(Role.OWNER, Role.ADMIN)
+  // Право на удаление проверяется динамически внутри сервиса —
+  // зависит от настройки whoCanDeleteCases организации.
   @Delete(':id')
   remove(
     @Param('id') id: string,
     @Req() req: Request,
   ) {
     const user = req.user as AuthenticatedUser;
-    return this.casesService.remove(id, user.organizationId, user.userId);
+    return this.casesService.remove(id, user.organizationId, user.userId, user.role);
   }
 }
