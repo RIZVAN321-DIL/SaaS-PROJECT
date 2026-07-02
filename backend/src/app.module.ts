@@ -31,6 +31,7 @@ import { RolesGuard } from './common/guards/roles.guard';
 // =========================
 import { UsersModule } from './modules/users/users.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
+import { PermissionsModule } from './modules/permissions/permissions.module';
 
 // =========================
 // CRM CORE
@@ -102,6 +103,7 @@ import { AdminModule } from './modules/admin/admin.module';
     AuthModule,
     UsersModule,
     OrganizationsModule,
+    PermissionsModule,
 
     ClientsModule,
     CasesModule,
