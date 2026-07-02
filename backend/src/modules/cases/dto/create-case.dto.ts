@@ -23,4 +23,8 @@ export class CreateCaseDto {
   @IsOptional()
   @IsUUID('4', { message: 'Некорректный ID типа дела' })
   caseTypeId?: string;
+
+  @IsOptional()
+  @IsUUID('4', { message: 'Некорректный ID ответственного юриста' })
+  assignedLawyerId?: string;
 }
