@@ -88,6 +88,6 @@ export class DocumentsController {
     @Req() req: Request,
   ) {
     const user = req.user as AuthenticatedUser;
-    return this.documentsService.remove(id, user.organizationId, user.userId);
+    return this.documentsService.remove(id, user.organizationId, user.userId, user.role);
   }
 }
