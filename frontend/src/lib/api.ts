@@ -314,6 +314,29 @@ export const adminApi = {
     }),
 };
 
+export interface OrganizationPermissions {
+  lawyersSeeOnlyOwnCases: boolean;
+  assistantsSeeOnlyOwnTasks: boolean;
+  hideAdminSectionsFromLawyers: boolean;
+  whoCanDeleteCases: 'OWNER' | 'ADMIN';
+  whoCanDeleteDocuments: 'OWNER' | 'ADMIN' | 'ALL';
+}
+
+export const organizationsApi = {
+  getPermissions: (organizationId: string, token: string) =>
+    request<OrganizationPermissions>(`/organizations/${organizationId}/permissions`, { token }),
+  updatePermissions: (
+    organizationId: string,
+    data: Partial<OrganizationPermissions>,
+    token: string,
+  ) =>
+    request<OrganizationPermissions>(`/organizations/${organizationId}/permissions`, {
+      method: 'PUT',
+      token,
+      body: data,
+    }),
+};
+
 export const calendarApi = {
   getAll: (token: string) => request('/calendar', { token }),
   getById: (id: string, token: string) => request(`/calendar/${id}`, { token }),
