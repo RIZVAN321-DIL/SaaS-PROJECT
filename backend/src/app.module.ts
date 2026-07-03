@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
 
 // =========================
@@ -70,6 +71,8 @@ import { AuditModule } from './modules/audit/audit.module';
 // =========================
 import { TasksModule } from './modules/tasks/tasks.module';
 import { DocumentsModule } from './modules/documents/documents.module';
+import { DocumentTemplatesModule } from './modules/document-templates/document-templates.module';
+import { DeadlinesModule } from './modules/deadlines/deadlines.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
 
 // =========================
@@ -85,6 +88,8 @@ import { AdminModule } from './modules/admin/admin.module';
       cache: true,
       expandVariables: true,
     }),
+
+    ScheduleModule.forRoot(),
 
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
@@ -121,6 +126,8 @@ import { AdminModule } from './modules/admin/admin.module';
 
     TasksModule,
     DocumentsModule,
+    DocumentTemplatesModule,
+    DeadlinesModule,
     CalendarModule,
 
     BillingModule,
