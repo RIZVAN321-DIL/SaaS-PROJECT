@@ -22,6 +22,7 @@ model Organization {
   auditLogs    AuditLog[]
   subscription Subscription?
   permissions  OrganizationPermissions?
+  documentTemplates DocumentTemplate[]
 }
 
 model OrganizationPermissions {
@@ -142,8 +143,17 @@ model Case {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
+  // Процессуальный срок: либо фиксированная дата, либо авторасчёт
+  // от даты события (deadlineSourceDate) + количество дней (deadlineDays).
+  deadlineLabel           String?
+  deadlineDate            DateTime?
+  deadlineSourceDate      DateTime?
+  deadlineDays            Int?
+  deadlineReminderSentAt  DateTime?
+
   @@index([organizationId])
   @@index([organizationId, title])
+  @@index([deadlineDate])
 }
 
 model Task {
@@ -232,6 +242,20 @@ model AuditLog {
   taskId          String?
   task            Task?        @relation(fields: [taskId], references: [id])
   createdAt       DateTime     @default(now())
+
+  @@index([organizationId])
+}
+
+model DocumentTemplate {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name           String
+  description    String?
+  content        String       @db.Text
+  createdById    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   @@index([organizationId])
 }
