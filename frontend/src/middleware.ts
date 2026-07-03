@@ -13,7 +13,7 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isPublicRoute = PUBLIC_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`),
+    (route) => pathname === route || (route !== '/' && pathname.startsWith(`${route}/`)),
   );
 
   const token = request.cookies.get('access_token')?.value;
