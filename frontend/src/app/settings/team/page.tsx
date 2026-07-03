@@ -21,6 +21,7 @@ interface TeamMember {
 
 interface CreatedUserResult extends TeamMember {
   temporaryPassword: string;
+  inviteEmailSent: boolean;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -191,10 +192,22 @@ export default function TeamSettingsPage() {
         >
           {createdUser ? (
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Аккаунт создан. Передайте эти данные сотруднику — повторно пароль
-                показан не будет.
-              </p>
+              {createdUser.inviteEmailSent ? (
+                <p className="text-sm text-muted-foreground">
+                  Приглашение отправлено на <span className="font-medium text-foreground">{createdUser.email}</span>.
+                  Сотрудник сам задаст пароль по ссылке из письма.
+                </p>
+              ) : (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700">
+                  <div className="flex items-center gap-1.5 font-medium">
+                    <AlertTriangle size={14} /> Письмо не отправлено
+                  </div>
+                  <p className="mt-1 text-amber-700/90">
+                    Не удалось отправить приглашение на email (проверьте настройки почты).
+                    Передайте временный пароль сотруднику вручную.
+                  </p>
+                </div>
+              )}
               <div className="space-y-3 rounded-xl border border-border bg-background p-4">
                 <div>
                   <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -202,27 +215,31 @@ export default function TeamSettingsPage() {
                   </div>
                   <div className="mt-0.5 font-mono text-sm">{createdUser.email}</div>
                 </div>
-                <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Временный пароль
+                {!createdUser.inviteEmailSent && (
+                  <div>
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Временный пароль
+                    </div>
+                    <div className="mt-0.5 font-mono text-sm">
+                      {createdUser.temporaryPassword}
+                    </div>
                   </div>
-                  <div className="mt-0.5 font-mono text-sm">
-                    {createdUser.temporaryPassword}
-                  </div>
-                </div>
-              </div>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={copyCredentials}
-                className="w-full"
-              >
-                {copied ? (
-                  <><Check size={14} /> Скопировано</>
-                ) : (
-                  <><Copy size={14} /> Скопировать данные</>
                 )}
-              </Button>
+              </div>
+              {!createdUser.inviteEmailSent && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={copyCredentials}
+                  className="w-full"
+                >
+                  {copied ? (
+                    <><Check size={14} /> Скопировано</>
+                  ) : (
+                    <><Copy size={14} /> Скопировать данные</>
+                  )}
+                </Button>
+              )}
               <Button type="button" onClick={closeInviteModal} className="w-full">
                 Готово
               </Button>
