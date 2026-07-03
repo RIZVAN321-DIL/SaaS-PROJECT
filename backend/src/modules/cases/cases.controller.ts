@@ -14,6 +14,7 @@ import { Request } from 'express';
 import { CasesService } from './cases.service';
 import { CreateCaseDto } from './dto/create-case.dto';
 import { UpdateCaseDto } from './dto/update-case.dto';
+import { SetCaseDeadlineDto } from './dto/set-case-deadline.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
 
@@ -97,6 +98,20 @@ export class CasesController {
   ) {
     const user = req.user as AuthenticatedUser;
     return this.casesService.update(id, {
+      ...body,
+      organizationId: user.organizationId,
+      userId: user.userId,
+    });
+  }
+
+  @Put(':id/deadline')
+  setDeadline(
+    @Param('id') id: string,
+    @Body() body: SetCaseDeadlineDto,
+    @Req() req: Request,
+  ) {
+    const user = req.user as AuthenticatedUser;
+    return this.casesService.setDeadline(id, {
       ...body,
       organizationId: user.organizationId,
       userId: user.userId,
