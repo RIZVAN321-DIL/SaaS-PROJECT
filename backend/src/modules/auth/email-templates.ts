@@ -59,3 +59,61 @@ export function passwordResetEmail(resetLink: string): { subject: string; html: 
     text: `Перейдите по ссылке, чтобы сбросить пароль: ${resetLink}`,
   };
 }
+
+export function inviteEmail(
+  setPasswordLink: string,
+  roleLabel: string,
+): { subject: string; html: string; text: string } {
+  return {
+    subject: 'Вас пригласили в CaseFlow',
+    html: wrapper(`
+      <p style="margin:0 0 20px;font-size:15px;color:#111827;">
+        Вас добавили в команду CaseFlow с ролью «${roleLabel}». Чтобы начать
+        работу, задайте пароль для входа.
+      </p>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="${setPasswordLink}" style="display:inline-block;padding:12px 28px;background:${BRAND_COLOR};color:#ffffff;border-radius:12px;font-size:14px;font-weight:600;text-decoration:none;">
+          Задать пароль и войти
+        </a>
+      </div>
+      <p style="margin:0;font-size:13px;color:#6b7280;">
+        Ссылка действует 7 дней. Если вы не ожидали это приглашение, просто игнорируйте письмо.
+      </p>
+    `),
+    text: `Вас добавили в команду CaseFlow с ролью «${roleLabel}». Перейдите по ссылке, чтобы задать пароль: ${setPasswordLink}`,
+  };
+}
+
+export function deadlineReminderEmail(
+  caseTitle: string,
+  deadlineLabel: string | null,
+  deadlineDate: Date,
+  caseLink: string,
+): { subject: string; html: string; text: string } {
+  const formattedDate = deadlineDate.toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+  const daysLeft = Math.ceil(
+    (deadlineDate.getTime() - Date.now()) / (24 * 60 * 60 * 1000),
+  );
+  const label = deadlineLabel || 'Срок по делу';
+
+  return {
+    subject: `⏰ Срок истекает через ${daysLeft} дн. — ${caseTitle}`,
+    html: wrapper(`
+      <div style="margin:0 0 16px;padding:10px 14px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;">
+        <span style="font-size:13px;font-weight:700;color:#b91c1c;">Осталось ${daysLeft} дн. до срока</span>
+      </div>
+      <p style="margin:0 0 6px;font-size:15px;color:#111827;font-weight:600;">${label}</p>
+      <p style="margin:0 0 20px;font-size:14px;color:#374151;">По делу «${caseTitle}» — срок ${formattedDate}.</p>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="${caseLink}" style="display:inline-block;padding:12px 28px;background:${BRAND_COLOR};color:#ffffff;border-radius:12px;font-size:14px;font-weight:600;text-decoration:none;">
+          Открыть дело
+        </a>
+      </div>
+    `),
+    text: `${label} по делу «${caseTitle}»: ${formattedDate} (осталось ${daysLeft} дн.). Открыть дело: ${caseLink}`,
+  };
+}
