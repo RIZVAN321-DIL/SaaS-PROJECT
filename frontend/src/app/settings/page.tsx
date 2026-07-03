@@ -12,6 +12,7 @@ import {
   ExternalLink,
   KeyRound,
   Lock,
+  FileText,
 } from 'lucide-react';
 import { AppShell } from '@/components/layout/app-shell';
 import { authApi, organizationsApi } from '@/lib/api';
@@ -165,6 +166,24 @@ export default function SettingsPage() {
               </h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 Кто и что видит и может удалять в организации
+              </p>
+            </div>
+            <ExternalLink size={15} className="shrink-0 text-muted-foreground" />
+          </div>
+        )}
+
+        {/* Шаблоны документов */}
+        {!hideAdminSections && (
+          <div
+            onClick={() => router.push('/settings/templates')}
+            className="flex cursor-pointer items-center justify-between rounded-2xl border border-border bg-card p-5 transition hover:border-primary/50"
+          >
+            <div>
+              <h2 className="flex items-center gap-2 text-sm font-semibold">
+                <FileText size={15} /> Шаблоны документов
+              </h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Договоры, доверенности и другие документы с автозаполнением
               </p>
             </div>
             <ExternalLink size={15} className="shrink-0 text-muted-foreground" />
