@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -20,6 +20,7 @@ import {
   GitBranch,
   CheckCircle2,
   Upload,
+  Clock,
 } from 'lucide-react';
 
 import { AppShell } from '@/components/layout/app-shell';
@@ -27,12 +28,13 @@ import {
   casesApi,
   tasksApi,
   documentsApi,
+  documentTemplatesApi,
   calendarApi,
   auditApi,
   caseStagesApi,
 } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
-import { openBlobInNewTab } from '@/lib/download';
+import { openBlobInNewTab, downloadBlobAsFile } from '@/lib/download';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { CaseForm } from '@/components/forms/case-form';
@@ -63,6 +65,10 @@ interface CaseDetail {
   stage?: Stage;
   tasks: TaskItem[];
   documents: DocumentItem[];
+  deadlineLabel?: string | null;
+  deadlineDate?: string | null;
+  deadlineSourceDate?: string | null;
+  deadlineDays?: number | null;
 }
 
 interface TaskItem {
@@ -159,6 +165,16 @@ export default function CaseDetailPage() {
   const [deletingDoc, setDeletingDoc] = useState<string | null>(null);
   const [openingDoc, setOpeningDoc] = useState<string | null>(null);
   const [movingStage, setMovingStage] = useState(false);
+  const [templates, setTemplates] = useState<{ id: string; name: string }[]>([]);
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [showDeadlineModal, setShowDeadlineModal] = useState(false);
+  const [deadlineMode, setDeadlineMode] = useState<'fixed' | 'calc'>('fixed');
+  const [deadlineLabelInput, setDeadlineLabelInput] = useState('');
+  const [deadlineFixedInput, setDeadlineFixedInput] = useState('');
+  const [deadlineSourceInput, setDeadlineSourceInput] = useState('');
+  const [deadlineDaysInput, setDeadlineDaysInput] = useState('');
+  const [savingDeadline, setSavingDeadline] = useState(false);
 
   async function load() {
     if (!token) return;
@@ -237,6 +253,80 @@ export default function CaseDetailPage() {
     finally { setDeletingDoc(null); }
   }
 
+  async function openGenerateModal() {
+    setShowGenerateModal(true);
+    if (!token || templates.length > 0) return;
+    try {
+      const data = (await documentTemplatesApi.getAll(token)) as { id: string; name: string }[];
+      setTemplates(data);
+    } catch {
+      toast.error('Не удалось загрузить шаблоны');
+    }
+  }
+
+  async function handleGenerateDocument(templateId: string, templateName: string) {
+    if (!token) return;
+    setGeneratingId(templateId);
+    try {
+      const blob = await documentTemplatesApi.generate(templateId, id, token);
+      downloadBlobAsFile(blob, `${templateName}.docx`);
+      toast.success('Документ сформирован');
+      setShowGenerateModal(false);
+    } catch {
+      toast.error('Не удалось сформировать документ');
+    } finally {
+      setGeneratingId(null);
+    }
+  }
+
+  function openDeadlineModal() {
+    setDeadlineMode(caseData.deadlineSourceDate ? 'calc' : 'fixed');
+    setDeadlineLabelInput(caseData.deadlineLabel ?? '');
+    setDeadlineFixedInput(caseData.deadlineDate ? caseData.deadlineDate.slice(0, 10) : '');
+    setDeadlineSourceInput(caseData.deadlineSourceDate ? caseData.deadlineSourceDate.slice(0, 10) : '');
+    setDeadlineDaysInput(caseData.deadlineDays ? String(caseData.deadlineDays) : '');
+    setShowDeadlineModal(true);
+  }
+
+  async function handleSaveDeadline(e: FormEvent) {
+    e.preventDefault();
+    if (!token) return;
+    setSavingDeadline(true);
+    try {
+      const payload =
+        deadlineMode === 'fixed'
+          ? { label: deadlineLabelInput, fixedDate: deadlineFixedInput }
+          : {
+              label: deadlineLabelInput,
+              sourceDate: deadlineSourceInput,
+              days: Number(deadlineDaysInput),
+            };
+      await casesApi.setDeadline(id, payload, token);
+      toast.success('Срок сохранён');
+      setShowDeadlineModal(false);
+      load();
+    } catch {
+      toast.error('Не удалось сохранить срок');
+    } finally {
+      setSavingDeadline(false);
+    }
+  }
+
+  async function handleClearDeadline() {
+    if (!token) return;
+    setSavingDeadline(true);
+    try {
+      await casesApi.setDeadline(id, {}, token);
+      toast.success('Срок снят');
+      setShowDeadlineModal(false);
+      load();
+    } catch {
+      toast.error('Не удалось снять срок');
+    } finally {
+      setSavingDeadline(false);
+    }
+  }
+
   async function handleDeleteEvent(eventId: string) {
     if (!token) return;
     if (!confirm('Удалить это событие?')) return;
@@ -312,6 +402,48 @@ export default function CaseDetailPage() {
         </div>
       </div>
 
+      {(() => {
+        const deadlineDate = caseData.deadlineDate ? new Date(caseData.deadlineDate) : null;
+        const daysLeft = deadlineDate
+          ? Math.ceil((deadlineDate.getTime() - Date.now()) / (24 * 60 * 60 * 1000))
+          : null;
+        const urgent = daysLeft !== null && daysLeft <= 3;
+        const soon = daysLeft !== null && daysLeft <= 7;
+        return (
+          <div
+            className={`rounded-2xl border p-4 ${
+              urgent
+                ? 'border-red-300 bg-red-50'
+                : soon
+                ? 'border-amber-300 bg-amber-50'
+                : 'border-border'
+            }`}
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <h4 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <Clock size={12} /> Процессуальный срок
+              </h4>
+              <button type="button" onClick={openDeadlineModal} className="text-xs font-semibold text-primary hover:underline">
+                {deadlineDate ? 'Изменить' : '+ Указать'}
+              </button>
+            </div>
+            {deadlineDate ? (
+              <div className="space-y-1 text-sm">
+                <p className="font-medium">{caseData.deadlineLabel || 'Срок по делу'}</p>
+                <p className={urgent ? 'font-semibold text-red-600' : soon ? 'font-semibold text-amber-700' : 'text-muted-foreground'}>
+                  {deadlineDate.toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' })}
+                  {daysLeft !== null && (
+                    <span> {daysLeft >= 0 ? `(осталось ${daysLeft} дн.)` : `(просрочен на ${-daysLeft} дн.)`}</span>
+                  )}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Срок не указан</p>
+            )}
+          </div>
+        );
+      })()}
+
       <div className="rounded-2xl border border-border p-4">
         <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Статистика</h4>
         <div className="space-y-1.5 text-sm">
@@ -335,6 +467,110 @@ export default function CaseDetailPage() {
 
       <Modal open={showUploadDoc} onClose={() => setShowUploadDoc(false)} title="Загрузить документ">
         <DocumentUploadForm caseId={id} onSuccess={() => { setShowUploadDoc(false); toast.success('Документ загружен'); load(); }} />
+      </Modal>
+
+      <Modal open={showGenerateModal} onClose={() => setShowGenerateModal(false)} title="Сформировать документ по шаблону">
+        {templates.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Нет ни одного шаблона. Создайте его в разделе{' '}
+            <Link href="/settings/templates" className="text-primary hover:underline">Настройки → Шаблоны документов</Link>.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {templates.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                disabled={generatingId === t.id}
+                onClick={() => handleGenerateDocument(t.id, t.name)}
+                className="flex w-full items-center justify-between rounded-xl border border-border px-4 py-3 text-left text-sm transition hover:border-primary/50 disabled:opacity-50"
+              >
+                <span className="flex items-center gap-2"><FileText size={14} /> {t.name}</span>
+                <span className="text-xs text-muted-foreground">{generatingId === t.id ? 'Формируется…' : 'Скачать .docx'}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </Modal>
+
+      <Modal open={showDeadlineModal} onClose={() => setShowDeadlineModal(false)} title="Процессуальный срок">
+        <form onSubmit={handleSaveDeadline} className="space-y-4">
+          <Input
+            label="Название срока (необязательно)"
+            placeholder="Например: Подача апелляции"
+            value={deadlineLabelInput}
+            onChange={(e) => setDeadlineLabelInput(e.target.value)}
+          />
+
+          <div className="flex gap-2 rounded-xl border border-border p-1">
+            <button
+              type="button"
+              onClick={() => setDeadlineMode('fixed')}
+              className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition ${deadlineMode === 'fixed' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Фиксированная дата
+            </button>
+            <button
+              type="button"
+              onClick={() => setDeadlineMode('calc')}
+              className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition ${deadlineMode === 'calc' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              От даты события + дни
+            </button>
+          </div>
+
+          {deadlineMode === 'fixed' ? (
+            <Input
+              label="Дата дедлайна"
+              type="date"
+              value={deadlineFixedInput}
+              onChange={(e) => setDeadlineFixedInput(e.target.value)}
+              required
+            />
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Дата события"
+                type="date"
+                value={deadlineSourceInput}
+                onChange={(e) => setDeadlineSourceInput(e.target.value)}
+                required
+              />
+              <Input
+                label="Дней на срок"
+                type="number"
+                min={0}
+                placeholder="30"
+                value={deadlineDaysInput}
+                onChange={(e) => setDeadlineDaysInput(e.target.value)}
+                required
+              />
+            </div>
+          )}
+
+          {deadlineMode === 'calc' && deadlineSourceInput && deadlineDaysInput && (
+            <p className="text-xs text-muted-foreground">
+              Итоговый срок:{' '}
+              <span className="font-medium text-foreground">
+                {new Date(
+                  new Date(deadlineSourceInput).getTime() +
+                    Number(deadlineDaysInput) * 24 * 60 * 60 * 1000,
+                ).toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' })}
+              </span>
+            </p>
+          )}
+
+          <div className="flex gap-2 pt-1">
+            {caseData.deadlineDate && (
+              <Button type="button" variant="secondary" onClick={handleClearDeadline} loading={savingDeadline}>
+                Снять срок
+              </Button>
+            )}
+            <Button type="submit" loading={savingDeadline} className="flex-1">
+              Сохранить
+            </Button>
+          </div>
+        </form>
       </Modal>
 
       <Modal open={showAddEvent} onClose={() => setShowAddEvent(false)} title="Новое событие">
@@ -416,7 +652,10 @@ export default function CaseDetailPage() {
           <div className="rounded-2xl border border-border bg-card p-4">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="flex items-center gap-2 text-sm font-semibold"><FileText size={15} /> Документы <span className="text-xs font-normal text-muted-foreground">{caseData.documents.length}</span></h3>
-              <button type="button" onClick={() => setShowUploadDoc(true)} className="text-xs font-semibold text-primary hover:underline">+ Добавить</button>
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={openGenerateModal} className="text-xs font-semibold text-primary hover:underline">Сформировать по шаблону</button>
+                <button type="button" onClick={() => setShowUploadDoc(true)} className="text-xs font-semibold text-primary hover:underline">+ Добавить</button>
+              </div>
             </div>
             {caseData.documents.length === 0 ? <p className="py-4 text-center text-xs text-muted-foreground">Нет документов</p> : (
               <div className="space-y-0.5">
