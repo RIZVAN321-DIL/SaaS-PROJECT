@@ -13,6 +13,7 @@ import { Role } from '../../common/enums/role.enum';
 import { Resend } from 'resend';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import { twoFactorCodeEmail, passwordResetEmail } from './email-templates';
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 час
 const OTP_TTL_MS = 10 * 60 * 1000;         // 10 минут
@@ -192,11 +193,8 @@ export class AuthService {
       data: { userId, codeHash, expiresAt },
     });
 
-    await this.sendEmail({
-      to: email,
-      subject: 'Код подтверждения входа',
-      text: `Ваш код для входа: ${code}. Действует 10 минут.`,
-    });
+    const { subject, html, text } = twoFactorCodeEmail(code);
+    await this.sendEmail({ to: email, subject, html, text });
 
     return { requiresTwoFactor: true, challengeId: otp.id };
   }
@@ -308,11 +306,8 @@ export class AuthService {
       this.config.get<string>('FRONTEND_URL') || 'http://localhost:3000';
     const resetLink = `${frontendUrl}/reset-password?token=${rawToken}`;
 
-    await this.sendEmail({
-      to: normalizedEmail,
-      subject: 'Сброс пароля',
-      text: `Перейдите по ссылке, чтобы сбросить пароль: ${resetLink}`,
-    });
+    const { subject, html, text } = passwordResetEmail(resetLink);
+    await this.sendEmail({ to: normalizedEmail, subject, html, text });
 
     return genericResponse;
   }
@@ -385,22 +380,35 @@ export class AuthService {
     to: string;
     subject: string;
     text: string;
+    html?: string;
   }) {
     if (!this.resend) {
-      this.logger.log(
-        `[EMAIL STUB] To: ${data.to} | Subject: ${data.subject} | Text: ${data.text}`,
+      this.logger.warn(
+        `[EMAIL STUB] RESEND_API_KEY не задан — письмо НЕ отправлено. To: ${data.to} | Subject: ${data.subject}`,
       );
       return;
     }
 
+    const fromAddress =
+      this.config.get<string>('RESEND_FROM_ADDRESS') || 'CaseFlow <onboarding@resend.dev>';
+
     try {
-      await this.resend.emails.send({
-        from: 'CRM <onboarding@resend.dev>',
+      const result = await this.resend.emails.send({
+        from: fromAddress,
         to: data.to,
         subject: data.subject,
         text: data.text,
+        html: data.html,
       });
-      this.logger.log(`Email отправлен: ${data.to}`);
+      if (result.error) {
+        // Resend возвращает ошибку в теле ответа, а не всегда бросает исключение
+        // (например: домен отправителя не верифицирован, получатель вне sandbox-списка).
+        this.logger.error(
+          `Resend отклонил письмо для ${data.to}: ${result.error.message}`,
+        );
+        return;
+      }
+      this.logger.log(`Email отправлен: ${data.to} (id: ${result.data?.id})`);
     } catch (err) {
       this.logger.error(`Ошибка отправки email на ${data.to}`, err as Error);
     }
