@@ -13,9 +13,10 @@ import { Role } from '../../common/enums/role.enum';
 import { Resend } from 'resend';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import { twoFactorCodeEmail, passwordResetEmail } from './email-templates';
+import { twoFactorCodeEmail, passwordResetEmail, inviteEmail, deadlineReminderEmail } from './email-templates';
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 час
+const INVITE_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 дней
 const OTP_TTL_MS = 10 * 60 * 1000;         // 10 минут
 
 @Injectable()
@@ -277,6 +278,51 @@ export class AuthService {
   }
 
   // =========================
+  // INVITE: отправить сотруднику ссылку для установки пароля
+  // Вызывается из UsersService после создания аккаунта сотрудника.
+  // Возвращает true, если письмо реально ушло (Resend настроен и не вернул ошибку).
+  // =========================
+  async sendInvite(userId: string, email: string, roleLabel: string): Promise<boolean> {
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expiresAt = new Date(Date.now() + INVITE_TOKEN_TTL_MS);
+
+    await this.prisma.passwordResetToken.create({
+      data: { userId, tokenHash, expiresAt },
+    });
+
+    const frontendUrl =
+      this.config.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    const setPasswordLink = `${frontendUrl}/reset-password?token=${rawToken}`;
+
+    const { subject, html, text } = inviteEmail(setPasswordLink, roleLabel);
+    return this.sendEmail({ to: email, subject, html, text });
+  }
+
+  // =========================
+  // DEADLINE REMINDER: вызывается из DeadlinesService (cron)
+  // =========================
+  async sendDeadlineReminder(
+    to: string,
+    caseTitle: string,
+    caseId: string,
+    deadlineLabel: string | null,
+    deadlineDate: Date,
+  ): Promise<boolean> {
+    const frontendUrl =
+      this.config.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    const caseLink = `${frontendUrl}/cases/${caseId}`;
+
+    const { subject, html, text } = deadlineReminderEmail(
+      caseTitle,
+      deadlineLabel,
+      deadlineDate,
+      caseLink,
+    );
+    return this.sendEmail({ to, subject, html, text });
+  }
+
+  // =========================
   // FORGOT PASSWORD
   // =========================
   async forgotPassword(email: string) {
@@ -381,12 +427,12 @@ export class AuthService {
     subject: string;
     text: string;
     html?: string;
-  }) {
+  }): Promise<boolean> {
     if (!this.resend) {
       this.logger.warn(
         `[EMAIL STUB] RESEND_API_KEY не задан — письмо НЕ отправлено. To: ${data.to} | Subject: ${data.subject}`,
       );
-      return;
+      return false;
     }
 
     const fromAddress =
@@ -406,11 +452,13 @@ export class AuthService {
         this.logger.error(
           `Resend отклонил письмо для ${data.to}: ${result.error.message}`,
         );
-        return;
+        return false;
       }
       this.logger.log(`Email отправлен: ${data.to} (id: ${result.data?.id})`);
+      return true;
     } catch (err) {
       this.logger.error(`Ошибка отправки email на ${data.to}`, err as Error);
+      return false;
     }
   }
 
