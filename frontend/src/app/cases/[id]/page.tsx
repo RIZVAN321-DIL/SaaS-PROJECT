@@ -36,6 +36,7 @@ import {
 import { getAccessToken } from '@/lib/auth';
 import { openBlobInNewTab, downloadBlobAsFile } from '@/lib/download';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { CaseForm } from '@/components/forms/case-form';
 import { TaskForm } from '@/components/forms/task-form';
