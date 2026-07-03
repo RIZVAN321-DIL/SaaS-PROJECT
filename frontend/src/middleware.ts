@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
 const PUBLIC_ROUTES = [
+  '/',
   '/login',
   '/register',
   '/forgot-password',
