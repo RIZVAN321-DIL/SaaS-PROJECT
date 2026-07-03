@@ -185,6 +185,63 @@ export class CasesService {
     return updated;
   }
 
+  // =========================
+  // SET DEADLINE (фиксированная дата ИЛИ авторасчёт от даты события + N дней)
+  // =========================
+  async setDeadline(
+    id: string,
+    data: {
+      label?: string;
+      fixedDate?: string;
+      sourceDate?: string;
+      days?: number;
+      organizationId: string;
+      userId: string;
+    },
+  ) {
+    await this.findById(id, data.organizationId);
+
+    let deadlineDate: Date | null = null;
+    let deadlineSourceDate: Date | null = null;
+    let deadlineDays: number | null = null;
+
+    if (data.fixedDate) {
+      // Режим 1: фиксированная дата
+      deadlineDate = new Date(data.fixedDate);
+    } else if (data.sourceDate && data.days !== undefined) {
+      // Режим 2: авторасчёт от даты события
+      deadlineSourceDate = new Date(data.sourceDate);
+      deadlineDays = data.days;
+      deadlineDate = new Date(deadlineSourceDate);
+      deadlineDate.setDate(deadlineDate.getDate() + data.days);
+    }
+    // Если ни то, ни другое не передано — deadlineDate остаётся null (срок снят)
+
+    const updated = await this.prisma.case.update({
+      where: { id },
+      data: {
+        deadlineLabel: data.label?.trim() || null,
+        deadlineDate,
+        deadlineSourceDate,
+        deadlineDays,
+        // При изменении срока сбрасываем отметку об отправленном напоминании,
+        // чтобы система напомнила заново про новый дедлайн.
+        deadlineReminderSentAt: null,
+      },
+    });
+
+    await this.audit.log({
+      organizationId: data.organizationId,
+      userId: data.userId,
+      action: 'CASE_DEADLINE_SET',
+      entity: 'Case',
+      entityId: id,
+      meta: { deadlineDate, deadlineLabel: data.label },
+    });
+
+    return updated;
+  }
+
   async remove(id: string, organizationId: string, userId: string, requesterRole?: Role | string) {
     if (requesterRole) {
       const settings = await this.permissions.getForOrganization(organizationId);
