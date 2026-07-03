@@ -280,6 +280,7 @@ export default function CaseDetailPage() {
   }
 
   function openDeadlineModal() {
+    if (!caseData) return;
     setDeadlineMode(caseData.deadlineSourceDate ? 'calc' : 'fixed');
     setDeadlineLabelInput(caseData.deadlineLabel ?? '');
     setDeadlineFixedInput(caseData.deadlineDate ? caseData.deadlineDate.slice(0, 10) : '');
@@ -313,7 +314,7 @@ export default function CaseDetailPage() {
   }
 
   async function handleClearDeadline() {
-    if (!token) return;
+    if (!token || !caseData) return;
     setSavingDeadline(true);
     try {
       await casesApi.setDeadline(id, {}, token);
@@ -686,7 +687,7 @@ export default function CaseDetailPage() {
                     <button type="button" onClick={() => handleDeleteEvent(event.id)} className="shrink-0 text-muted-foreground hover:text-red-500" aria-label="Удалить"><Trash2 size={12} /></button>
                   </div>
                 ))}
-                {events.length > CARD_ITEM_LIMIT && <p className="pt-2 text-center text-xs text-muted-foreunder">и ещё {events.length - CARD_ITEM_LIMIT}</p>}
+                {events.length > CARD_ITEM_LIMIT && <p className="pt-2 text-center text-xs text-muted-foreground">и ещё {events.length - CARD_ITEM_LIMIT}</p>}
               </div>
             )}
           </div>
@@ -713,4 +714,4 @@ export default function CaseDetailPage() {
       </div>
     </AppShell>
   );
-        }
+}
