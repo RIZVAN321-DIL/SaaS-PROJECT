@@ -280,6 +280,7 @@ export default function CaseDetailPage() {
   }
 
   function openDeadlineModal() {
+    if (!caseData) return;
     setDeadlineMode(caseData.deadlineSourceDate ? 'calc' : 'fixed');
     setDeadlineLabelInput(caseData.deadlineLabel ?? '');
     setDeadlineFixedInput(caseData.deadlineDate ? caseData.deadlineDate.slice(0, 10) : '');
