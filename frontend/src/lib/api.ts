@@ -199,6 +199,11 @@ export const casesApi = {
     request(`/cases/${id}`, { method: 'DELETE', token }),
   move: (caseId: string, stageId: string, token: string) =>
     request(`/cases/move/${caseId}/${stageId}`, { method: 'PUT', token }),
+  setDeadline: (
+    id: string,
+    data: { label?: string; fixedDate?: string; sourceDate?: string; days?: number },
+    token: string,
+  ) => request(`/cases/${id}/deadline`, { method: 'PUT', token, body: data }),
 };
 
 export const tasksApi = {
@@ -249,6 +254,28 @@ export const caseTypesApi = {
     request(`/case-types/${id}`, { method: 'PUT', token, body: data }),
   remove: (id: string, token: string) =>
     request(`/case-types/${id}`, { method: 'DELETE', token }),
+};
+
+export const documentTemplatesApi = {
+  getAll: (token: string) => request('/document-templates', { token }),
+  getVariables: (token: string) =>
+    request('/document-templates/variables', { token }),
+  create: (
+    data: { name: string; description?: string; content: string },
+    token: string,
+  ) => request('/document-templates', { method: 'POST', token, body: data }),
+  update: (
+    id: string,
+    data: { name?: string; description?: string; content?: string },
+    token: string,
+  ) => request(`/document-templates/${id}`, { method: 'PUT', token, body: data }),
+  remove: (id: string, token: string) =>
+    request(`/document-templates/${id}`, { method: 'DELETE', token }),
+  generate: (templateId: string, caseId: string, token: string) =>
+    downloadBlob(
+      `/document-templates/${templateId}/generate?caseId=${caseId}`,
+      token,
+    ),
 };
 
 export const auditApi = {
