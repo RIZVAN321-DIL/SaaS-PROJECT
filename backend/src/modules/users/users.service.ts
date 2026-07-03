@@ -8,12 +8,21 @@ import {
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { PrismaService } from '../../database/prisma.service';
+import { AuthService } from '../auth/auth.service';
 import { Role } from '../../common/enums/role.enum';
+
+const ROLE_LABELS: Record<string, string> = {
+  OWNER: 'Владелец',
+  ADMIN: 'Администратор',
+  LAWYER: 'Юрист',
+  ASSISTANT: 'Помощник',
+};
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly authService: AuthService,
   ) {}
 
   async findAll(organizationId: string) {
@@ -96,7 +105,17 @@ export class UsersService {
       },
     });
 
-    return { ...user, temporaryPassword };
+    const roleLabel = ROLE_LABELS[user.role] ?? user.role;
+    const inviteEmailSent = await this.authService.sendInvite(
+      user.id,
+      user.email,
+      roleLabel,
+    );
+
+    // temporaryPassword остаётся запасным вариантом на случай, если письмо
+    // не удалось отправить (например, RESEND_API_KEY не настроен) — тогда
+    // владелец может передать доступ вручную.
+    return { ...user, temporaryPassword, inviteEmailSent };
   }
 
   // =========================
