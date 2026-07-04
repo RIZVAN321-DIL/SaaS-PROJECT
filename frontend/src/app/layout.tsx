@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { ThemeProvider } from '@/components/providers/theme-provider';
+import { SupportChatWidget } from '@/components/support-chat-widget';
 import './globals.css';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://caseflow.example.com';
@@ -47,6 +48,7 @@ export default function RootLayout({
         <ThemeProvider>
           {children}
         </ThemeProvider>
+        <SupportChatWidget />
       </body>
     </html>
   );
