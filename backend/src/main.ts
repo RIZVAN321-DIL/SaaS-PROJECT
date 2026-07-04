@@ -1,11 +1,21 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import helmet from 'helmet';
+import * as Sentry from '@sentry/node';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 const execAsync = promisify(exec);
 import { AppModule } from './app.module';
 import { PrismaService } from './database/prisma.service';
+import { SentryExceptionFilter } from './common/filters/sentry-exception.filter';
+
+// Если SENTRY_DSN не задан — init() ничего не делает, приложение
+// работает как раньше, просто без отправки ошибок в Sentry.
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  environment: process.env.NODE_ENV,
+  tracesSampleRate: 0.2,
+});
 
 function validateEnv(logger: Logger) {
   const INSECURE_MARKERS = ['change-me', 'secret', 'example', 'placeholder'];
@@ -55,6 +65,8 @@ async function bootstrap() {
   }
 
   const app = await NestFactory.create(AppModule, { rawBody: true });
+
+  app.useGlobalFilters(new SentryExceptionFilter(app.getHttpAdapter()));
 
   // Делаем владельца CRM платформенным админом
   try {
