@@ -376,6 +376,10 @@ export default function Home() {
             <img src="/logo-mark.svg" alt="CaseFlow" className="h-6 w-6" />
             <span>CaseFlow</span>
           </div>
+          <div className="flex items-center gap-4">
+            <Link href="/terms" className="hover:text-foreground">Публичная оферта</Link>
+            <Link href="/privacy" className="hover:text-foreground">Конфиденциальность</Link>
+          </div>
           <p>© {new Date().getFullYear()} CaseFlow. Все права защищены.</p>
         </div>
       </footer>
