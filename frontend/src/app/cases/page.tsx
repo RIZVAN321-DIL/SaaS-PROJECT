@@ -26,6 +26,8 @@ interface CaseItem {
   stage?: { id: string; name: string; color?: string };
   tasks?: TaskShort[];
   createdAt: string;
+  deadlineLabel?: string | null;
+  deadlineDate?: string | null;
 }
 
 function pluralDela(n: number): string {
@@ -84,6 +86,21 @@ export default function CasesPage() {
     );
   }
 
+  function deadlineInfo(c: CaseItem) {
+    if (!c.deadlineDate) return null;
+    const date = new Date(c.deadlineDate);
+    const daysLeft = now
+      ? Math.ceil((date.getTime() - now.getTime()) / (24 * 60 * 60 * 1000))
+      : null;
+    return {
+      date,
+      daysLeft,
+      overdue: daysLeft !== null && daysLeft < 0,
+      urgent: daysLeft !== null && daysLeft >= 0 && daysLeft <= 3,
+      soon: daysLeft !== null && daysLeft > 3 && daysLeft <= 7,
+    };
+  }
+
   return (
     <AppShell>
       <div className="space-y-5">
@@ -133,6 +150,9 @@ export default function CasesPage() {
                   Стадия
                 </th>
                 <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Срок
+                </th>
+                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Создано
                 </th>
               </tr>
@@ -141,7 +161,7 @@ export default function CasesPage() {
               {loading ? (
                 [1, 2, 3].map((i) => (
                   <tr key={i} className="border-b border-border last:border-0">
-                    {[1, 2, 3, 4, 5].map((j) => (
+                    {[1, 2, 3, 4, 5, 6].map((j) => (
                       <td key={j} className="p-4">
                         <div className="h-4 animate-pulse rounded bg-muted" />
                       </td>
@@ -150,7 +170,7 @@ export default function CasesPage() {
                 ))
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-16 text-center">
+                  <td colSpan={6} className="py-16 text-center">
                     <Briefcase
                       size={28}
                       className="mx-auto mb-3 text-muted-foreground/40"
@@ -206,6 +226,39 @@ export default function CasesPage() {
                         ) : (
                           <span className="text-sm text-muted-foreground">—</span>
                         )}
+                      </td>
+                      <td className="p-4">
+                        {(() => {
+                          const info = deadlineInfo(item);
+                          if (!info) {
+                            return <span className="text-sm text-muted-foreground">—</span>;
+                          }
+                          const colorClass = info.overdue
+                            ? 'bg-red-100 text-red-700'
+                            : info.urgent
+                            ? 'bg-red-50 text-red-600'
+                            : info.soon
+                            ? 'bg-amber-50 text-amber-700'
+                            : 'bg-muted text-muted-foreground';
+                          const dateLabel = info.date.toLocaleDateString('ru-RU', {
+                            day: '2-digit',
+                            month: 'short',
+                          });
+                          return (
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${colorClass}`}
+                              title={item.deadlineLabel ?? undefined}
+                            >
+                              {(info.urgent || info.overdue) && <AlertTriangle size={11} />}
+                              {dateLabel}
+                              {info.daysLeft !== null && (
+                                <span className="font-normal opacity-80">
+                                  {info.overdue ? `просрочен ${Math.abs(info.daysLeft)} дн.` : `${info.daysLeft} дн.`}
+                                </span>
+                              )}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="p-4 text-sm text-muted-foreground">
                         {new Date(item.createdAt).toLocaleDateString('ru-RU', {
