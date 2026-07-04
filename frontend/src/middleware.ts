@@ -7,6 +7,8 @@ const PUBLIC_ROUTES = [
   '/register',
   '/forgot-password',
   '/reset-password',
+  '/privacy',
+  '/terms',
 ];
 
 export function middleware(request: NextRequest) {
