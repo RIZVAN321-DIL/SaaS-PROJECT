@@ -180,10 +180,9 @@ export default function CaseDetailPage() {
   async function load() {
     if (!token) return;
     try {
-      const [caseRes, auditRes, stagesRes, eventsRes] = await Promise.all([
+      const [caseRes, auditRes, eventsRes] = await Promise.all([
         casesApi.getById(id, token),
         auditApi.getAll(token),
-        caseStagesApi.getAll(token),
         calendarApi.getAll(token),
       ]);
 
@@ -192,12 +191,17 @@ export default function CaseDetailPage() {
       const allEvents = eventsRes as CalendarEventItem[];
 
       setCaseData(c);
+
+      // Стадии загружаем с учётом типа дела — если у дела есть тип со своей воронкой,
+      // показываем только её стадии, иначе дефолтные
+      const stagesData = await caseStagesApi.getAll(token, c.caseTypeId || undefined);
+      setStages(stagesData as Stage[]);
+
       setAuditLogs(
         allLogs
           .filter((l) => l.entityId === id)
           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
       );
-      setStages(stagesRes as Stage[]);
       setEvents(
         allEvents
           .filter((e) => e.caseId === id)
@@ -273,8 +277,6 @@ export default function CaseDetailPage() {
       downloadBlobAsFile(blob, `${templateName}.docx`);
       toast.success('Документ сформирован и сохранён в деле');
       setShowGenerateModal(false);
-      // Сгенерированный файл сервер уже сохранил в документах дела —
-      // перезагружаем дело, чтобы он сразу появился в списке.
       load();
     } catch {
       toast.error('Не удалось сформировать документ');
@@ -718,4 +720,4 @@ export default function CaseDetailPage() {
       </div>
     </AppShell>
   );
-  }
+      }
