@@ -2,10 +2,11 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { casesApi, clientsApi, caseTypesApi, usersApi } from '@/lib/api';
+import { casesApi, clientsApi, caseTypesApi, usersApi, customFieldDefinitionsApi } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { DynamicCustomFields } from '@/components/forms/dynamic-custom-fields';
 
 interface Client {
   id: string;
@@ -23,6 +24,16 @@ interface OrgMember {
   role: string;
 }
 
+interface CustomFieldDefinition {
+  id: string;
+  key: string;
+  label: string;
+  fieldType: 'TEXT' | 'TEXTAREA' | 'NUMBER' | 'DATE' | 'SELECT' | 'BOOLEAN';
+  options?: string[] | null;
+  required: boolean;
+  order: number;
+}
+
 interface CaseToEdit {
   id: string;
   title: string;
@@ -30,6 +41,7 @@ interface CaseToEdit {
   clientId: string;
   caseTypeId?: string;
   assignedLawyerId?: string;
+  customFields?: Record<string, any>;
 }
 
 interface CaseFormProps {
@@ -54,6 +66,10 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
   const [caseTypeId, setCaseTypeId] = useState(caseToEdit?.caseTypeId ?? '');
   const [assignedLawyerId, setAssignedLawyerId] = useState(
     caseToEdit?.assignedLawyerId ?? '',
+  );
+  const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDefinition[]>([]);
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>(
+    caseToEdit?.customFields ?? {},
   );
   const [error, setError] = useState('');
 
@@ -91,6 +107,30 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
 
     loadData();
   }, []);
+
+  // Настраиваемые поля дела зависят от выбранного типа: общие (без типа) +
+  // специфичные для этого типа. Перезагружаем при каждой смене типа дела.
+  useEffect(() => {
+    async function loadDefs() {
+      const token = getAccessToken();
+      if (!token) return;
+      try {
+        const defs = (await customFieldDefinitionsApi.getAll(
+          'CASE',
+          token,
+          caseTypeId || undefined,
+        )) as CustomFieldDefinition[];
+        setCustomFieldDefs(defs);
+      } catch {
+        setCustomFieldDefs([]);
+      }
+    }
+    loadDefs();
+  }, [caseTypeId]);
+
+  function handleCustomFieldChange(key: string, value: any) {
+    setCustomFieldValues((prev) => ({ ...prev, [key]: value }));
+  }
 
   async function handleCreateClient() {
     const token = getAccessToken();
@@ -143,6 +183,7 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
         clientId: selectedClientId,
         caseTypeId: caseTypeId || undefined,
         assignedLawyerId: isEditing ? (assignedLawyerId || '') : (assignedLawyerId || undefined),
+        customFields: customFieldValues,
       };
 
       if (isEditing && caseToEdit) {
@@ -155,6 +196,7 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
         if (!clientId) setSelectedClientId('');
         setCaseTypeId('');
         setAssignedLawyerId('');
+        setCustomFieldValues({});
       }
 
       onSuccess?.();
@@ -267,6 +309,9 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
             </option>
           ))}
         </select>
+        <p className="mt-1 text-xs text-muted-foreground">
+          От типа дела зависит воронка стадий и набор дополнительных полей ниже
+        </p>
       </div>
 
       <div>
@@ -296,6 +341,12 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
         />
       </div>
 
+      <DynamicCustomFields
+        definitions={customFieldDefs}
+        values={customFieldValues}
+        onChange={handleCustomFieldChange}
+      />
+
       {error && (
         <div className="rounded-xl border border-red-500/30 p-3 text-sm">
           {error}
@@ -307,4 +358,4 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
       </Button>
     </form>
   );
-        }
+}
