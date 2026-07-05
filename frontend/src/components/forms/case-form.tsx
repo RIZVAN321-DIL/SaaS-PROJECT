@@ -210,7 +210,7 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-5 overflow-y-auto max-h-[80vh] p-1">
       <Input
         label="Название дела"
         required
@@ -358,4 +358,4 @@ export function CaseForm({ clientId, caseToEdit, onSuccess }: CaseFormProps) {
       </Button>
     </form>
   );
-}
+        }
