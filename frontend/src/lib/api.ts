@@ -190,7 +190,8 @@ export const clientsApi = {
 export const casesApi = {
   getAll: (token: string) => request('/cases', { token }),
   getById: (id: string, token: string) => request(`/cases/${id}`, { token }),
-  getBoard: (token: string) => request('/cases/board', { token }),
+  getBoard: (token: string, caseTypeId?: string) =>
+    request(`/cases/board${caseTypeId ? `?caseTypeId=${caseTypeId}` : ''}`, { token }),
   create: (data: unknown, token: string) =>
     request('/cases', { method: 'POST', token, body: data }),
   update: (id: string, data: unknown, token: string) =>
@@ -258,8 +259,11 @@ export const caseTypesApi = {
 
 export const documentTemplatesApi = {
   getAll: (token: string) => request('/document-templates', { token }),
-  getVariables: (token: string) =>
-    request('/document-templates/variables', { token }),
+  getVariables: (token: string, caseTypeId?: string) =>
+    request(
+      `/document-templates/variables${caseTypeId ? `?caseTypeId=${caseTypeId}` : ''}`,
+      { token },
+    ),
   create: (
     data: { name: string; description?: string; content: string },
     token: string,
@@ -283,9 +287,12 @@ export const auditApi = {
 };
 
 export const caseStagesApi = {
-  getAll: (token: string) => request('/case-stages', { token }),
+  getAll: (token: string, caseTypeId?: string) =>
+    request(`/case-stages${caseTypeId ? `?caseTypeId=${caseTypeId}` : ''}`, { token }),
+  getBoard: (token: string, caseTypeId?: string) =>
+    request(`/case-stages/board${caseTypeId ? `?caseTypeId=${caseTypeId}` : ''}`, { token }),
   create: (
-    data: { name: string; order: number; color?: string },
+    data: { name: string; order: number; color?: string; caseTypeId?: string },
     token: string,
   ) => request('/case-stages', { method: 'POST', token, body: data }),
   update: (
@@ -295,6 +302,41 @@ export const caseStagesApi = {
   ) => request(`/case-stages/${id}`, { method: 'PUT', token, body: data }),
   remove: (id: string, token: string) =>
     request(`/case-stages/${id}`, { method: 'DELETE', token }),
+};
+
+export const customFieldDefinitionsApi = {
+  getAll: (entityType: 'CLIENT' | 'CASE', token: string, caseTypeId?: string) => {
+    const params = new URLSearchParams({ entityType });
+    if (caseTypeId) params.set('caseTypeId', caseTypeId);
+    return request(`/custom-field-definitions?${params.toString()}`, { token });
+  },
+  create: (
+    data: {
+      entityType: 'CLIENT' | 'CASE';
+      key: string;
+      label: string;
+      fieldType?: string;
+      options?: string[];
+      required?: boolean;
+      order?: number;
+      caseTypeId?: string;
+    },
+    token: string,
+  ) => request('/custom-field-definitions', { method: 'POST', token, body: data }),
+  update: (
+    id: string,
+    data: {
+      label?: string;
+      fieldType?: string;
+      options?: string[];
+      required?: boolean;
+      order?: number;
+      caseTypeId?: string | null;
+    },
+    token: string,
+  ) => request(`/custom-field-definitions/${id}`, { method: 'PUT', token, body: data }),
+  remove: (id: string, token: string) =>
+    request(`/custom-field-definitions/${id}`, { method: 'DELETE', token }),
 };
 
 export const searchApi = {
