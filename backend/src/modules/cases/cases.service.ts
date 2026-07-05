@@ -7,6 +7,8 @@ import {
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { PermissionsService } from '../permissions/permissions.service';
+import { CaseStageService } from '../case-stage/case-stage.service';
+import { CustomFieldsService } from '../custom-fields/custom-fields.service';
 import { Role } from '../../common/enums/role.enum';
 
 interface Requester {
@@ -20,6 +22,8 @@ export class CasesService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly permissions: PermissionsService,
+    private readonly caseStages: CaseStageService,
+    private readonly customFields: CustomFieldsService,
   ) {}
 
   async create(data: {
@@ -29,6 +33,7 @@ export class CasesService {
     description?: string;
     caseTypeId?: string;
     assignedLawyerId?: string;
+    customFields?: Record<string, any>;
     userId: string;
   }) {
     const client = await this.prisma.client.findFirst({
@@ -43,10 +48,19 @@ export class CasesService {
       if (!caseType) throw new NotFoundException('Тип дела не найден');
     }
 
-    const firstStage = await this.prisma.caseStage.findFirst({
-      where: { organizationId: data.organizationId },
-      orderBy: { order: 'asc' },
-    });
+    // Первая стадия эффективной воронки: своя воронка типа дела,
+    // если задана, иначе — дефолтная воронка организации.
+    const firstStage = await this.caseStages.getFirstEffectiveStage(
+      data.organizationId,
+      data.caseTypeId,
+    );
+
+    const cleanedCustomFields = await this.customFields.validateValues(
+      data.organizationId,
+      'CASE',
+      data.caseTypeId,
+      data.customFields,
+    );
 
     const newCase = await this.prisma.case.create({
       data: {
@@ -57,6 +71,7 @@ export class CasesService {
         caseTypeId: data.caseTypeId,
         stageId: firstStage?.id ?? null,
         assignedLawyerId: data.assignedLawyerId || null,
+        customFields: cleanedCustomFields,
       },
       include: { client: true, caseType: true, stage: true },
     });
@@ -124,10 +139,14 @@ export class CasesService {
     caseTypeId?: string;
     stageId?: string;
     assignedLawyerId?: string | null;
+    customFields?: Record<string, any>;
     organizationId: string;
     userId: string;
   }) {
     const existingCase = await this.findById(id, data.organizationId);
+
+    const effectiveCaseTypeId =
+      data.caseTypeId !== undefined ? data.caseTypeId : existingCase.caseTypeId ?? undefined;
 
     if (data.caseTypeId) {
       const caseType = await this.prisma.caseType.findFirst({
@@ -136,22 +155,59 @@ export class CasesService {
       if (!caseType) throw new NotFoundException('Тип дела не найден');
     }
 
+    let stageId = data.stageId;
+
     if (data.stageId) {
-      const stage = await this.prisma.caseStage.findFirst({
-        where: { id: data.stageId, organizationId: data.organizationId },
-      });
-      if (!stage) throw new NotFoundException('Стадия не найдена');
+      // Стадия должна принадлежать эффективной воронке итогового типа дела.
+      const effectiveStages = await this.caseStages.getEffectiveStages(
+        data.organizationId,
+        effectiveCaseTypeId,
+      );
+      if (!effectiveStages.some((s) => s.id === data.stageId)) {
+        throw new BadRequestException(
+          'Эта стадия не относится к воронке выбранного типа дела',
+        );
+      }
+    } else if (
+      data.caseTypeId !== undefined &&
+      data.caseTypeId !== existingCase.caseTypeId
+    ) {
+      // Тип дела сменился, а стадию явно не передали — переносим дело
+      // на первую стадию воронки нового типа, чтобы не остаться "подвисшим"
+      // на стадии из чужой воронки.
+      const firstStage = await this.caseStages.getFirstEffectiveStage(
+        data.organizationId,
+        data.caseTypeId,
+      );
+      stageId = firstStage?.id ?? undefined;
+    }
+
+    let customFields: Record<string, any> | undefined;
+    if (data.customFields !== undefined) {
+      customFields = await this.customFields.validateValues(
+        data.organizationId,
+        'CASE',
+        effectiveCaseTypeId,
+        {
+          ...((existingCase.customFields as Record<string, any>) ?? {}),
+          ...data.customFields,
+        },
+      );
     }
 
     const updateData: Record<string, unknown> = {
       title: data.title?.trim(),
       description: data.description?.trim(),
       caseTypeId: data.caseTypeId,
-      stageId: data.stageId,
+      stageId,
     };
 
     if (data.assignedLawyerId !== undefined) {
       updateData.assignedLawyerId = data.assignedLawyerId || null;
+    }
+
+    if (customFields !== undefined) {
+      updateData.customFields = customFields;
     }
 
     const updated = await this.prisma.case.update({
@@ -283,7 +339,33 @@ export class CasesService {
     return deleted;
   }
 
-  async getBoard(organizationId: string, requester?: Requester) {
+  async getBoard(organizationId: string, requester?: Requester, caseTypeId?: string) {
+    if (caseTypeId) {
+      const stages = await this.caseStages.getEffectiveStages(organizationId, caseTypeId);
+
+      const where: Record<string, unknown> = { organizationId, caseTypeId };
+      if (requester) {
+        const settings = await this.permissions.getForOrganization(organizationId);
+        if (settings?.lawyersSeeOnlyOwnCases && requester.role === Role.LAWYER) {
+          where.OR = [
+            { assignedLawyerId: requester.userId },
+            { assignedLawyerId: null },
+          ];
+        }
+      }
+
+      const cases = await this.prisma.case.findMany({
+        where,
+        include: { client: true, caseType: true, stage: true },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      return stages.map((stage) => ({
+        ...stage,
+        cases: cases.filter((c) => c.stageId === stage.id),
+      }));
+    }
+
     const where: Record<string, unknown> = { organizationId };
 
     if (requester) {
@@ -300,7 +382,7 @@ export class CasesService {
     }
 
     return this.prisma.caseStage.findMany({
-      where: { organizationId },
+      where: { organizationId, caseTypeId: null },
       orderBy: { order: 'asc' },
       include: {
         cases: {
@@ -315,10 +397,16 @@ export class CasesService {
   async moveCase(caseId: string, stageId: string, organizationId: string, userId: string) {
     const existingCase = await this.findById(caseId, organizationId);
 
-    const stage = await this.prisma.caseStage.findFirst({
-      where: { id: stageId, organizationId },
-    });
-    if (!stage) throw new NotFoundException('Стадия не найдена');
+    const effectiveStages = await this.caseStages.getEffectiveStages(
+      organizationId,
+      existingCase.caseTypeId,
+    );
+
+    if (!effectiveStages.some((s) => s.id === stageId)) {
+      throw new BadRequestException(
+        'Эта стадия не относится к воронке типа дела, к которому привязано дело',
+      );
+    }
 
     const updated = await this.prisma.case.update({
       where: { id: caseId },
@@ -337,4 +425,4 @@ export class CasesService {
 
     return updated;
   }
-  }
+               }
