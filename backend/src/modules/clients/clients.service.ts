@@ -4,6 +4,7 @@ import {
 } from '@nestjs/common';
 
 import { PrismaService } from '../../database/prisma.service';
+import { CustomFieldsService } from '../custom-fields/custom-fields.service';
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
@@ -12,6 +13,7 @@ const MAX_LIMIT = 200;
 export class ClientsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly customFields: CustomFieldsService,
   ) {}
 
   // =========================
@@ -23,7 +25,15 @@ export class ClientsService {
     phone?: string;
     email?: string;
     notes?: string;
+    customFields?: Record<string, any>;
   }) {
+    const cleanedCustomFields = await this.customFields.validateValues(
+      data.organizationId,
+      'CLIENT',
+      undefined,
+      data.customFields,
+    );
+
     return this.prisma.client.create({
       data: {
         organizationId: data.organizationId,
@@ -31,6 +41,7 @@ export class ClientsService {
         phone: data.phone?.trim() || null,
         email: data.email?.trim().toLowerCase() || null,
         notes: data.notes,
+        customFields: cleanedCustomFields,
       },
     });
   }
@@ -114,9 +125,23 @@ export class ClientsService {
       phone?: string;
       email?: string;
       notes?: string;
+      customFields?: Record<string, any>;
     },
   ) {
-    await this.findById(id, organizationId);
+    const existing = await this.findById(id, organizationId);
+
+    let customFields: Record<string, any> | undefined;
+    if (data.customFields !== undefined) {
+      customFields = await this.customFields.validateValues(
+        organizationId,
+        'CLIENT',
+        undefined,
+        {
+          ...((existing.customFields as Record<string, any>) ?? {}),
+          ...data.customFields,
+        },
+      );
+    }
 
     return this.prisma.client.update({
       where: { id },
@@ -133,6 +158,7 @@ export class ClientsService {
         ...(data.notes !== undefined && {
           notes: data.notes,
         }),
+        ...(customFields !== undefined && { customFields }),
       },
     });
   }
