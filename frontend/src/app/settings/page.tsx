@@ -13,6 +13,7 @@ import {
   KeyRound,
   Lock,
   FileText,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { AppShell } from '@/components/layout/app-shell';
 import { authApi, organizationsApi } from '@/lib/api';
@@ -190,6 +191,24 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {/* Настраиваемые поля — только владелец организации */}
+        {currentUser?.role === 'OWNER' && (
+          <div
+            onClick={() => router.push('/settings/custom-fields')}
+            className="flex cursor-pointer items-center justify-between rounded-2xl border border-border bg-card p-5 transition hover:border-primary/50"
+          >
+            <div>
+              <h2 className="flex items-center gap-2 text-sm font-semibold">
+                <SlidersHorizontal size={15} /> Настраиваемые поля
+              </h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Свои поля для клиента и дела под вашу сферу — без программиста
+              </p>
+            </div>
+            <ExternalLink size={15} className="shrink-0 text-muted-foreground" />
+          </div>
+        )}
+
         {/* Тариф */}
         <div
           onClick={() => router.push('/settings/billing')}
@@ -290,4 +309,4 @@ export default function SettingsPage() {
       </div>
     </AppShell>
   );
-            }
+      }
