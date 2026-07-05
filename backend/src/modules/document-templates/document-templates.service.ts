@@ -160,12 +160,11 @@ export class DocumentTemplatesService {
 
   // =========================
   // Подстановка {{path.to.value}} в тексте шаблона.
-  // \p{L}\p{N}_ (юникод-классы) вместо \w — иначе кириллические ключи вида
-  // {{custom.кадастровый_номер}} не совпали бы с обычным \w из ASCII.
+  // a-zа-яё0-9 вместо \p{L} для совместимости с Node.js на Render.
   // =========================
   private resolveContent(content: string, context: Record<string, any>): string {
     return content.replace(
-      /{{\s*([\p{L}\p{N}_]+(?:\.[\p{L}\p{N}_]+)*)\s*}}/gu,
+      /\{\{\s*([a-zа-яё0-9_]+(?:\.[a-zа-яё0-9_]+)*)\s*\}\}/gi,
       (match, path: string) => {
         const value = path
           .split('.')
@@ -210,7 +209,7 @@ export class DocumentTemplatesService {
     });
 
     const buffer = await Packer.toBuffer(doc);
-    const safeName = template.name.replace(/[^\p{L}\p{N}\- _]/gu, '').trim() || 'Документ';
+    const safeName = template.name.replace(/[^a-zа-яё0-9\- _]/gi, '').trim() || 'Документ';
     const filename = `${safeName}.docx`;
 
     // Сохраняем сразу в документы дела — юристу не нужно скачивать и
@@ -226,4 +225,4 @@ export class DocumentTemplatesService {
 
     return { buffer, filename, documentId: savedDocument.id };
   }
-}
+      }
