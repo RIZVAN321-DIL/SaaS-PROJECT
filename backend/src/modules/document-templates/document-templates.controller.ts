@@ -88,6 +88,7 @@ export class DocumentTemplatesController {
 
   // Генерация документа по делу — доступна всем ролям в организации,
   // т.к. юристу нужно сформировать документ по своему делу.
+  // Сгенерированный файл автоматически сохраняется в документах дела.
   @Get(':id/generate')
   async generate(
     @Param('id') id: string,
@@ -96,10 +97,11 @@ export class DocumentTemplatesController {
     @Res() res: Response,
   ) {
     const user = req.user as AuthenticatedUser;
-    const { buffer, filename } = await this.documentTemplatesService.generateDocx(
+    const { buffer, filename, documentId } = await this.documentTemplatesService.generateDocx(
       id,
       caseId,
       user.organizationId,
+      user.userId,
     );
 
     res.setHeader(
@@ -110,6 +112,9 @@ export class DocumentTemplatesController {
       'Content-Disposition',
       `attachment; filename="${encodeURIComponent(filename)}"`,
     );
+    // Фронт использует этот заголовок, чтобы знать: документ уже сохранён
+    // в деле, список документов можно сразу обновить.
+    res.setHeader('X-Document-Id', documentId);
     return res.send(buffer);
   }
 }
