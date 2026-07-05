@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { AppShell } from '@/components/layout/app-shell';
-import { casesApi } from '@/lib/api';
+import { casesApi, caseTypesApi } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
 
 interface BoardCase {
@@ -21,17 +21,41 @@ interface Stage {
   cases: BoardCase[];
 }
 
+interface CaseType {
+  id: string;
+  name: string;
+}
+
 export default function PipelinePage() {
   const router = useRouter();
   const [stages, setStages] = useState<Stage[]>([]);
   const [loading, setLoading] = useState(true);
   const [draggedCaseId, setDraggedCaseId] = useState<string | null>(null);
 
+  const [caseTypes, setCaseTypes] = useState<CaseType[]>([]);
+  // '' = общая доска (дела типов без своей воронки + дела без типа)
+  const [selectedCaseTypeId, setSelectedCaseTypeId] = useState('');
+
+  useEffect(() => {
+    async function loadCaseTypes() {
+      const token = getAccessToken();
+      if (!token) return;
+      try {
+        const data = (await caseTypesApi.getAll(token)) as CaseType[];
+        setCaseTypes(data);
+      } catch {
+        setCaseTypes([]);
+      }
+    }
+    loadCaseTypes();
+  }, []);
+
   async function loadBoard() {
     try {
       const token = getAccessToken();
       if (!token) return;
-      const data = await casesApi.getBoard(token);
+      setLoading(true);
+      const data = await casesApi.getBoard(token, selectedCaseTypeId || undefined);
       setStages(data as Stage[]);
     } catch {
       // silently fail
@@ -40,7 +64,10 @@ export default function PipelinePage() {
     }
   }
 
-  useEffect(() => { loadBoard(); }, []);
+  useEffect(() => {
+    loadBoard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCaseTypeId]);
 
   async function moveCase(caseId: string, stageId: string) {
     const token = getAccessToken();
@@ -77,6 +104,35 @@ export default function PipelinePage() {
           <p className="text-sm text-muted-foreground">
             Канбан-доска для управления делами
           </p>
+        </div>
+
+        {/* Переключатель воронки: общая или конкретного типа дела */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setSelectedCaseTypeId('')}
+            className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
+              !selectedCaseTypeId
+                ? 'border-primary text-primary'
+                : 'border-border text-muted-foreground hover:border-primary/50'
+            }`}
+          >
+            Общая доска
+          </button>
+          {caseTypes.map((type) => (
+            <button
+              key={type.id}
+              type="button"
+              onClick={() => setSelectedCaseTypeId(type.id)}
+              className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
+                selectedCaseTypeId === type.id
+                  ? 'border-primary text-primary'
+                  : 'border-border text-muted-foreground hover:border-primary/50'
+              }`}
+            >
+              {type.name}
+            </button>
+          ))}
         </div>
 
         {loading ? (
