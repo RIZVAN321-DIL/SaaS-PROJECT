@@ -115,7 +115,7 @@ export function ClientForm({ clientToEdit, onSuccess }: ClientFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-5 overflow-y-auto max-h-[80vh] p-1">
       <Input
         label="Полное имя"
         value={fullName}
@@ -168,4 +168,4 @@ export function ClientForm({ clientToEdit, onSuccess }: ClientFormProps) {
       </Button>
     </form>
   );
-                                }
+}
