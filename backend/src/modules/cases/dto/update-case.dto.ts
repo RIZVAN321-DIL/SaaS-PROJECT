@@ -2,6 +2,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  IsObject,
   MaxLength,
   ValidateIf,
 } from 'class-validator';
@@ -24,9 +25,13 @@ export class UpdateCaseDto {
   @IsUUID('4', { message: 'Некорректный ID стадии' })
   stageId?: string;
 
-  // Пустая строка = снять назначение (юрист становится "не назначен")
+  // Пустая строка = снять назначение ("не назначен")
   @IsOptional()
   @ValidateIf((o) => o.assignedLawyerId !== '' && o.assignedLawyerId !== null)
   @IsUUID('4', { message: 'Некорректный ID ответственного юриста' })
   assignedLawyerId?: string | null;
+
+  @IsOptional()
+  @IsObject()
+  customFields?: Record<string, any>;
 }
