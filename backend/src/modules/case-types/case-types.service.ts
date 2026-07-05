@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 
 import { PrismaService } from '../../database/prisma.service';
+import { CaseStageService } from '../case-stage/case-stage.service';
 
 import { CreateCaseTypeDto } from './dto/create-case-type.dto';
 import { UpdateCaseTypeDto } from './dto/update-case-type.dto';
@@ -24,6 +25,7 @@ type Rule = {
 export class CaseTypesService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly caseStages: CaseStageService,
   ) {}
 
   // =========================
@@ -266,16 +268,13 @@ export class CaseTypesService {
       );
     }
 
+    // Первая стадия эффективной воронки типа дела: собственная, если задана,
+    // иначе дефолтная воронка организации.
     const firstStage =
-      await this.prisma.caseStage.findFirst({
-        where: {
-          organizationId:
-            data.organizationId,
-        },
-        orderBy: {
-          order: 'asc',
-        },
-      });
+      await this.caseStages.getFirstEffectiveStage(
+        data.organizationId,
+        data.caseTypeId,
+      );
 
     const tasksTemplate =
       Array.isArray(
@@ -366,4 +365,4 @@ export class CaseTypesService {
       },
     });
   }
-        }
+}
