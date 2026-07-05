@@ -91,6 +91,10 @@ async function bootstrap() {
       }
     },
     credentials: true,
+    // Без этого фронтенд не сможет прочитать X-Document-Id из ответа
+    // /document-templates/:id/generate (браузер скрывает кастомные заголовки
+    // кросс-доменных ответов по умолчанию).
+    exposedHeaders: ['X-Document-Id'],
   });
 
   app.setGlobalPrefix('api');
