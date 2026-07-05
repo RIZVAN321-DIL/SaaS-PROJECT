@@ -155,16 +155,10 @@ export class DocumentTemplatesService {
   // Подстановка {{path.to.value}} в тексте шаблона.
   // \p{L}\p{N}_ (юникод-классы) вместо \w — иначе кириллические ключи вида
   // {{custom.кадастровый_номер}} не совпали бы с обычным \w из ASCII.
-  // Используем new RegExp вместо литерала, т.к. TypeScript не понимает
-  // \p{L} внутри литерала регулярного выражения.
   // =========================
   private resolveContent(content: string, context: Record<string, any>): string {
-    const VAR_REGEX = new RegExp(
-      '{{\\s*([\\p{L}\\p{N}_]+(?:\\.[\\p{L}\\p{N}_]+)*)\\s*}}',
-      'gu',
-    );
     return content.replace(
-      VAR_REGEX,
+      /{{\s*([\p{L}\p{N}_]+(?:\.[\p{L}\p{N}_]+)*)\s*}}/gu,
       (match, path: string) => {
         const value = path
           .split('.')
@@ -206,8 +200,7 @@ export class DocumentTemplatesService {
     });
 
     const buffer = await Packer.toBuffer(doc);
-    const SAFE_NAME_REGEX = new RegExp('[^\\p{L}\\p{N}\\- _]', 'gu');
-    const safeName = template.name.replace(SAFE_NAME_REGEX, '').trim() || 'Документ';
+    const safeName = template.name.replace(/[^\p{L}\p{N}\- _]/gu, '').trim() || 'Документ';
 
     return { buffer, filename: `${safeName}.docx` };
   }
