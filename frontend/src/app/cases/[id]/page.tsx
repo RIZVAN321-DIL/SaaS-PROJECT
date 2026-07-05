@@ -271,8 +271,11 @@ export default function CaseDetailPage() {
     try {
       const blob = await documentTemplatesApi.generate(templateId, id, token);
       downloadBlobAsFile(blob, `${templateName}.docx`);
-      toast.success('Документ сформирован');
+      toast.success('Документ сформирован и сохранён в деле');
       setShowGenerateModal(false);
+      // Сгенерированный файл сервер уже сохранил в документах дела —
+      // перезагружаем дело, чтобы он сразу появился в списке.
+      load();
     } catch {
       toast.error('Не удалось сформировать документ');
     } finally {
@@ -715,4 +718,4 @@ export default function CaseDetailPage() {
       </div>
     </AppShell>
   );
-        }
+  }
