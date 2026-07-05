@@ -2,6 +2,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Layers } from 'lucide-react';
 
 import { AppShell } from '@/components/layout/app-shell';
 import { CaseTypeForm } from '@/components/forms/case-type-form';
@@ -18,6 +20,7 @@ interface CaseType {
 }
 
 export default function CaseTypesPage() {
+  const router = useRouter();
   const [types, setTypes] = useState<CaseType[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -80,19 +83,20 @@ export default function CaseTypesPage() {
                 <th className="p-4 text-left">Название</th>
                 <th className="p-4 text-left">Описание</th>
                 <th className="p-4 text-left">Создан</th>
+                <th className="p-4 text-right">Воронка</th>
               </tr>
             </thead>
 
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={3} className="p-8 text-center">
+                  <td colSpan={4} className="p-8 text-center">
                     Загрузка...
                   </td>
                 </tr>
               ) : types.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="p-8 text-center">
+                  <td colSpan={4} className="p-8 text-center">
                     Типов дел пока нет
                   </td>
                 </tr>
@@ -105,6 +109,16 @@ export default function CaseTypesPage() {
 
                     <td className="p-4">
                       {new Date(type.createdAt).toLocaleDateString()}
+                    </td>
+
+                    <td className="p-4 text-right">
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/stages?caseTypeId=${type.id}`)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-primary/50 hover:text-foreground"
+                      >
+                        <Layers size={12} /> Настроить воронку
+                      </button>
                     </td>
                   </tr>
                 ))
