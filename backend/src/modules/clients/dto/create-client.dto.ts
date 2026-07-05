@@ -3,6 +3,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsEmail,
+  IsObject,
   MaxLength,
   Matches,
 } from 'class-validator';
@@ -30,6 +31,12 @@ export class CreateClientDto {
   @IsString()
   @MaxLength(5000, { message: 'Примечания не должны превышать 5000 символов' })
   notes?: string;
+
+  // Значения настраиваемых полей клиента: { "<key>": "значение" }.
+  // Набор полей задаётся владельцем организации в Настройках.
+  @IsOptional()
+  @IsObject()
+  customFields?: Record<string, any>;
 }
 
 export class UpdateClientDto {
@@ -56,4 +63,8 @@ export class UpdateClientDto {
   @IsString()
   @MaxLength(5000)
   notes?: string;
+
+  @IsOptional()
+  @IsObject()
+  customFields?: Record<string, any>;
 }
