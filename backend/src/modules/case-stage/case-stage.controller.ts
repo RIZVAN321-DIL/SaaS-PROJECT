@@ -6,6 +6,7 @@ import {
   Delete,
   Param,
   Body,
+  Query,
   Req,
 } from '@nestjs/common';
 
@@ -21,16 +22,20 @@ export class CaseStageController {
     private readonly caseStageService: CaseStageService,
   ) {}
 
+  // Без caseTypeId — дефолтные стадии организации.
+  // С caseTypeId — эффективная воронка для этого типа дела (своя, если
+  // задана, иначе дефолтная).
   @Get()
-  findAll(@Req() req: Request) {
+  findAll(@Query('caseTypeId') caseTypeId: string | undefined, @Req() req: Request) {
     const user = req.user as any;
-    return this.caseStageService.findAll(user.organizationId);
+    return this.caseStageService.findAll(user.organizationId, caseTypeId);
   }
 
+  // Без caseTypeId — общая доска. С caseTypeId — доска конкретного типа дела.
   @Get('board')
-  getBoard(@Req() req: Request) {
+  getBoard(@Query('caseTypeId') caseTypeId: string | undefined, @Req() req: Request) {
     const user = req.user as any;
-    return this.caseStageService.getBoard(user.organizationId);
+    return this.caseStageService.getBoard(user.organizationId, caseTypeId);
   }
 
   @Get('single/:id')
@@ -43,13 +48,16 @@ export class CaseStageController {
   }
 
   // =========================
-  // CREATE — при конфликте order сдвигает последующие стадии на +1
+  // CREATE — при конфликте order сдвигает последующие стадии этой же
+  // группы (organizationId, caseTypeId) на +1.
+  // caseTypeId в body: не передан/null — дефолтная воронка организации,
+  // иначе — собственная воронка указанного типа дела.
   // Доступно OWNER и ADMIN
   // =========================
   @Roles(Role.OWNER, Role.ADMIN)
   @Post()
   create(
-    @Body() body: { name: string; order: number; color?: string },
+    @Body() body: { name: string; order: number; color?: string; caseTypeId?: string },
     @Req() req: Request,
   ) {
     const user = req.user as any;
@@ -75,7 +83,7 @@ export class CaseStageController {
   }
 
   // =========================
-  // REMOVE — снимает привязку дел, удаляет стадию, уплотняет order
+  // REMOVE — снимает привязку дел, удаляет стадию, уплотняет order внутри группы
   // Доступно OWNER и ADMIN
   // =========================
   @Roles(Role.OWNER, Role.ADMIN)
