@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import { PrismaService } from '../../database/prisma.service';
+import { DocumentsService } from '../documents/documents.service';
 
 // =========================
 // Базовые плейсхолдеры, доступные в шаблонах всегда: {{client.fullName}},
@@ -25,7 +26,10 @@ export const TEMPLATE_VARIABLES: { key: string; label: string }[] = [
 
 @Injectable()
 export class DocumentTemplatesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly documents: DocumentsService,
+  ) {}
 
   // =========================
   // CRUD
@@ -168,13 +172,16 @@ export class DocumentTemplatesService {
   }
 
   // =========================
-  // Сгенерировать текст документа (для превью) и сразу .docx буфер
+  // Сгенерировать текст документа (для превью) и сразу .docx буфер.
+  // Сгенерированный файл автоматически сохраняется в S3 и в таблице Document
+  // с привязкой к делу — юрист сразу видит его в списке документов.
   // =========================
   async generateDocx(
     templateId: string,
     caseId: string,
     organizationId: string,
-  ): Promise<{ buffer: Buffer; filename: string }> {
+    uploadedById?: string,
+  ): Promise<{ buffer: Buffer; filename: string; documentId: string }> {
     if (!caseId) {
       throw new BadRequestException('Не указано дело для генерации документа');
     }
@@ -198,7 +205,24 @@ export class DocumentTemplatesService {
 
     const buffer = await Packer.toBuffer(doc);
     const safeName = template.name.replace(/[^a-zа-яё0-9\- _]/gi, '').trim() || 'Документ';
+    const filename = `${safeName}.docx`;
 
-    return { buffer, filename: `${safeName}.docx` };
+    // Сохраняем сгенерированный файл как документ дела (S3 + запись в БД).
+    // audit и permissions проверены на уровне контроллера (generate доступен
+    // всем ролям в организации).
+    const document = await this.documents.uploadFile(
+      {
+        caseId,
+        organizationId,
+        name: filename,
+        mimeType:
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        buffer,
+        size: buffer.length,
+      },
+      uploadedById,
+    );
+
+    return { buffer, filename, documentId: document.id };
   }
-       }
+        }
