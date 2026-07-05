@@ -6,6 +6,7 @@ import {
   Param,
   Put,
   Delete,
+  Query,
   Req,
 } from '@nestjs/common';
 
@@ -55,12 +56,13 @@ export class CasesController {
 
   // ВАЖНО: /board и /move/:caseId/:stageId — выше :id
   @Get('board')
-  getBoard(@Req() req: Request) {
+  getBoard(@Query('caseTypeId') caseTypeId: string | undefined, @Req() req: Request) {
     const user = req.user as AuthenticatedUser;
-    return this.casesService.getBoard(user.organizationId, {
-      userId: user.userId,
-      role: user.role,
-    });
+    return this.casesService.getBoard(
+      user.organizationId,
+      { userId: user.userId, role: user.role },
+      caseTypeId,
+    );
   }
 
   @Put('move/:caseId/:stageId')
