@@ -25,11 +25,6 @@ interface TemplateVariable {
   label: string;
 }
 
-// =========================
-// Эмодзи для переменных. Для базовых переменных — фиксированное соответствие,
-// для {{custom.*}} — подбирается по ключевым словам в названии поля
-// (паспорт, адрес, кадастр, полис, ИНН и т.д.), иначе — нейтральная иконка.
-// =========================
 const BASE_VARIABLE_EMOJI: Record<string, string> = {
   'client.fullName': '🧑',
   'client.phone': '📞',
@@ -61,16 +56,10 @@ function emojiFor(variable: TemplateVariable): string {
   return hit ? hit[1] : '🔖';
 }
 
-// Короткое человекочитаемое название без пометки "(клиент)/(дело)" — для чипов и превью
 function shortLabel(variable: TemplateVariable): string {
   return variable.label.replace(/\s*\((клиент|дело)\)\s*$/i, '');
 }
 
-// =========================
-// Готовые образцы документов. Специфичные кастомные поля (паспорт,
-// кадастровый номер) подставляются только если такие поля реально
-// настроены в организации — иначе просто пропускаются в тексте.
-// =========================
 function buildSamples(variables: TemplateVariable[]) {
   const passport = variables.find(
     (v) => v.key.startsWith('custom.') && v.label.toLowerCase().includes('паспорт'),
@@ -91,11 +80,6 @@ function buildSamples(variables: TemplateVariable[]) {
   };
 }
 
-// =========================
-// Рендер предпросмотра: {{key}} → цветной teal-чип с человеческим названием.
-// Неизвестные переменные (нет в списке organizации) показываются как есть,
-// чтобы автор шаблона сразу заметил опечатку в ключе.
-// =========================
 function renderPreview(content: string, variables: TemplateVariable[]) {
   if (!content.trim()) {
     return <span className="text-muted-foreground">Текст документа появится здесь...</span>;
@@ -331,7 +315,7 @@ export default function DocumentTemplatesPage() {
           onClose={() => setShowForm(false)}
           title={editing ? 'Редактировать шаблон' : 'Новый шаблон документа'}
         >
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto max-h-[80vh] p-1">
             <Input
               label="Название"
               placeholder="Например: Доверенность на представительство"
@@ -476,4 +460,4 @@ export default function DocumentTemplatesPage() {
       </div>
     </AppShell>
   );
-                    }
+}
