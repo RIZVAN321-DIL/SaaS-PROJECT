@@ -1,15 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Layers, Plus, Pencil, Trash2, GripVertical, AlertTriangle } from 'lucide-react';
 import { AppShell } from '@/components/layout/app-shell';
 import { getAccessToken } from '@/lib/auth';
 import { toast } from '@/lib/toast';
+import { caseStagesApi, caseTypesApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { Input } from '@/components/ui/input';
-
-const API_URL = 'https://saas-project-deog.onrender.com/api';
 
 interface Stage {
   id: string;
@@ -17,6 +17,12 @@ interface Stage {
   order: number;
   color: string;
   createdAt: string;
+  caseTypeId?: string | null;
+}
+
+interface CaseType {
+  id: string;
+  name: string;
 }
 
 interface StageFormProps {
@@ -107,7 +113,16 @@ function StageForm({ initial, mode, onSubmit, loading, error }: StageFormProps) 
   );
 }
 
-export default function StagesPage() {
+function StagesPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialCaseTypeId = searchParams.get('caseTypeId') ?? '';
+
+  const [caseTypes, setCaseTypes] = useState<CaseType[]>([]);
+  // '' = дефолтная (общая) воронка организации
+  const [selectedCaseTypeId, setSelectedCaseTypeId] = useState(initialCaseTypeId);
+  const [usesOwnPipeline, setUsesOwnPipeline] = useState(false);
+
   const [stages, setStages] = useState<Stage[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -119,16 +134,40 @@ export default function StagesPage() {
   const [formError, setFormError] = useState('');
   const [deleting, setDeleting] = useState(false);
 
+  useEffect(() => {
+    async function loadCaseTypes() {
+      const token = getAccessToken();
+      if (!token) return;
+      try {
+        const data = (await caseTypesApi.getAll(token)) as CaseType[];
+        setCaseTypes(data);
+      } catch {
+        setCaseTypes([]);
+      }
+    }
+    loadCaseTypes();
+  }, []);
+
+  // Показываем ли мы собственную воронку типа дела или дефолтную (общую):
+  // "own" стадии — те, у которых caseTypeId ровно совпадает с выбранным типом.
+  // Если для типа собственных стадий нет — сервер вернёт дефолтные, и мы
+  // предупредим, что редактирование здесь создаст именно СВОЮ воронку.
   async function loadStages() {
     const token = getAccessToken();
     if (!token) return;
+    setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/case-stages`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setStages((data as Stage[]).sort((a, b) => a.order - b.order));
+      const data = (await caseStagesApi.getAll(
+        token,
+        selectedCaseTypeId || undefined,
+      )) as Stage[];
+      const sorted = data.sort((a, b) => a.order - b.order);
+      setStages(sorted);
+      setUsesOwnPipeline(
+        selectedCaseTypeId
+          ? sorted.length > 0 && sorted[0].caseTypeId === selectedCaseTypeId
+          : true,
+      );
     } catch {
       setStages([]);
     } finally {
@@ -136,7 +175,15 @@ export default function StagesPage() {
     }
   }
 
-  useEffect(() => { loadStages(); }, []);
+  useEffect(() => {
+    loadStages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCaseTypeId]);
+
+  function changeCaseType(id: string) {
+    setSelectedCaseTypeId(id);
+    router.replace(id ? `/stages?caseTypeId=${id}` : '/stages');
+  }
 
   async function handleCreate(data: { name: string; color: string; order?: number }) {
     const token = getAccessToken();
@@ -144,18 +191,10 @@ export default function StagesPage() {
     setSubmitting(true);
     setFormError('');
     try {
-      const res = await fetch(`${API_URL}/case-stages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Ошибка создания стадии');
-      }
+      await caseStagesApi.create(
+        { ...data, order: data.order ?? 1, caseTypeId: selectedCaseTypeId || undefined },
+        token,
+      );
       toast.success('Стадия создана');
       setCreateOpen(false);
       loadStages();
@@ -172,18 +211,7 @@ export default function StagesPage() {
     setSubmitting(true);
     setFormError('');
     try {
-      const res = await fetch(`${API_URL}/case-stages/${editTarget.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Ошибка обновления');
-      }
+      await caseStagesApi.update(editTarget.id, data, token);
       toast.success('Стадия обновлена');
       setEditTarget(null);
       loadStages();
@@ -199,14 +227,7 @@ export default function StagesPage() {
     if (!token || !deleteTarget) return;
     setDeleting(true);
     try {
-      const res = await fetch(`${API_URL}/case-stages/${deleteTarget.id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Ошибка удаления');
-      }
+      await caseStagesApi.remove(deleteTarget.id, token);
       toast.success(`Стадия «${deleteTarget.name}» удалена`);
       setDeleteTarget(null);
       loadStages();
@@ -227,22 +248,62 @@ export default function StagesPage() {
     setEditTarget(stage);
   }
 
+  const selectedTypeName = caseTypes.find((t) => t.id === selectedCaseTypeId)?.name;
+
   return (
     <AppShell>
       <div className="space-y-5">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="flex items-center gap-2 text-2xl font-bold">
-              <Layers size={22} /> Стадии канбана
+              <Layers size={22} /> Воронка стадий
             </h1>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Этапы воронки дел — порядок, названия, цвета
+              Этапы дел — порядок, названия, цвета. Своя воронка для каждого типа дела
             </p>
           </div>
           <Button onClick={openCreate} className="flex items-center gap-1.5">
             <Plus size={15} /> Добавить стадию
           </Button>
         </div>
+
+        {/* Выбор воронки: общая (дефолтная) или конкретного типа дела */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => changeCaseType('')}
+            className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
+              !selectedCaseTypeId
+                ? 'border-primary text-primary'
+                : 'border-border text-muted-foreground hover:border-primary/50'
+            }`}
+          >
+            Общая воронка
+          </button>
+          {caseTypes.map((type) => (
+            <button
+              key={type.id}
+              type="button"
+              onClick={() => changeCaseType(type.id)}
+              className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
+                selectedCaseTypeId === type.id
+                  ? 'border-primary text-primary'
+                  : 'border-border text-muted-foreground hover:border-primary/50'
+              }`}
+            >
+              {type.name}
+            </button>
+          ))}
+        </div>
+
+        {selectedCaseTypeId && !usesOwnPipeline && !loading && (
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-sm">
+            <p className="text-amber-600">
+              У типа «{selectedTypeName}» пока нет собственной воронки — показана общая.
+              Добавив стадию здесь, вы создадите отдельную воронку именно для этого типа дела.
+            </p>
+          </div>
+        )}
 
         <Modal
           open={createOpen}
@@ -407,10 +468,18 @@ export default function StagesPage() {
 
         {stages.length > 0 && (
           <p className="text-xs text-muted-foreground">
-            При добавлении стадии с существующим номером — последующие стадии сдвинутся автоматически. При удалении дела не теряются, только снимается привязка к стадии.
+            При добавлении стадии с существующим номером — остальные стадии этой воронки сдвинутся автоматически. При удалении дела не теряются, только снимается привязка к стадии.
           </p>
         )}
       </div>
     </AppShell>
+  );
+}
+
+export default function StagesPage() {
+  return (
+    <Suspense fallback={null}>
+      <StagesPageContent />
+    </Suspense>
   );
 }
