@@ -121,10 +121,6 @@ export class DocumentTemplatesService {
 
     const today = new Date().toLocaleDateString('ru-RU');
 
-    // custom.* собирается из полей клиента и дела. При совпадении ключей
-    // значение из карточки дела имеет приоритет над значением клиента —
-    // на практике ключи разных сущностей почти никогда не пересекаются,
-    // т.к. уникальность key проверяется отдельно для CLIENT и для CASE.
     const custom: Record<string, any> = {
       ...((caseRecord.client?.customFields as Record<string, any>) ?? {}),
       ...((caseRecord.customFields as Record<string, any>) ?? {}),
@@ -153,19 +149,20 @@ export class DocumentTemplatesService {
 
   // =========================
   // Подстановка {{path.to.value}} в тексте шаблона.
-  // \p{L}\p{N}_ (юникод-классы) вместо \w — иначе кириллические ключи вида
-  // {{custom.кадастровый_номер}} не совпали бы с обычным \w из ASCII.
+  // Используем a-zа-яё0-9 вместо \p{L} для совместимости с Node.js
+  // на Render, которая не поддерживает юникодные property escapes в регулярках.
   // =========================
   private resolveContent(content: string, context: Record<string, any>): string {
+    const VAR_REGEX = /\{\{\s*([a-zа-яё0-9_]+(?:\.[a-zа-яё0-9_]+)*)\s*\}\}/gi;
     return content.replace(
-      /{{\s*([\p{L}\p{N}_]+(?:\.[\p{L}\p{N}_]+)*)\s*}}/gu,
+      VAR_REGEX,
       (match, path: string) => {
         const value = path
           .split('.')
           .reduce((acc: any, key: string) => (acc ? acc[key] : undefined), context);
         return value !== undefined && value !== null && value !== ''
           ? String(value)
-          : `[${path}]`; // оставляем видимую метку, чтобы юрист заметил незаполненное поле
+          : `[${path}]`;
       },
     );
   }
@@ -200,8 +197,8 @@ export class DocumentTemplatesService {
     });
 
     const buffer = await Packer.toBuffer(doc);
-    const safeName = template.name.replace(/[^\p{L}\p{N}\- _]/gu, '').trim() || 'Документ';
+    const safeName = template.name.replace(/[^a-zа-яё0-9\- _]/gi, '').trim() || 'Документ';
 
     return { buffer, filename: `${safeName}.docx` };
   }
-}
+       }
