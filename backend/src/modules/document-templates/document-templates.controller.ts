@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 
-import { DocumentTemplatesService, TEMPLATE_VARIABLES } from './document-templates.service';
+import { DocumentTemplatesService } from './document-templates.service';
 import { CreateDocumentTemplateDto } from './dto/create-document-template.dto';
 import { UpdateDocumentTemplateDto } from './dto/update-document-template.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -31,10 +31,16 @@ export class DocumentTemplatesController {
     private readonly documentTemplatesService: DocumentTemplatesService,
   ) {}
 
-  // Список доступных плейсхолдеров — для подсказки в форме создания шаблона
+  // Список доступных плейсхолдеров — для подсказки в форме создания шаблона.
+  // Включает базовые переменные и {{custom.<key>}} по настраиваемым полям
+  // организации (опционально — только актуальные для конкретного типа дела).
   @Get('variables')
-  getVariables() {
-    return TEMPLATE_VARIABLES;
+  getVariables(@Query('caseTypeId') caseTypeId: string | undefined, @Req() req: Request) {
+    const user = req.user as AuthenticatedUser;
+    return this.documentTemplatesService.getAvailableVariables(
+      user.organizationId,
+      caseTypeId,
+    );
   }
 
   @Get()
