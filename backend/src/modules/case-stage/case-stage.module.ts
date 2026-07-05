@@ -6,5 +6,6 @@ import { PrismaService } from '../../database/prisma.service';
 @Module({
   controllers: [CaseStageController],
   providers: [CaseStageService, PrismaService],
+  exports: [CaseStageService],
 })
 export class CaseStageModule {}
