@@ -3,6 +3,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  IsObject,
   MaxLength,
 } from 'class-validator';
 
@@ -27,4 +28,10 @@ export class CreateCaseDto {
   @IsOptional()
   @IsUUID('4', { message: 'Некорректный ID ответственного юриста' })
   assignedLawyerId?: string;
+
+  // Значения настраиваемых полей дела: { "<key>": "значение" }.
+  // Автоматически становятся доступны в шаблонах как {{custom.<key>}}.
+  @IsOptional()
+  @IsObject()
+  customFields?: Record<string, any>;
 }
