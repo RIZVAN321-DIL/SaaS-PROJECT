@@ -7,6 +7,9 @@ import { Document, Packer, Paragraph, TextRun } from 'docx';
 import { PrismaService } from '../../database/prisma.service';
 import { DocumentsService } from '../documents/documents.service';
 
+const DOCX_MIME_TYPE =
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
 // =========================
 // Базовые плейсхолдеры, доступные в шаблонах всегда: {{client.fullName}},
 // {{case.title}} и т.д. Помимо них, для каждой организации динамически
@@ -125,6 +128,10 @@ export class DocumentTemplatesService {
 
     const today = new Date().toLocaleDateString('ru-RU');
 
+    // custom.* собирается из полей клиента и дела. При совпадении ключей
+    // значение из карточки дела имеет приоритет над значением клиента —
+    // на практике ключи разных сущностей почти никогда не пересекаются,
+    // т.к. уникальность key проверяется отдельно для CLIENT и для CASE.
     const custom: Record<string, any> = {
       ...((caseRecord.client?.customFields as Record<string, any>) ?? {}),
       ...((caseRecord.customFields as Record<string, any>) ?? {}),
@@ -153,28 +160,27 @@ export class DocumentTemplatesService {
 
   // =========================
   // Подстановка {{path.to.value}} в тексте шаблона.
-  // Используем a-zа-яё0-9 вместо \p{L} для совместимости с Node.js
-  // на Render, которая не поддерживает юникодные property escapes в регулярках.
+  // \p{L}\p{N}_ (юникод-классы) вместо \w — иначе кириллические ключи вида
+  // {{custom.кадастровый_номер}} не совпали бы с обычным \w из ASCII.
   // =========================
   private resolveContent(content: string, context: Record<string, any>): string {
-    const VAR_REGEX = /\{\{\s*([a-zа-яё0-9_]+(?:\.[a-zа-яё0-9_]+)*)\s*\}\}/gi;
     return content.replace(
-      VAR_REGEX,
+      /{{\s*([\p{L}\p{N}_]+(?:\.[\p{L}\p{N}_]+)*)\s*}}/gu,
       (match, path: string) => {
         const value = path
           .split('.')
           .reduce((acc: any, key: string) => (acc ? acc[key] : undefined), context);
         return value !== undefined && value !== null && value !== ''
           ? String(value)
-          : `[${path}]`;
+          : `[${path}]`; // оставляем видимую метку, чтобы юрист заметил незаполненное поле
       },
     );
   }
 
   // =========================
-  // Сгенерировать текст документа (для превью) и сразу .docx буфер.
-  // Сгенерированный файл автоматически сохраняется в S3 и в таблице Document
-  // с привязкой к делу — юрист сразу видит его в списке документов.
+  // Сгенерировать текст документа и .docx буфер, сразу сохранить его как
+  // документ дела (шифрование + S3 + запись в БД — тот же путь, что и при
+  // обычной загрузке файла), и вернуть буфер для скачивания.
   // =========================
   async generateDocx(
     templateId: string,
@@ -204,25 +210,20 @@ export class DocumentTemplatesService {
     });
 
     const buffer = await Packer.toBuffer(doc);
-    const safeName = template.name.replace(/[^a-zа-яё0-9\- _]/gi, '').trim() || 'Документ';
+    const safeName = template.name.replace(/[^\p{L}\p{N}\- _]/gu, '').trim() || 'Документ';
     const filename = `${safeName}.docx`;
 
-    // Сохраняем сгенерированный файл как документ дела (S3 + запись в БД).
-    // audit и permissions проверены на уровне контроллера (generate доступен
-    // всем ролям в организации).
-    const document = await this.documents.uploadFile(
-      {
-        caseId,
-        organizationId,
-        name: filename,
-        mimeType:
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        buffer,
-        size: buffer.length,
-      },
+    // Сохраняем сразу в документы дела — юристу не нужно скачивать и
+    // заново загружать файл, чтобы он появился в карточке дела.
+    const savedDocument = await this.documents.uploadFile({
+      organizationId,
+      caseId,
+      fileName: filename,
+      mimeType: DOCX_MIME_TYPE,
+      buffer,
       uploadedById,
-    );
+    });
 
-    return { buffer, filename, documentId: document.id };
+    return { buffer, filename, documentId: savedDocument.id };
   }
-        }
+}
