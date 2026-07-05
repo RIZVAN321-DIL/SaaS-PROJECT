@@ -7,8 +7,10 @@ import { Document, Packer, Paragraph, TextRun } from 'docx';
 import { PrismaService } from '../../database/prisma.service';
 
 // =========================
-// Плейсхолдеры, доступные в шаблонах: {{client.fullName}}, {{case.title}} и т.д.
-// Список показывается в подсказке на фронте — держите в синхроне с TEMPLATE_VARIABLES.
+// Базовые плейсхолдеры, доступные в шаблонах всегда: {{client.fullName}},
+// {{case.title}} и т.д. Помимо них, для каждой организации динамически
+// доступны {{custom.<key>}} — по настраиваемым полям клиента и дела,
+// см. DocumentTemplatesService.getAvailableVariables().
 // =========================
 export const TEMPLATE_VARIABLES: { key: string; label: string }[] = [
   { key: 'client.fullName', label: 'ФИО клиента' },
@@ -74,6 +76,37 @@ export class DocumentTemplatesService {
   }
 
   // =========================
+  // Список переменных для подсказки в редакторе шаблона: базовые +
+  // {{custom.<key>}} по всем настраиваемым полям клиента и дел организации.
+  // Если передан caseTypeId — среди полей дела показываем только общие
+  // (caseTypeId = null) и специфичные для этого типа.
+  // =========================
+  async getAvailableVariables(organizationId: string, caseTypeId?: string) {
+    const definitions = await this.prisma.customFieldDefinition.findMany({
+      where: {
+        organizationId,
+        ...(caseTypeId
+          ? {
+              OR: [
+                { entityType: 'CLIENT' },
+                { entityType: 'CASE', caseTypeId: null },
+                { entityType: 'CASE', caseTypeId },
+              ],
+            }
+          : {}),
+      },
+      orderBy: { order: 'asc' },
+    });
+
+    const customVariables = definitions.map((def) => ({
+      key: `custom.${def.key}`,
+      label: `${def.label} (${def.entityType === 'CLIENT' ? 'клиент' : 'дело'})`,
+    }));
+
+    return [...TEMPLATE_VARIABLES, ...customVariables];
+  }
+
+  // =========================
   // Контекст переменных для конкретного дела
   // =========================
   private async buildContext(caseId: string, organizationId: string) {
@@ -87,6 +120,15 @@ export class DocumentTemplatesService {
     }
 
     const today = new Date().toLocaleDateString('ru-RU');
+
+    // custom.* собирается из полей клиента и дела. При совпадении ключей
+    // значение из карточки дела имеет приоритет над значением клиента —
+    // на практике ключи разных сущностей почти никогда не пересекаются,
+    // т.к. уникальность key проверяется отдельно для CLIENT и для CASE.
+    const custom: Record<string, any> = {
+      ...((caseRecord.client?.customFields as Record<string, any>) ?? {}),
+      ...((caseRecord.customFields as Record<string, any>) ?? {}),
+    };
 
     return {
       client: {
@@ -104,22 +146,28 @@ export class DocumentTemplatesService {
       lawyer: {
         email: caseRecord.assignedLawyer?.email ?? '',
       },
+      custom,
       today,
     } as Record<string, Record<string, string> | string>;
   }
 
   // =========================
-  // Подстановка {{path.to.value}} в тексте шаблона
+  // Подстановка {{path.to.value}} в тексте шаблона.
+  // \p{L}\p{N}_ (юникод-классы) вместо \w — иначе кириллические ключи вида
+  // {{custom.кадастровый_номер}} не совпали бы с обычным \w из ASCII.
   // =========================
   private resolveContent(content: string, context: Record<string, any>): string {
-    return content.replace(/{{\s*([\w.]+)\s*}}/g, (match, path: string) => {
-      const value = path
-        .split('.')
-        .reduce((acc: any, key: string) => (acc ? acc[key] : undefined), context);
-      return value !== undefined && value !== null && value !== ''
-        ? String(value)
-        : `[${path}]`; // оставляем видимую метку, чтобы юрист заметил незаполненное поле
-    });
+    return content.replace(
+      /{{\s*([\p{L}\p{N}_]+(?:\.[\p{L}\p{N}_]+)*)\s*}}/gu,
+      (match, path: string) => {
+        const value = path
+          .split('.')
+          .reduce((acc: any, key: string) => (acc ? acc[key] : undefined), context);
+        return value !== undefined && value !== null && value !== ''
+          ? String(value)
+          : `[${path}]`; // оставляем видимую метку, чтобы юрист заметил незаполненное поле
+      },
+    );
   }
 
   // =========================
