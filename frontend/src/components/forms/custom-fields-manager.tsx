@@ -116,21 +116,27 @@ export function CustomFieldsManager({ entityType, caseTypes }: Props) {
         ? optionsStr.split('\n').map((s) => s.trim()).filter(Boolean)
         : undefined;
 
-      const payload = {
-        entityType,
-        key: key.trim(),
-        label: label.trim(),
-        fieldType,
-        options,
-        required,
-        caseTypeId: entityType === 'CASE' ? (caseTypeId || undefined) : undefined,
-      };
-
       if (editing) {
-        await customFieldDefinitionsApi.update(editing.id, payload, token);
+        // При редактировании НЕ отправляем entityType и key — они не меняются
+        await customFieldDefinitionsApi.update(editing.id, {
+          label: label.trim(),
+          fieldType,
+          options,
+          required,
+          caseTypeId: entityType === 'CASE' ? (caseTypeId || undefined) : undefined,
+        }, token);
         toast.success('Поле обновлено');
       } else {
-        await customFieldDefinitionsApi.create(payload, token);
+        // При создании отправляем всё
+        await customFieldDefinitionsApi.create({
+          entityType,
+          key: key.trim(),
+          label: label.trim(),
+          fieldType,
+          options,
+          required,
+          caseTypeId: entityType === 'CASE' ? (caseTypeId || undefined) : undefined,
+        }, token);
         toast.success('Поле создано');
       }
 
@@ -363,4 +369,4 @@ export function CustomFieldsManager({ entityType, caseTypes }: Props) {
       </Modal>
     </div>
   );
-  }
+                  }
