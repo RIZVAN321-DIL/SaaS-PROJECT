@@ -8,21 +8,22 @@ datasource db {
 }
 
 model Organization {
-  id           String         @id @default(uuid())
-  name         String
-  createdAt    DateTime       @default(now())
-  users        User[]
-  clients      Client[]
-  cases        Case[]
-  caseTypes    CaseType[]
-  tasks        Task[]
-  documents    Document[]
-  calendar     CalendarEvent[]
-  stages       CaseStage[]
-  auditLogs    AuditLog[]
-  subscription Subscription?
-  permissions  OrganizationPermissions?
-  documentTemplates DocumentTemplate[]
+  id                     String                    @id @default(uuid())
+  name                   String
+  createdAt              DateTime                  @default(now())
+  users                  User[]
+  clients                Client[]
+  cases                  Case[]
+  caseTypes              CaseType[]
+  tasks                  Task[]
+  documents              Document[]
+  calendar               CalendarEvent[]
+  stages                 CaseStage[]
+  auditLogs              AuditLog[]
+  subscription           Subscription?
+  permissions            OrganizationPermissions?
+  documentTemplates      DocumentTemplate[]
+  customFieldDefinitions CustomFieldDefinition[]
 }
 
 model OrganizationPermissions {
@@ -92,7 +93,7 @@ model PasswordResetToken {
 }
 
 model Client {
-  id             String   @id @default(uuid())
+  id             String       @id @default(uuid())
   fullName       String
   phone          String?
   email          String?
@@ -100,23 +101,37 @@ model Client {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
   cases          Case[]
-  createdAt      DateTime @default(now())
+  createdAt      DateTime     @default(now())
+
+  // Значения настраиваемых полей клиента: { "<key из CustomFieldDefinition>": "значение" }.
+  // Набор допустимых ключей и их типы описаны в CustomFieldDefinition (entityType = CLIENT).
+  customFields   Json?
 
   @@index([organizationId])
   @@index([organizationId, fullName])
 }
 
 model CaseType {
-  id                String   @id @default(uuid())
-  name              String
-  description       String?
-  organizationId    String
-  organization      Organization @relation(fields: [organizationId], references: [id])
-  cases             Case[]
-  tasksTemplate     Json?
-  documentsTemplate Json?
-  rules             Json?
-  createdAt         DateTime @default(now())
+  id                     String                   @id @default(uuid())
+  name                   String
+  description            String?
+  organizationId         String
+  organization           Organization             @relation(fields: [organizationId], references: [id])
+  cases                  Case[]
+  tasksTemplate          Json?
+  documentsTemplate      Json?
+  rules                  Json?
+  createdAt              DateTime                 @default(now())
+
+  // Собственная воронка стадий для этого типа дела (см. CaseStage.caseTypeId).
+  // Если пусто — дела этого типа используют дефолтные стадии организации
+  // (стадии с caseTypeId = null).
+  stages                 CaseStage[]
+
+  // Поля дела, специфичные именно для этого типа (например, "кадастровый номер"
+  // только для "Сделка с недвижимостью"). Универсальные поля для всех типов
+  // дел настраиваются с caseTypeId = null на CustomFieldDefinition.
+  customFieldDefinitions CustomFieldDefinition[]
 
   @@index([organizationId])
   @@unique([organizationId, name])
@@ -150,6 +165,10 @@ model Case {
   deadlineSourceDate      DateTime?
   deadlineDays            Int?
   deadlineReminderSentAt  DateTime?
+
+  // Значения настраиваемых полей дела: { "<key>": "значение" }.
+  // Автоматически доступны в шаблонах документов как {{custom.<key>}}.
+  customFields            Json?
 
   @@index([organizationId])
   @@index([organizationId, title])
@@ -223,8 +242,19 @@ model CaseStage {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
+  // Если null — это дефолтная (общая) стадия организации, используется типами дел
+  // без собственной воронки. Если указан — стадия принадлежит воронке конкретного
+  // типа дела и видна/используется только в рамках него.
+  // Уникальность order внутри группы (organizationId, caseTypeId) поддерживается
+  // на уровне CaseStageService (транзакционный сдвиг), не через DB-констрейнт —
+  // Postgres считает NULL уникальным для каждой строки, поэтому unique-индекс
+  // с nullable caseTypeId не защитил бы дефолтную группу от дублей order.
+  caseTypeId      String?
+  caseType        CaseType?    @relation(fields: [caseTypeId], references: [id])
+
   @@index([organizationId])
-  @@unique([organizationId, order])
+  @@index([organizationId, caseTypeId])
+  @@index([organizationId, caseTypeId, order])
 }
 
 model AuditLog {
@@ -258,6 +288,51 @@ model DocumentTemplate {
   updatedAt      DateTime     @updatedAt
 
   @@index([organizationId])
+}
+
+// =========================
+// НАСТРАИВАЕМЫЕ ПОЛЯ (клиент / дело)
+// Владелец организации описывает набор полей под свою сферу деятельности
+// (паспортные данные, ИНН, кадастровый номер, номер полиса и т.д.).
+// Значения хранятся в Client.customFields / Case.customFields по полю `key`.
+// Поля дела с key автоматически доступны в шаблонах как {{custom.key}}.
+// =========================
+model CustomFieldDefinition {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  // "CLIENT" | "CASE"
+  entityType     String
+
+  // Ключ переменной, например "кадастровый_номер" -> {{custom.кадастровый_номер}}.
+  // Уникален в рамках (organizationId, entityType).
+  key            String
+
+  // Отображаемое название поля в интерфейсе, например "Кадастровый номер"
+  label          String
+
+  // "TEXT" | "TEXTAREA" | "NUMBER" | "DATE" | "SELECT" | "BOOLEAN"
+  fieldType      String       @default("TEXT")
+
+  // Варианты для fieldType = SELECT: ["Вариант 1", "Вариант 2"]
+  options        Json?
+
+  required       Boolean      @default(false)
+  order          Int          @default(0)
+
+  // Только для entityType = CASE: если задан — поле показывается только
+  // для дел этого типа. Если null — поле общее для всех типов дел организации.
+  // Для entityType = CLIENT это поле игнорируется (клиенты не типизированы).
+  caseTypeId     String?
+  caseType       CaseType?    @relation(fields: [caseTypeId], references: [id])
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, entityType])
+  @@unique([organizationId, entityType, key])
 }
 
 model Plan {
