@@ -1,8 +1,8 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FileText, Plus, ChevronLeft, Trash2, Pencil, Info } from 'lucide-react';
+import { FileText, Plus, ChevronLeft, Trash2, Pencil, Lightbulb, FileStack } from 'lucide-react';
 
 import { AppShell } from '@/components/layout/app-shell';
 import { documentTemplatesApi } from '@/lib/api';
@@ -25,6 +25,109 @@ interface TemplateVariable {
   label: string;
 }
 
+// =========================
+// Эмодзи для переменных. Для базовых переменных — фиксированное соответствие,
+// для {{custom.*}} — подбирается по ключевым словам в названии поля
+// (паспорт, адрес, кадастр, полис, ИНН и т.д.), иначе — нейтральная иконка.
+// =========================
+const BASE_VARIABLE_EMOJI: Record<string, string> = {
+  'client.fullName': '🧑',
+  'client.phone': '📞',
+  'client.email': '📧',
+  'case.title': '📋',
+  'case.description': '📄',
+  'organization.name': '🏢',
+  'lawyer.email': '⚖️',
+  today: '📅',
+};
+
+const CUSTOM_EMOJI_HINTS: [string, string][] = [
+  ['паспорт', '📝'],
+  ['кадастр', '🏠'],
+  ['адрес', '📍'],
+  ['полис', '🛡️'],
+  ['инн', '🧾'],
+  ['номер', '🔢'],
+  ['сумма', '💰'],
+  ['дата', '📅'],
+  ['телефон', '📞'],
+  ['email', '📧'],
+];
+
+function emojiFor(variable: TemplateVariable): string {
+  if (BASE_VARIABLE_EMOJI[variable.key]) return BASE_VARIABLE_EMOJI[variable.key];
+  const lowerLabel = variable.label.toLowerCase();
+  const hit = CUSTOM_EMOJI_HINTS.find(([hint]) => lowerLabel.includes(hint));
+  return hit ? hit[1] : '🔖';
+}
+
+// Короткое человекочитаемое название без пометки "(клиент)/(дело)" — для чипов и превью
+function shortLabel(variable: TemplateVariable): string {
+  return variable.label.replace(/\s*\((клиент|дело)\)\s*$/i, '');
+}
+
+// =========================
+// Готовые образцы документов. Специфичные кастомные поля (паспорт,
+// кадастровый номер) подставляются только если такие поля реально
+// настроены в организации — иначе просто пропускаются в тексте.
+// =========================
+function buildSamples(variables: TemplateVariable[]) {
+  const passport = variables.find(
+    (v) => v.key.startsWith('custom.') && v.label.toLowerCase().includes('паспорт'),
+  );
+  const cadastre = variables.find(
+    (v) => v.key.startsWith('custom.') && v.label.toLowerCase().includes('кадастр'),
+  );
+
+  const passportLine = passport ? `, паспорт: {{${passport.key}}}` : '';
+  const cadastreLine = cadastre
+    ? `с кадастровым номером {{${cadastre.key}}}, `
+    : '';
+
+  return {
+    contract: `ДОГОВОР КУПЛИ-ПРОДАЖИ\n\nЯ, {{client.fullName}}${passportLine}, проживающий по адресу: _________________,\n\nпродаю объект недвижимости ${cadastreLine}расположенный по адресу: _________________.\n\nДата: {{today}}\n\nПодпись продавца: _______________\nПодпись покупателя: _______________`,
+    power: `ДОВЕРЕННОСТЬ\n\nЯ, {{client.fullName}}${passportLine},\n\nнастоящей доверенностью уполномочиваю представлять мои интересы по делу «{{case.title}}».\n\nДата: {{today}}\n\nПодпись: _______________`,
+    claim: `ПРЕТЕНЗИЯ\n\nОт: {{client.fullName}}\nТелефон: {{client.phone}}\n\nПо делу: {{case.title}}\n\nНастоящим заявляю требование о _________________________________.\n\nДата: {{today}}\n\nПодпись: _______________`,
+  };
+}
+
+// =========================
+// Рендер предпросмотра: {{key}} → цветной teal-чип с человеческим названием.
+// Неизвестные переменные (нет в списке organizации) показываются как есть,
+// чтобы автор шаблона сразу заметил опечатку в ключе.
+// =========================
+function renderPreview(content: string, variables: TemplateVariable[]) {
+  if (!content.trim()) {
+    return <span className="text-muted-foreground">Текст документа появится здесь...</span>;
+  }
+
+  const byKey = new Map(variables.map((v) => [v.key, v]));
+  const parts = content.split(/(\{\{[^}]+\}\})/g);
+
+  return parts.map((part, i) => {
+    const match = part.match(/^\{\{([^}]+)\}\}$/);
+    if (!match) {
+      return <span key={i}>{part}</span>;
+    }
+    const key = match[1].trim();
+    const variable = byKey.get(key);
+    return (
+      <span
+        key={i}
+        className="mx-0.5 inline-block rounded-md border px-2 py-0.5 text-xs font-medium"
+        style={{
+          backgroundColor: '#f0fdfa',
+          borderColor: variable ? '#0d9488' : '#f59e0b',
+          color: variable ? '#0d9488' : '#b45309',
+        }}
+        title={variable ? undefined : 'Такой переменной нет в списке — проверьте ключ'}
+      >
+        {variable ? `${emojiFor(variable)} ${shortLabel(variable)}` : `⚠️ ${key}`}
+      </span>
+    );
+  });
+}
+
 export default function DocumentTemplatesPage() {
   const router = useRouter();
   const [templates, setTemplates] = useState<DocumentTemplate[]>([]);
@@ -41,6 +144,8 @@ export default function DocumentTemplatesPage() {
 
   const [templateToDelete, setTemplateToDelete] = useState<DocumentTemplate | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const samples = useMemo(() => buildSamples(variables), [variables]);
 
   async function loadTemplates() {
     const token = getAccessToken();
@@ -137,6 +242,10 @@ export default function DocumentTemplatesPage() {
 
   function insertVariable(key: string) {
     setContent((prev) => `${prev}{{${key}}}`);
+  }
+
+  function loadSample(type: keyof ReturnType<typeof buildSamples>) {
+    setContent(samples[type]);
   }
 
   return (
@@ -236,6 +345,63 @@ export default function DocumentTemplatesPage() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
+
+            {/* ===== Готовые образцы ===== */}
+            <div>
+              <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <FileStack size={13} /> Готовые образцы (нажмите, чтобы заполнить)
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => loadSample('contract')}
+                  className="rounded-lg border border-dashed border-border px-3 py-1.5 text-xs transition hover:border-[#0d9488] hover:text-[#0d9488] hover:bg-[#f0fdfa]"
+                >
+                  Договор купли-продажи
+                </button>
+                <button
+                  type="button"
+                  onClick={() => loadSample('power')}
+                  className="rounded-lg border border-dashed border-border px-3 py-1.5 text-xs transition hover:border-[#0d9488] hover:text-[#0d9488] hover:bg-[#f0fdfa]"
+                >
+                  Доверенность
+                </button>
+                <button
+                  type="button"
+                  onClick={() => loadSample('claim')}
+                  className="rounded-lg border border-dashed border-border px-3 py-1.5 text-xs transition hover:border-[#0d9488] hover:text-[#0d9488] hover:bg-[#f0fdfa]"
+                >
+                  Претензия
+                </button>
+              </div>
+            </div>
+
+            {/* ===== Кнопки переменных с эмодзи ===== */}
+            {variables.length > 0 && (
+              <div className="rounded-xl border border-border/60 bg-muted/40 p-3">
+                <div className="mb-2 flex items-start gap-1.5 text-xs text-muted-foreground">
+                  <Lightbulb size={13} className="mt-0.5 shrink-0" />
+                  Нажимайте на кнопки, чтобы вставить данные клиента или дела. При создании
+                  документа они заменятся на реальные значения.
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {variables.map((v) => (
+                    <button
+                      key={v.key}
+                      type="button"
+                      onClick={() => insertVariable(v.key)}
+                      className="flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs transition hover:border-[#0d9488] hover:text-[#0d9488] hover:bg-[#f0fdfa]"
+                      title={`{{${v.key}}}`}
+                    >
+                      <span>{emojiFor(v)}</span>
+                      {shortLabel(v)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ===== Текст документа ===== */}
             <div className="space-y-1">
               <label className="text-sm font-medium text-foreground">Текст документа</label>
               <textarea
@@ -246,30 +412,17 @@ export default function DocumentTemplatesPage() {
                 placeholder={
                   'Например:\n\nДОВЕРЕННОСТЬ\n\nВыдана {{client.fullName}} на представление интересов по делу «{{case.title}}».\n\nДата: {{today}}'
                 }
-                className="w-full rounded-xl border border-border bg-background p-3 text-sm outline-none transition focus:border-primary"
+                className="w-full rounded-xl border border-border bg-background p-3 text-sm outline-none transition focus:border-[#0d9488]"
               />
             </div>
 
-            {variables.length > 0 && (
-              <div className="rounded-xl border border-border/60 bg-muted/40 p-3">
-                <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                  <Info size={13} /> Вставить переменную (заполнится автоматически по делу)
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {variables.map((v) => (
-                    <button
-                      key={v.key}
-                      type="button"
-                      onClick={() => insertVariable(v.key)}
-                      className="rounded-lg border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground transition hover:border-primary/50 hover:text-foreground"
-                      title={v.label}
-                    >
-                      {`{{${v.key}}}`}
-                    </button>
-                  ))}
-                </div>
+            {/* ===== Предпросмотр ===== */}
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">👁 Предпросмотр</label>
+              <div className="min-h-[64px] whitespace-pre-wrap rounded-xl border border-border bg-muted/30 p-3 text-sm leading-relaxed">
+                {renderPreview(content, variables)}
               </div>
-            )}
+            </div>
 
             {formError && <p className="text-xs text-red-500">{formError}</p>}
 
@@ -323,4 +476,4 @@ export default function DocumentTemplatesPage() {
       </div>
     </AppShell>
   );
-}
+                    }
