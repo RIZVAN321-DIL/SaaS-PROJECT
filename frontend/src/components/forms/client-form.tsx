@@ -1,12 +1,13 @@
 // Файл 4: frontend/src/components/forms/client-form.tsx
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 
-import { clientsApi } from '@/lib/api';
+import { clientsApi, customFieldDefinitionsApi } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { DynamicCustomFields } from '@/components/forms/dynamic-custom-fields';
 
 interface ClientToEdit {
   id: string;
@@ -14,6 +15,17 @@ interface ClientToEdit {
   email?: string;
   phone?: string;
   notes?: string;
+  customFields?: Record<string, any>;
+}
+
+interface CustomFieldDefinition {
+  id: string;
+  key: string;
+  label: string;
+  fieldType: 'TEXT' | 'TEXTAREA' | 'NUMBER' | 'DATE' | 'SELECT' | 'BOOLEAN';
+  options?: string[] | null;
+  required: boolean;
+  order: number;
 }
 
 interface ClientFormProps {
@@ -29,7 +41,34 @@ export function ClientForm({ clientToEdit, onSuccess }: ClientFormProps) {
   const [email, setEmail] = useState(clientToEdit?.email ?? '');
   const [phone, setPhone] = useState(clientToEdit?.phone ?? '');
   const [notes, setNotes] = useState(clientToEdit?.notes ?? '');
+  const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDefinition[]>([]);
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>(
+    clientToEdit?.customFields ?? {},
+  );
   const [error, setError] = useState('');
+
+  // Настраиваемые поля клиента задаются владельцем организации в Настройках
+  // и одинаковы для всех клиентов (не зависят от типа дела).
+  useEffect(() => {
+    async function loadDefs() {
+      const token = getAccessToken();
+      if (!token) return;
+      try {
+        const defs = (await customFieldDefinitionsApi.getAll(
+          'CLIENT',
+          token,
+        )) as CustomFieldDefinition[];
+        setCustomFieldDefs(defs);
+      } catch {
+        // если поля не настроены — форма просто без доп. блока
+      }
+    }
+    loadDefs();
+  }, []);
+
+  function handleCustomFieldChange(key: string, value: any) {
+    setCustomFieldValues((prev) => ({ ...prev, [key]: value }));
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -50,6 +89,7 @@ export function ClientForm({ clientToEdit, onSuccess }: ClientFormProps) {
         email: email.trim() || undefined,
         phone: phone.trim() || undefined,
         notes: notes.trim() || undefined,
+        customFields: customFieldValues,
       };
 
       if (isEditing && clientToEdit) {
@@ -61,6 +101,7 @@ export function ClientForm({ clientToEdit, onSuccess }: ClientFormProps) {
         setEmail('');
         setPhone('');
         setNotes('');
+        setCustomFieldValues({});
       }
 
       onSuccess?.();
@@ -110,6 +151,12 @@ export function ClientForm({ clientToEdit, onSuccess }: ClientFormProps) {
         />
       </div>
 
+      <DynamicCustomFields
+        definitions={customFieldDefs}
+        values={customFieldValues}
+        onChange={handleCustomFieldChange}
+      />
+
       {error && (
         <div className="rounded-xl border border-red-500/30 p-3 text-sm">
           {error}
@@ -121,4 +168,4 @@ export function ClientForm({ clientToEdit, onSuccess }: ClientFormProps) {
       </Button>
     </form>
   );
-}
+                                }
