@@ -40,6 +40,7 @@ import { PermissionsModule } from './modules/permissions/permissions.module';
 import { ClientsModule } from './modules/clients/clients.module';
 import { CasesModule } from './modules/cases/cases.module';
 import { CaseTypesModule } from './modules/case-types/case-types.module';
+import { CustomFieldsModule } from './modules/custom-fields/custom-fields.module';
 
 // =========================
 // PIPELINE
@@ -113,6 +114,7 @@ import { AdminModule } from './modules/admin/admin.module';
     ClientsModule,
     CasesModule,
     CaseTypesModule,
+    CustomFieldsModule,
 
     CaseStageModule,
 
